@@ -42,7 +42,7 @@ const accessSteps = [
         number: '1',
         title: 'Pedir acesso',
         description:
-            'Indique o seu email e submeta o pedido para participar na fase piloto. A password pessoal só é definida no seu dispositivo depois de o acesso ser aprovado e nunca é enviada à MA-CODE.'
+            'Indique o seu email e escolha a sua password pessoal ao submeter o pedido. A password permanece no seu dispositivo e nunca é enviada nem guardada pela MA-CODE.'
     },
     {
         number: '2',
@@ -54,7 +54,7 @@ const accessSteps = [
         number: '3',
         title: 'Começar a utilizar',
         description:
-            'Se o acesso for aprovado, recebe por email a senha de ativação e define a sua password pessoal no dispositivo para concluir a ativação protegida. A senha MP não substitui a password pessoal.'
+            'Se o acesso for aprovado, recebe por email a senha de ativação e utiliza a password pessoal que escolheu no pedido para concluir a ativação protegida. A senha MP não substitui a password pessoal.'
     }
 ];
 
