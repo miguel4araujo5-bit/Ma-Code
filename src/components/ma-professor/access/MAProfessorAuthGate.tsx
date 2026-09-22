@@ -397,6 +397,35 @@ export default function MAProfessorAuthGate({
         return
       }
 
+      if (
+        personalPassword.length <
+          PERSONAL_PASSWORD_MIN_LENGTH ||
+        personalPassword.length >
+          PERSONAL_PASSWORD_MAX_LENGTH
+      ) {
+        setError(
+          `A password pessoal deve ter entre ${PERSONAL_PASSWORD_MIN_LENGTH} e ${PERSONAL_PASSWORD_MAX_LENGTH} caracteres.`
+        )
+        return
+      }
+
+      if (
+        personalPassword !==
+        personalPasswordConfirm
+      ) {
+        setError(
+          'As duas passwords pessoais não coincidem.'
+        )
+        return
+      }
+
+      if (!passwordNoticeConfirmed) {
+        setError(
+          'Confirme que guardou a sua password e leu a informação de privacidade e os Termos do MA-Professor.'
+        )
+        return
+      }
+
       setBusy(true)
 
       try {
@@ -646,7 +675,7 @@ export default function MAProfessorAuthGate({
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">
-            Introduza o seu email para pedir acesso. A password pessoal só será definida no seu dispositivo depois de o pedido ser aprovado e nunca é enviada à MA-CODE.
+            Introduza o seu email e escolha a password pessoal que irá utilizar para entrar na sua conta MA-Professor. A password é tratada apenas no seu dispositivo e nunca é enviada nem guardada pela MA-CODE.
           </p>
 
           <p className="mt-3 text-xs leading-6 text-slate-400">
@@ -689,6 +718,96 @@ export default function MAProfessorAuthGate({
               />
             </label>
 
+            <label className="block">
+              <span className="text-xs font-bold text-slate-300">
+                Password pessoal
+              </span>
+              <input
+                type="password"
+                value={personalPassword}
+                onChange={
+                  event =>
+                    setPersonalPassword(
+                      event.target.value
+                    )
+                }
+                autoComplete="new-password"
+                minLength={PERSONAL_PASSWORD_MIN_LENGTH}
+                maxLength={PERSONAL_PASSWORD_MAX_LENGTH}
+                required
+                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+              />
+            </label>
+            <p className="-mt-2 text-[0.7rem] leading-5 text-slate-500">
+              Introduza a password escolhida no pedido de acesso. Use pelo menos 15 caracteres; uma frase-passe longa é recomendada.
+            </p>
+
+            <label className="block">
+              <span className="text-xs font-bold text-slate-300">
+                Confirmar password pessoal
+              </span>
+              <input
+                type="password"
+                value={personalPasswordConfirm}
+                onChange={
+                  event =>
+                    setPersonalPasswordConfirm(
+                      event.target.value
+                    )
+                }
+                autoComplete="new-password"
+                minLength={PERSONAL_PASSWORD_MIN_LENGTH}
+                maxLength={PERSONAL_PASSWORD_MAX_LENGTH}
+                required
+                className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+              />
+            </label>
+
+            <div className="rounded-2xl border border-amber-300/35 bg-amber-300/[0.08] p-4 text-sm text-amber-50 shadow-lg shadow-amber-950/10">
+              <div className="flex items-start gap-4">
+                <PasswordWarningIcon />
+                <div className="min-w-0">
+                  <p className="font-black leading-6 text-amber-100">
+                    Importante: guarde esta password num local seguro.
+                  </p>
+                  <p className="mt-2 text-xs leading-6 text-amber-50/90">
+                    A password não é enviada nem guardada pela MA-CODE. O pedido de acesso enviado ao servidor contém apenas o email e os dados técnicos necessários à gestão e proteção do serviço. Quando concluir a ativação protegida, a password será usada localmente pelo protocolo OPAQUE.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-200 transition hover:border-amber-300/30">
+              <input
+                type="checkbox"
+                checked={passwordNoticeConfirmed}
+                onChange={
+                  event =>
+                    setPasswordNoticeConfirmed(
+                      event.target.checked
+                    )
+                }
+                required
+                className="mt-1 h-4 w-4 shrink-0 accent-amber-300"
+              />
+              <span>
+                Confirmo que guardei a minha password, li a{' '}
+                <a
+                  href="/privacidade/ma-professor"
+                  className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4"
+                >
+                  informação de privacidade
+                </a>{' '}
+                e os{' '}
+                <a
+                  href="/termos/ma-professor"
+                  className="font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4"
+                >
+                  Termos do MA-Professor
+                </a>.
+              </span>
+            </label>
+
             {error ? (
               <p className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">
                 {error}
@@ -697,7 +816,10 @@ export default function MAProfessorAuthGate({
 
             <button
               type="submit"
-              disabled={busy}
+              disabled={
+                busy ||
+                !passwordNoticeConfirmed
+              }
               className="w-full rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy
@@ -718,6 +840,9 @@ export default function MAProfessorAuthGate({
           </h1>
           <p className="mt-4 text-sm leading-7 text-slate-300">
             {message}
+          </p>
+          <p className="mt-3 text-xs leading-6 text-slate-400">
+            A password que escolheu não foi enviada à MA-CODE. Guarde-a: quando receber a senha de ativação poderá ter de a introduzir novamente para concluir a ativação protegida.
           </p>
           <button
             type="button"
@@ -831,7 +956,7 @@ export default function MAProfessorAuthGate({
             </p>
           ) : (
             <p className="mt-3 rounded-xl border border-violet-300/15 bg-violet-300/[0.06] px-4 py-3 text-xs leading-6 text-violet-100">
-              A senha de ativação serve apenas para autorizar este período. A sua password pessoal é criada agora no seu dispositivo e não é enviada à MA-CODE.
+              A senha de ativação serve apenas para autorizar este período. Introduza a password pessoal que escolheu quando pediu acesso. Se chegou diretamente a esta etapa, pode escolhê-la agora. A password não é enviada nem guardada pela MA-CODE.
             </p>
           )}
 
