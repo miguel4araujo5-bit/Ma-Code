@@ -198,7 +198,15 @@ export async function requestPersistentMAProfessorStorage(): Promise<
       })()
   }
 
-  return persistentStorageRequest
+  const result =
+    await persistentStorageRequest
+
+  if (result !== true) {
+    persistentStorageRequest =
+      null
+  }
+
+  return result
 }
 
 export async function getMAProfessorStorageStatus(): Promise<
