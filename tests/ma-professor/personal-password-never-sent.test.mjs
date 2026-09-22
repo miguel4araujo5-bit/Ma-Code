@@ -155,7 +155,7 @@ test(
 )
 
 test(
-  'onboarding creates the personal password only after approval during protected activation',
+  'onboarding lets the professor choose the password in the access request without sending it to the server',
   () => {
     const requestHandler =
       authGateSource.match(
@@ -164,11 +164,15 @@ test(
 
     assert.match(
       requestHandler,
-      /submitMAProfessorAccessRequest\(\s*normalizedEmail\s*\)/
+      /personalPassword\.length <\s*PERSONAL_PASSWORD_MIN_LENGTH/
     )
-    assert.doesNotMatch(
+    assert.match(
       requestHandler,
-      /personalPassword/
+      /personalPassword !==\s*personalPasswordConfirm/
+    )
+    assert.match(
+      requestHandler,
+      /submitMAProfessorAccessRequest\(\s*normalizedEmail\s*\)/
     )
 
     const activationHandler =
