@@ -851,17 +851,12 @@ function ProductIcon({
 
   if (type === 'professor') {
     return (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-7 w-7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      >
-        <path d="M3.8 9.2 12 5l8.2 4.2L12 13.4 3.8 9.2Z" />
-
-        <path d="M6.5 10.7v4.2c0 1.7 2.6 3.1 5.5 3.1s5.5-1.4 5.5-3.1v-4.2" />
-      </svg>
+      <img
+        src="/ma-professor/logo.svg"
+        alt=""
+        aria-hidden="true"
+        className="h-9 w-9 rounded-xl object-contain"
+      />
     )
   }
 
