@@ -77,6 +77,12 @@ export default function CloudBackupPreferencePanel({
       <p className="mt-2 text-xs leading-6 text-slate-400">
         Esta escolha aplica-se à sua conta neste dispositivo. Desativar impede novos envios automáticos e mantém as cópias já guardadas, o restauro e as cópias manuais.
       </p>
+      <a
+        href="/privacidade/ma-professor"
+        className="mt-2 inline-block text-xs font-bold text-cyan-200 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
+      >
+        Consultar informação de privacidade
+      </a>
       <div className="mt-3 flex flex-wrap gap-3">
         {preference !== 'enabled' ? (
           <button
