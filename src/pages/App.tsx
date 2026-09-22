@@ -48,6 +48,13 @@ const MAProfessorPrivacyPage = lazy(
     )
 )
 
+const MAProfessorTermsPage = lazy(
+  () =>
+    import(
+      './MAProfessorTermsPage'
+    )
+)
+
 const MAQuadroPage = lazy(
   () => import('./MAQuadroPage')
 )
@@ -102,6 +109,10 @@ type AppPage =
   | {
       type:
         'ma-professor-privacy'
+    }
+  | {
+      type:
+        'ma-professor-terms'
     }
   | {
       type: 'ma-quadro'
@@ -209,6 +220,16 @@ function getPageFromPath(): AppPage {
     return {
       type:
         'ma-professor-privacy'
+    }
+  }
+
+  if (
+    path ===
+    '/termos/ma-professor'
+  ) {
+    return {
+      type:
+        'ma-professor-terms'
     }
   }
 
@@ -351,6 +372,15 @@ export default function App() {
   ) {
     return (
       <MAProfessorPrivacyPage />
+    )
+  }
+
+  if (
+    page.type ===
+    'ma-professor-terms'
+  ) {
+    return (
+      <MAProfessorTermsPage />
     )
   }
 
