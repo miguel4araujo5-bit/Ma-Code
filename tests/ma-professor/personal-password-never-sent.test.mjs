@@ -280,11 +280,15 @@ test(
   () => {
     assert.match(
       authGateSource,
-      /password pessoal[\s\S]*?nunca é enviada nem guardada pela MA-CODE/
+      /Nunca recebemos nem guardamos a sua password/
     )
     assert.match(
       authGateSource,
-      /não é enviada nem guardada pela MA-CODE/
+      /protocolo OPAQUE[\s\S]*?servidor recebe só os dados criptográficos necessários/
+    )
+    assert.match(
+      authGateSource,
+      /novas cópias usam proteção v3[\s\S]*?servidor não guarda o necessário para os decifrar/
     )
 
     assert.match(
