@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MA PDF"><title>MA PDF</title>
+  <defs>
+    <linearGradient id="maPdfDocTile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#maPdfDocTile)"/>
+  <rect x="3" y="3" width="506" height="506" rx="113" fill="none" stroke="#f87171" stroke-opacity="0.3" stroke-width="6"/>
+
+  <path d="M164 96 L304 96 L376 168 L376 388 A28 28 0 0 1 348 416 L164 416 A28 28 0 0 1 136 388 L136 124 A28 28 0 0 1 164 96 Z"
+        fill="#020617" stroke="#f87171" stroke-opacity="0.5" stroke-width="7" stroke-linejoin="round"/>
+
+  <path d="M304 96 L304 168 L376 168 Z" fill="#f87171" fill-opacity="0.3"/>
+
+  <g fill="#f87171" fill-opacity="0.3">
+    <rect x="176" y="230" width="160" height="24" rx="12"/>
+    <rect x="176" y="276" width="128" height="24" rx="12"/>
+  </g>
+
+  <rect x="176" y="322" width="104" height="24" rx="12" fill="#f87171"/>
+</svg>
