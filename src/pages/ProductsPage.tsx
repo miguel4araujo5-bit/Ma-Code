@@ -76,6 +76,8 @@ const products:
     status:
       'Disponível',
     badge: '₿',
+    badgeLogoSrc:
+      '/ma-btc-alertas/logo.svg',
     badgeClassName:
       'border-orange-300/35 bg-[#f7931a]/15 text-orange-100 shadow-orange-950/30',
     highlights: [
