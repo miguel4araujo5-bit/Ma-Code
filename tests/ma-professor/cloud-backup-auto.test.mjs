@@ -81,7 +81,7 @@ test(
     )
     assert.match(
       syncPanel,
-      /busy \|\| !keyAvailable/
+      /busy \|\| needsReauthentication/
     )
     assert.match(
       syncPanel,

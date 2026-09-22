@@ -221,7 +221,7 @@ test('v3 preparation fails closed without an in-memory OPAQUE export key and per
   const backup = { product: 'ma-professor', data: { students: [] } }
   await assert.rejects(
     service.prepareMAProfessorCloudBackupV3Promotion(session, backup),
-    /sessão OPAQUE necessária/
+    /Confirme novamente a sua password/
   )
   assert.equal(fetchMock.mock.callCount(), 0)
 })
@@ -427,30 +427,19 @@ test('revoking the choice while encryption is in progress prevents push; manual 
   assert.deepEqual(downloaded.backup, backup)
 })
 
-test('reload with v3 loses only the memory key: show unlock, stop retries, preserve local edits and resume after password', async t => {
+test('reload with v3 loses only the memory key: automatic backup stops retries without showing a global password bar and resumes after unlock', async t => {
   const { service, dexie, storage, tick } = await automaticHarness(t, ({ preference, storage }) => {
     storage.setKey(null)
     preference.writeCloudBackupPreference(session, 'enabled')
   })
-  assert.match(document.body.textContent, /Confirme a sua password/)
+  assert.equal(document.querySelector('input[type=password]'), null)
+  assert.doesNotMatch(document.body.textContent, /Confirme a sua password/)
   const initialCalls = { ...service.calls }
   dexie.mutate()
   await tick(60 * 60 * 1000)
   assert.deepEqual(service.calls, initialCalls, 'No silent retry requests while locked')
-  const input = document.querySelector('input[type=password]')
-  const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
-  await act(async () => {
-    setValue.call(input, 'wrong-password')
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-    input.dispatchEvent(new Event('change', { bubbles: true }))
-  })
-  // Exercise the form with React's native change tracker in jsdom.
-  await act(async () => document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
-  assert.match(document.body.textContent, /Não foi possível confirmar a password/)
-  assert.equal(document.querySelector('input[type=password]').value, '')
   assert.equal(service.calls.upload, 0)
   await act(async () => storage.setKey('memory-key'))
-  assert.doesNotMatch(document.body.textContent, /A cópia protegida precisa da sua password/)
   await tick(90 * 1000)
   assert.equal(service.calls.upload, 1)
   assert.equal(Object.values(window.localStorage).some(value => value.includes('memory-key')), false)
