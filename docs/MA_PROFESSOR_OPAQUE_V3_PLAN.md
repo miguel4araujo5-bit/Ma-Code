@@ -29,7 +29,7 @@ Não instalar a dependência em produção antes de existir um spike de build/ru
 ## Separação de segredos
 
 - Password pessoal: é usada apenas no cliente pelo protocolo OPAQUE e não faz parte dos payloads públicos de pedido, ativação ou login.
-- O pedido inicial é email-only. A password pessoal só é criada no dispositivo depois da aprovação, durante a ativação protegida por senha MP.
+- O pedido enviado ao servidor continua a ser email-only. O professor escolhe a password pessoal no formulário inicial, mas essa password permanece apenas no dispositivo e não faz parte do pedido enviado; o registo OPAQUE só é concluído durante a ativação protegida por senha MP.
 - Os caminhos públicos legados que recebiam password pessoal/PBKDF2 foram descontinuados; o login público é exclusivamente OPAQUE.
 - Senha MP: apenas autoriza a criação inicial do registo OPAQUE e ativa/licencia o período; nunca deriva chaves.
 - OPAQUE export key: apenas cliente.
