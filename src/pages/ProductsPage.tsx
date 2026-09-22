@@ -99,6 +99,8 @@ const products:
     status:
       'Disponível',
     badge: '✂',
+    badgeLogoSrc:
+      '/ma-recortes/logo.svg',
     badgeClassName:
       'border-violet-300/30 bg-violet-300/10 text-violet-100 shadow-violet-950/30',
     highlights: [
