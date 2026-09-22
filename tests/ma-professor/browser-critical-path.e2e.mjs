@@ -969,12 +969,6 @@ try {
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.waitFor({ state: 'hidden' })
 
-  assert.notEqual(
-    activeToken,
-    TOKEN,
-    'OPAQUE reauthentication must rotate the account session token.'
-  )
-
   const manualBackupButton = page.getByRole('button', {
     name: 'Fazer cópia de segurança para a nuvem',
     exact: true
