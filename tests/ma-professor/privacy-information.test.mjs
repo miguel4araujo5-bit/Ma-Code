@@ -14,6 +14,7 @@ const read = path =>
 const [
   appSource,
   privacySource,
+  termsSource,
   authGateSource,
   preferenceSource,
   routeGeneratorSource
@@ -21,6 +22,7 @@ const [
   await Promise.all([
     read('src/pages/App.tsx'),
     read('src/pages/MAProfessorPrivacyPage.tsx'),
+    read('src/pages/MAProfessorTermsPage.tsx'),
     read('src/components/ma-professor/access/MAProfessorAuthGate.tsx'),
     read('src/components/ma-professor/sync/CloudBackupPreferencePanel.tsx'),
     read('scripts/generate-route-html.mjs')
@@ -96,6 +98,79 @@ test(
     assert.match(
       preferenceSource,
       /href="\/privacidade\/ma-professor"/
+    )
+  }
+)
+
+
+test(
+  'MA-Professor terms publish the Article 28 processing conditions and authorised-use guard',
+  () => {
+    assert.match(
+      appSource,
+      /'\/termos\/ma-professor'/
+    )
+    assert.match(
+      appSource,
+      /type:\s*'ma-professor-terms'/
+    )
+    assert.match(
+      appSource,
+      /<MAProfessorTermsPage \/>/
+    )
+    assert.match(
+      routeGeneratorSource,
+      /route:\s*'\/termos\/ma-professor'/
+    )
+    assert.match(
+      termsSource,
+      /artigo 28\.º do RGPD/
+    )
+    assert.match(
+      termsSource,
+      /só deve introduzir dados reais de alunos quando estiver autorizado/
+    )
+    assert.match(
+      termsSource,
+      /Cloudflare/
+    )
+    assert.match(
+      termsSource,
+      /Resend/
+    )
+    assert.match(
+      termsSource,
+      /aceites por pessoa com poderes para a representar/
+    )
+  }
+)
+
+test(
+  'privacy and activation flows expose provider roles and institutional authorisation',
+  () => {
+    assert.match(
+      privacySource,
+      /atividade exercida em nome individual/
+    )
+    assert.match(
+      privacySource,
+      /Resend/
+    )
+    assert.match(
+      privacySource,
+      /href="\/termos\/ma-professor"/
+    )
+    assert.match(
+      authGateSource,
+      /href="\/termos\/ma-professor"/
+    )
+    assert.match(
+      authGateSource,
+      /Se introduzir dados reais de alunos/
+    )
+    assert.match(
+      authGateSource,
+      /autorizada pela entidade responsável/
     )
   }
 )
