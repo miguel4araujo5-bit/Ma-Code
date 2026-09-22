@@ -28,6 +28,9 @@ const MAX_DEVICES_PER_EMAIL =
 const SESSION_MAX_AGE_DAYS =
   180
 
+const CURRENT_TERMS_VERSION =
+  '2026-09-22'
+
 const PASSWORD_MIN_LENGTH =
   6
 
@@ -159,6 +162,12 @@ interface StoredAccessRequest {
     number | null
 
   activatedAt:
+    number | null
+
+  termsVersionAccepted?:
+    string | null
+
+  termsAcceptedAt?:
     number | null
 
   failedActivationAttempts:
@@ -663,6 +672,20 @@ function normalizeId(
     : ''
 }
 
+function normalizeTermsVersion(
+  value: unknown
+) {
+  return typeof value ===
+    'string'
+    ? value
+        .trim()
+        .slice(
+          0,
+          32
+        )
+    : ''
+}
+
 function normalizePassword(
   value: unknown
 ) {
@@ -1139,6 +1162,16 @@ function buildAccessRequestSummary(
     activatedAt:
       toIso(
         request.activatedAt
+      ),
+
+    termsVersionAccepted:
+      request.termsVersionAccepted ??
+      null,
+
+    termsAcceptedAt:
+      toIso(
+        request.termsAcceptedAt ??
+        null
       )
   }
 }
@@ -2065,6 +2098,11 @@ export class MaProfessorAccessDurableObject {
         body.deviceId
       )
 
+    const termsVersion =
+      normalizeTermsVersion(
+        body.termsVersion
+      )
+
     if (
       !isValidEmail(
         email
@@ -2269,6 +2307,17 @@ export class MaProfessorAccessDurableObject {
 
     request.blockedUntil =
       null
+
+    if (
+      termsVersion ===
+      CURRENT_TERMS_VERSION
+    ) {
+      request.termsVersionAccepted =
+        termsVersion
+
+      request.termsAcceptedAt =
+        now
+    }
 
     request.updatedAt =
       now
