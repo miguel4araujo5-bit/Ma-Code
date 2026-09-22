@@ -68,7 +68,7 @@ const products:
   },
   {
     name:
-      'MA-Btc Alertas',
+      'MA-BTC Alertas',
     eyebrow:
       'Alertas Bitcoin',
     description:
