@@ -295,19 +295,24 @@ function normalizeScreen(
       MAX_SCREEN_LENGTH
     )
 
-  const pathname =
+  const screen =
     text
       .split(/[?#]/, 1)[0]
       .trim()
 
-  return pathname.startsWith(
-    '/'
+  if (
+    !screen ||
+    screen.includes(
+      '://'
+    )
+  ) {
+    return ''
+  }
+
+  return screen.slice(
+    0,
+    MAX_SCREEN_LENGTH
   )
-    ? pathname.slice(
-        0,
-        MAX_SCREEN_LENGTH
-      )
-    : ''
 }
 
 function normalizeOccurredAt(
