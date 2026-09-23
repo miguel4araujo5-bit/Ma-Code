@@ -99,6 +99,26 @@ export function getProblemReportScreen() {
     return '/produtos/ma-professor'
   }
 
+  try {
+    const productRoot =
+      document.querySelector<HTMLElement>(
+        '[data-ma-professor-screen]'
+      )
+
+    const screen =
+      productRoot?.dataset
+        .maProfessorScreen
+
+    if (screen) {
+      return normalizeText(
+        screen,
+        160
+      )
+    }
+  } catch {
+    // O pathname continua disponível como fallback sem ler dados pedagógicos.
+  }
+
   return normalizeText(
     window.location.pathname ||
       '/produtos/ma-professor',
