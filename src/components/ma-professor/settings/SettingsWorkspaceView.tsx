@@ -23,11 +23,16 @@ import {
   SearchSettingsPanel
 } from './SearchSettingsPanel'
 
+import {
+  ProblemReportPanel
+} from '../support/ProblemReportPanel'
+
 type SettingsTab =
   | 'profile'
   | 'backup'
   | 'search'
   | 'license'
+  | 'support'
 
 type SettingsNavigationItem =
   | SettingsTab
@@ -113,6 +118,17 @@ const tabs: Array<{
 
     description:
       'Acesso, validade e renovação'
+  },
+
+  {
+    id:
+      'support',
+
+    label:
+      'Diagnóstico e suporte',
+
+    description:
+      'Reportar um problema sem enviar dados escolares'
   }
 ]
 
@@ -264,6 +280,11 @@ export function SettingsWorkspaceView({
             {tab ===
             'license' ? (
               <LicenseSettingsPanel />
+            ) : null}
+
+            {tab ===
+            'support' ? (
+              <ProblemReportPanel />
             ) : null}
           </div>
         </div>
