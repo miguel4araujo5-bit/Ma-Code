@@ -196,7 +196,7 @@ export function ProblemReportDialog({
 
               <div>
                 <dt className="font-black text-slate-400">
-                  Browser
+                  Navegador
                 </dt>
                 <dd className="mt-1 break-words text-slate-200">
                   {draft.browser}
