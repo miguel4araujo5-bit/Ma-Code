@@ -739,6 +739,16 @@ function ProductContent() {
       data-theme={
         theme
       }
+      data-ma-professor-screen={
+        workspace ===
+          'menu'
+          ? `menu/${
+              menuNavigationRequest
+                ?.target ??
+              'home'
+            }`
+          : workspace
+      }
     >
       <ProductNavigation
         activeDestination={workspace === 'menu' ? menuNavigationRequest?.target ?? null : null}
