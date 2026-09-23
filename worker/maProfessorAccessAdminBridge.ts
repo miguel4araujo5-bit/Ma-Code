@@ -46,6 +46,9 @@ const INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH =
 const INTERNAL_ADMIN_LICENSE_REVOKE_PATH =
   '/__internal/ma-professor/admin/licenses/revoke'
 
+const INTERNAL_ADMIN_SESSION_REVOKE_PATH =
+  '/__internal/ma-professor/admin/sessions/revoke'
+
 const INTERNAL_ADMIN_CREDENTIAL_STATUS_PATH =
   '/__internal/ma-professor/admin/credentials/status'
 
@@ -1523,6 +1526,128 @@ export class MaProfessorAccessDurableObject {
     })
   }
 
+  private async handleSessionRevoke(
+    request: Request
+  ) {
+    if (
+      request.method !==
+      'POST'
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Método não permitido.'
+        },
+        405,
+        {
+          Allow: 'POST'
+        }
+      )
+    }
+
+    let body: JsonObject
+
+    try {
+      body =
+        await readInternalJsonBody(
+          request
+        )
+    } catch (error) {
+      return json(
+        {
+          success: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Pedido administrativo inválido.'
+        },
+        400
+      )
+    }
+
+    const email =
+      normalizeEmail(
+        body.email
+      )
+
+    if (!isValidEmail(email)) {
+      return json(
+        {
+          success: false,
+          message:
+            'Indique um email válido.'
+        },
+        400
+      )
+    }
+
+    const state =
+      await this.readAccessState()
+
+    const license =
+      state?.licenses?.[
+        email
+      ]
+
+    if (
+      !state ||
+      !license
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'A licença não foi encontrada.'
+        },
+        404
+      )
+    }
+
+    const now = Date.now()
+    let sessionsRevoked = 0
+
+    for (
+      const session of
+      Object.values(
+        state.sessions || {}
+      )
+    ) {
+      if (
+        session.email ===
+          email &&
+        session.revokedAt ===
+          null
+      ) {
+        session.revokedAt =
+          now
+
+        sessionsRevoked += 1
+      }
+    }
+
+    if (sessionsRevoked > 0) {
+      state.updatedAt =
+        now
+
+      await this.state.storage.put(
+        STORAGE_KEY,
+        state
+      )
+
+      this.refreshBase()
+    }
+
+    return json({
+      success: true,
+      message:
+        sessionsRevoked > 0
+          ? 'Sessões terminadas. A licença mantém-se ativa e o professor pode voltar a iniciar sessão.'
+          : 'Não existiam sessões ativas. A licença mantém-se inalterada.',
+      sessionsRevoked
+    })
+  }
+
   private async handleLicenseRevoke(
     request: Request
   ) {
@@ -2774,6 +2899,15 @@ export class MaProfessorAccessDurableObject {
 
     if (
       url.pathname ===
+      INTERNAL_ADMIN_SESSION_REVOKE_PATH
+    ) {
+      return this.handleSessionRevoke(
+        request
+      )
+    }
+
+    if (
+      url.pathname ===
       INTERNAL_ADMIN_LICENSE_REVOKE_PATH
     ) {
       return this.handleLicenseRevoke(
@@ -2983,6 +3117,31 @@ export async function dispenseMAProfessorAdminPayment(
   return stub.fetch(
     new Request(
       `https://ma-professor.internal${INTERNAL_ADMIN_COMMERCE_DISPENSE_PAYMENT_PATH}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            email
+          })
+      }
+    )
+  )
+}
+
+export async function revokeMAProfessorAdminSessions(
+  env: MaProfessorAccessEnv,
+  email: string
+) {
+  const stub =
+    getMAProfessorAccessStub(env)
+
+  return stub.fetch(
+    new Request(
+      `https://ma-professor.internal${INTERNAL_ADMIN_SESSION_REVOKE_PATH}`,
       {
         method: 'POST',
         headers: {

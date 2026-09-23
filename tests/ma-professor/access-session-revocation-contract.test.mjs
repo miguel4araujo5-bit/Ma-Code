@@ -202,8 +202,19 @@ async function stageProductionChain() {
       ).href
     )
 
+  const adminRuntime =
+    await import(
+      pathToFileURL(
+        join(
+          directory,
+          'maProfessorAccessAdminBridge.mjs'
+        )
+      ).href
+    )
+
   return {
     runtime,
+    adminRuntime,
     dispose: () =>
       rm(
         directory,
@@ -504,5 +515,193 @@ test(
       tokenHash:
         await hashTokenLegacyHex(token)
     })
+  }
+)
+
+
+test(
+  'admin can terminate account sessions without changing the license, credentials or another account',
+  async t => {
+    const {
+      adminRuntime,
+      dispose
+    } = await stageProductionChain()
+
+    t.after(dispose)
+
+    const email =
+      'session-reset@example.com'
+    const otherEmail =
+      'other-session@example.com'
+    const deviceId =
+      'device-session-reset-01'
+    const now = Date.now()
+
+    const initial =
+      createAccessState({
+        email,
+        deviceId,
+        tokenHash:
+          'target-session-1'
+      })
+
+    initial.sessions[
+      'target-session-2'
+    ] = {
+      tokenHash:
+        'target-session-2',
+      email,
+      deviceId:
+        'device-session-reset-02',
+      createdAt:
+        now,
+      lastSeenAt:
+        now,
+      revokedAt:
+        null
+    }
+
+    initial.licenses[
+      otherEmail
+    ] = {
+      ...initial.licenses[
+        email
+      ],
+      email:
+        otherEmail,
+      deviceIds: [
+        'device-other-01'
+      ]
+    }
+
+    initial.sessions[
+      'other-session'
+    ] = {
+      tokenHash:
+        'other-session',
+      email:
+        otherEmail,
+      deviceId:
+        'device-other-01',
+      createdAt:
+        now,
+      lastSeenAt:
+        now,
+      revokedAt:
+        null
+    }
+
+    initial.credentials[
+      email
+    ] = {
+      marker:
+        'preserve-credential'
+    }
+
+    const opaqueState = {
+      marker:
+        'preserve-opaque'
+    }
+
+    const storage =
+      new MemoryStorage({
+        [ACCESS_KEY]:
+          initial,
+        'ma-professor-opaque-auth-v1':
+          opaqueState
+      })
+
+    const licenseBefore =
+      clone(
+        initial.licenses[
+          email
+        ]
+      )
+    const credentialBefore =
+      clone(
+        initial.credentials[
+          email
+        ]
+      )
+
+    const access =
+      new adminRuntime
+        .MaProfessorAccessDurableObject(
+          createState(storage),
+          {}
+        )
+
+    const response =
+      await access.fetch(
+        request(
+          '/__internal/ma-professor/admin/sessions/revoke',
+          {
+            email
+          }
+        )
+      )
+
+    assert.equal(
+      response.status,
+      200
+    )
+
+    const body =
+      await response.json()
+
+    assert.equal(
+      body.success,
+      true
+    )
+    assert.equal(
+      body.sessionsRevoked,
+      2
+    )
+
+    const after =
+      storage.snapshot(
+        ACCESS_KEY
+      )
+
+    assert.deepEqual(
+      after.licenses[
+        email
+      ],
+      licenseBefore,
+      'Terminar sessões não pode alterar qualquer campo da licença.'
+    )
+    assert.deepEqual(
+      after.credentials[
+        email
+      ],
+      credentialBefore,
+      'Terminar sessões não pode alterar credenciais de ativação.'
+    )
+    assert.notEqual(
+      after.sessions[
+        'target-session-1'
+      ].revokedAt,
+      null
+    )
+    assert.notEqual(
+      after.sessions[
+        'target-session-2'
+      ].revokedAt,
+      null
+    )
+    assert.equal(
+      after.sessions[
+        'other-session'
+      ].revokedAt,
+      null,
+      'Sessões de outra conta têm de permanecer válidas.'
+    )
+    assert.deepEqual(
+      storage.snapshot(
+        'ma-professor-opaque-auth-v1'
+      ),
+      opaqueState,
+      'O estado OPAQUE não pode ser alterado.'
+    )
   }
 )

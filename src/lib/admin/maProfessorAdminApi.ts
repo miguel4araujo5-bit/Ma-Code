@@ -108,6 +108,7 @@ interface MAProfessorAdminActionResponse {
     MAProfessorAdminAccessRequestSummary
   license?:
     LicenseSummary
+  sessionsRevoked?: number
 }
 
 interface MAProfessorCredentialStatusResponse {
@@ -759,6 +760,37 @@ export async function dispenseMAProfessorPayment(
     'dispense-payment',
     'Não foi possível marcar o pagamento como dispensado.'
   )
+}
+
+export async function terminateMAProfessorSessions(
+  email: string
+) {
+  const data =
+    await postEmailAction(
+      '/sessions/revoke',
+      email,
+      'Não foi possível terminar as sessões da conta.'
+    )
+
+  if (
+    typeof data.sessionsRevoked !==
+      'number' ||
+    !Number.isInteger(
+      data.sessionsRevoked
+    ) ||
+    data.sessionsRevoked < 0
+  ) {
+    throw new Error(
+      'O backend administrativo devolveu um número de sessões inválido.'
+    )
+  }
+
+  return {
+    message:
+      data.message,
+    sessionsRevoked:
+      data.sessionsRevoked
+  }
 }
 
 export async function revokeMAProfessorLicense(

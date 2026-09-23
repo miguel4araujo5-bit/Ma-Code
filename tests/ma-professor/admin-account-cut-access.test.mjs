@@ -26,6 +26,22 @@ const adminApiSource = await readFile(
   'utf8'
 )
 
+const accountDetailSource = await readFile(
+  new URL(
+    '../../src/components/admin/ma-professor/MAProfessorAdminAccountDetail.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+const adminRouterSource = await readFile(
+  new URL(
+    '../../worker/maProfessorAdmin.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const accessAdminBridgeSource = await readFile(
   new URL(
     '../../worker/maProfessorAccessAdminBridge.ts',
@@ -157,6 +173,95 @@ test(
     assert.match(
       revokeApi,
       /'\/licenses\/revoke'/
+    )
+  }
+)
+
+test(
+  'admin exposes a separate terminate-sessions action without reusing license revocation',
+  () => {
+    const terminateApi =
+      sliceBetween(
+        adminApiSource,
+        'export async function terminateMAProfessorSessions(',
+        'export async function revokeMAProfessorLicense('
+      )
+
+    assert.match(
+      terminateApi,
+      /'\/sessions\/revoke'/
+    )
+    assert.match(
+      terminateApi,
+      /sessionsRevoked/
+    )
+    assert.doesNotMatch(
+      terminateApi,
+      /'\/licenses\/revoke'/
+    )
+
+    assert.match(
+      adminRouterSource,
+      /case '\/sessions\/revoke':/
+    )
+    assert.match(
+      adminRouterSource,
+      /revokeMAProfessorAdminSessions/
+    )
+
+    assert.match(
+      accountDetailSource,
+      /Terminar sessões/
+    )
+    assert.match(
+      accountDetailSource,
+      /A licença mantém-se ativa\./
+    )
+    assert.match(
+      accountDetailSource,
+      /terminateMAProfessorSessions/
+    )
+  }
+)
+
+test(
+  'backend session revoke invalidates only active sessions and never revokes the license',
+  () => {
+    const handler =
+      sliceBetween(
+        accessAdminBridgeSource,
+        'private async handleSessionRevoke(',
+        'private async handleLicenseRevoke('
+      )
+
+    assert.match(
+      handler,
+      /session\.email\s*===\s*email/
+    )
+    assert.match(
+      handler,
+      /session\.revokedAt\s*=\s*now/
+    )
+    assert.match(
+      handler,
+      /sessionsRevoked/
+    )
+    assert.match(
+      handler,
+      /this\.state\.storage\.put\(\s*STORAGE_KEY,\s*state\s*\)/
+    )
+
+    assert.doesNotMatch(
+      handler,
+      /license\.revokedAt\s*=/
+    )
+    assert.doesNotMatch(
+      handler,
+      /state\.credentials|delete\s+.*credential/i
+    )
+    assert.doesNotMatch(
+      handler,
+      /snapshot|cloud|syncRepository|syncState|SYNC_STORAGE_KEY/i
     )
   }
 )

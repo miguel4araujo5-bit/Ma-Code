@@ -21,6 +21,7 @@ import {
   getMAProfessorCommercialStatus,
   getMAProfessorCredentialStatus,
   revokeMAProfessorLicense,
+  terminateMAProfessorSessions,
   type MAProfessorAdminAccessRequestSummary,
   type MAProfessorAdminCommercialStatus,
   type MAProfessorAdminCredentialStatus,
@@ -376,6 +377,16 @@ export default function MAProfessorAdminAccountDetail({
   ] = useState(false)
 
   const [
+    terminatingSessions,
+    setTerminatingSessions
+  ] = useState(false)
+
+  const [
+    sessionActionMessage,
+    setSessionActionMessage
+  ] = useState('')
+
+  const [
     licenseActionError,
     setLicenseActionError
   ] = useState('')
@@ -524,12 +535,21 @@ export default function MAProfessorAdminAccountDetail({
     !commercialSaving &&
     !generatingCredential
 
+  const canTerminateSessions =
+    dataConnected &&
+    Boolean(currentLicense) &&
+    currentLicense?.status !==
+      'revoked' &&
+    !terminatingSessions &&
+    !revokingLicense
+
   const canRevokeLicense =
     dataConnected &&
     Boolean(currentLicense) &&
     currentLicense?.status !==
       'revoked' &&
-    !revokingLicense
+    !revokingLicense &&
+    !terminatingSessions
 
   useEffect(
     () => {
@@ -543,6 +563,14 @@ export default function MAProfessorAdminAccountDetail({
 
       setRevokingLicense(
         false
+      )
+
+      setTerminatingSessions(
+        false
+      )
+
+      setSessionActionMessage(
+        ''
       )
     },
     [
@@ -942,6 +970,53 @@ export default function MAProfessorAdminAccountDetail({
       }
     }
 
+  const handleTerminateSessions =
+    async () => {
+      if (
+        !canTerminateSessions ||
+        !currentLicense
+      ) {
+        return
+      }
+
+      const confirmed =
+        window.confirm(
+          [
+            `Terminar todas as sessões de ${email}?`,
+            '',
+            'A licença mantém-se ativa.',
+            'O professor será desligado nos dispositivos onde tenha uma sessão ativa e poderá voltar a entrar normalmente com a password pessoal.',
+            '',
+            'A password, o registo OPAQUE, os dados escolares e as cópias online não são alterados.'
+          ].join('\n')
+        )
+
+      if (!confirmed) {
+        return
+      }
+
+      setTerminatingSessions(true)
+      setLicenseActionError('')
+      setSessionActionMessage('')
+
+      try {
+        const result =
+          await terminateMAProfessorSessions(
+            email
+          )
+
+        setSessionActionMessage(
+          result.message
+        )
+      } catch (error) {
+        setLicenseActionError(
+          getErrorMessage(error)
+        )
+      } finally {
+        setTerminatingSessions(false)
+      }
+    }
+
   const handleRevokeLicense =
     async () => {
       if (
@@ -974,6 +1049,7 @@ export default function MAProfessorAdminAccountDetail({
 
       setRevokingLicense(true)
       setLicenseActionError('')
+      setSessionActionMessage('')
 
       try {
         const updatedLicense =
@@ -1573,6 +1649,15 @@ export default function MAProfessorAdminAccountDetail({
             </div>
           ) : null}
 
+          {sessionActionMessage ? (
+            <div
+              role="status"
+              className="mt-4 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] p-3 text-xs font-bold leading-5 text-cyan-100"
+            >
+              {sessionActionMessage}
+            </div>
+          ) : null}
+
           {currentLicense &&
           currentLicense.status !==
             'revoked' ? (
@@ -1583,8 +1668,21 @@ export default function MAProfessorAdminAccountDetail({
 
               <div className="border-t border-rose-300/10 p-4">
                 <p className="text-xs leading-5 text-slate-500">
-                  Revogar bloqueia o acesso desta licença e invalida as sessões ativas. A conta e os dados do professor são preservados.
+                  Pode terminar apenas as sessões para obrigar a um novo login, mantendo a licença ativa. Revogar a licença bloqueia o acesso e invalida também as sessões.
                 </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleTerminateSessions()
+                  }}
+                  disabled={!canTerminateSessions}
+                  className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[0.07] px-4 py-2.5 text-xs font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {terminatingSessions
+                    ? 'A terminar…'
+                    : 'Terminar sessões'}
+                </button>
 
                 <button
                   type="button"
@@ -1592,7 +1690,7 @@ export default function MAProfessorAdminAccountDetail({
                     void handleRevokeLicense()
                   }}
                   disabled={!canRevokeLicense}
-                  className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/[0.08] px-4 py-2.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="ml-0 mt-2 rounded-xl border border-rose-300/25 bg-rose-300/[0.08] px-4 py-2.5 text-xs font-black text-rose-200 transition hover:bg-rose-300/15 disabled:cursor-not-allowed disabled:opacity-40 sm:ml-2 sm:mt-3"
                 >
                   {revokingLicense
                     ? 'A revogar…'

@@ -10,7 +10,8 @@ import {
   getMAProfessorAdminCommercialStatus,
   getMAProfessorAdminCredentialStatus,
   getMAProfessorAdminOverview,
-  revokeMAProfessorAdminLicense
+  revokeMAProfessorAdminLicense,
+  revokeMAProfessorAdminSessions
 } from './maProfessorAccessAdminBridge'
 
 import type {
@@ -685,6 +686,15 @@ export async function handleMAProfessorAdminApiRequest(
         dispenseMAProfessorAdminPayment,
         'MA-Professor admin payment dispensation failed',
         'Não foi possível marcar o pagamento como dispensado.'
+      )
+
+    case '/sessions/revoke':
+      return handleEmailMutation(
+        request,
+        env,
+        revokeMAProfessorAdminSessions,
+        'MA-Professor admin session revocation failed',
+        'Não foi possível terminar as sessões da conta.'
       )
 
     case '/licenses/revoke':
