@@ -48,6 +48,11 @@ import {
   type MaProfessorCloudBackupEnv
 } from './maProfessorCloudBackup'
 import {
+  handleMAProfessorProblemReportApiRequest,
+  isMAProfessorProblemReportApiPath,
+  type MaProfessorProblemReportEnv
+} from './maProfessorProblemReport'
+import {
   handleConquistadorMatchmakingApiRequest,
   isConquistadorMatchmakingApiPath,
   type ConquistadorMatchmakingEnv
@@ -79,6 +84,7 @@ export type Env =
   MAProfessorAccessAdminNotifierEnv &
   MaProfessorSyncEnv &
   MaProfessorCloudBackupEnv &
+  MaProfessorProblemReportEnv &
   ConquistadorMatchmakingEnv &
   ConquistadorGameSessionEnv
 
@@ -438,6 +444,17 @@ export default {
       )
     ) {
       return handleBtcAlertsApiRequest(
+        request,
+        env
+      )
+    }
+
+    if (
+      isMAProfessorProblemReportApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMAProfessorProblemReportApiRequest(
         request,
         env
       )
