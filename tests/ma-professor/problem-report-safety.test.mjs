@@ -117,7 +117,7 @@ test(
 
     assert.match(
       preloadSource,
-      /return false[\s\S]*O erro segue o fluxo normal e cai no ErrorBoundary/
+      /O erro segue o fluxo normal e cai no ErrorBoundary[\s\S]*return false/
     )
   }
 )
