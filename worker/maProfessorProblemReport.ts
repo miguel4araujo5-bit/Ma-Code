@@ -649,8 +649,11 @@ async function reserveRateLimitSlot(
     )
   }
 
+  const changes =
+    result.meta?.changes
+
   if (
-    result.meta?.changes ===
+    changes ===
       0
   ) {
     throw new ProblemReportApiError(
@@ -665,6 +668,16 @@ async function reserveRateLimitSlot(
             )
           )
       }
+    )
+  }
+
+  if (
+    changes !==
+      1
+  ) {
+    throw new ProblemReportApiError(
+      'O serviço de reporte está temporariamente indisponível.',
+      503
     )
   }
 
