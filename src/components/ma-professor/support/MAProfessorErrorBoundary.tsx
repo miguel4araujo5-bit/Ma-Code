@@ -8,6 +8,10 @@ import {
   ProblemReportDialog
 } from './ProblemReportDialog'
 
+import {
+  getProblemReportScreen
+} from './problemReportClient'
+
 interface MAProfessorErrorBoundaryProps {
   children: ReactNode
 }
@@ -15,6 +19,7 @@ interface MAProfessorErrorBoundaryProps {
 interface MAProfessorErrorBoundaryState {
   failed: boolean
   errorSummary: string
+  screen: string
   reportOpen: boolean
 }
 
@@ -65,6 +70,8 @@ export class MAProfessorErrorBoundary
     MAProfessorErrorBoundaryState = {
       failed: false,
       errorSummary: '',
+      screen:
+        '/produtos/ma-professor',
       reportOpen: false
     }
 
@@ -78,6 +85,8 @@ export class MAProfessorErrorBoundary
         getSafeErrorSummary(
           error
         ),
+      screen:
+        getProblemReportScreen(),
       reportOpen: false
     }
   }
@@ -178,6 +187,9 @@ export class MAProfessorErrorBoundary
             }
             errorSummary={
               this.state.errorSummary
+            }
+            screen={
+              this.state.screen
             }
             onClose={() => {
               this.setState({
