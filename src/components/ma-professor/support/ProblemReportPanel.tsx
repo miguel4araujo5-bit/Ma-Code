@@ -33,7 +33,7 @@ export function ProblemReportPanel() {
         </p>
 
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Apenas um resumo técnico, a versão da aplicação, o ecrã atual, o browser e a data. Não são lidos nem enviados dados escolares, ficheiros, conteúdos do IndexedDB ou passwords.
+          Apenas um resumo técnico, a versão da aplicação, o ecrã atual, o navegador e a data. Não são recolhidos automaticamente dados escolares, ficheiros, conteúdos do IndexedDB ou passwords.
         </p>
       </div>
 
