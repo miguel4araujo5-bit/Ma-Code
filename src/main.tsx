@@ -5,6 +5,14 @@ import './index.css'
 import './components/ma-professor/daily/dailyWorkspaceLayout.css'
 import './components/ma-professor/setup/scheduleImportReview.css'
 
+import {
+  MAProfessorErrorBoundary
+} from './components/ma-professor/support/MAProfessorErrorBoundary'
+
+import {
+  installMAProfessorPreloadRecovery
+} from './components/ma-professor/support/preloadRecovery'
+
 const App = lazy(() => import('./pages/App'))
 
 const MACarteiraPage = lazy(
@@ -19,6 +27,12 @@ const RootPage =
   path === '/produtos/ma-carteira'
     ? MACarteiraPage
     : App
+
+const isMAProfessorProductPath =
+  path ===
+  '/produtos/ma-professor'
+
+installMAProfessorPreloadRecovery()
 
 function PageLoading() {
   return (
@@ -40,12 +54,24 @@ function PageLoading() {
   )
 }
 
+function RootContent() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <RootPage />
+    </Suspense>
+  )
+}
+
 ReactDOM.createRoot(
   document.getElementById('root')!
 ).render(
   <React.StrictMode>
-    <Suspense fallback={<PageLoading />}>
-      <RootPage />
-    </Suspense>
+    {isMAProfessorProductPath ? (
+      <MAProfessorErrorBoundary>
+        <RootContent />
+      </MAProfessorErrorBoundary>
+    ) : (
+      <RootContent />
+    )}
   </React.StrictMode>
 )
