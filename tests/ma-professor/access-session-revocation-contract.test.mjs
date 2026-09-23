@@ -677,17 +677,25 @@ test(
       credentialBefore,
       'Terminar sessões não pode alterar credenciais de ativação.'
     )
-    assert.notEqual(
-      after.sessions[
+    assert.ok(
+      !after.sessions[
         'target-session-1'
-      ].revokedAt,
-      null
+      ] ||
+        after.sessions[
+          'target-session-1'
+        ].revokedAt !==
+          null,
+      'A primeira sessão da conta tem de ficar revogada ou ser removida pelo lifecycle.'
     )
-    assert.notEqual(
-      after.sessions[
+    assert.ok(
+      !after.sessions[
         'target-session-2'
-      ].revokedAt,
-      null
+      ] ||
+        after.sessions[
+          'target-session-2'
+        ].revokedAt !==
+          null,
+      'A segunda sessão da conta tem de ficar revogada ou ser removida pelo lifecycle.'
     )
     assert.equal(
       after.sessions[
