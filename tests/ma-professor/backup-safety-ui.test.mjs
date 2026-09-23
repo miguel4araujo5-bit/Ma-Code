@@ -231,7 +231,7 @@ test(
     )
 
     assert.match(
-      encryptedSyncSource,
+      cloudPreferenceSource,
       /Cópia automática/
     )
     assert.match(
