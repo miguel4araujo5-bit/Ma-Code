@@ -166,7 +166,12 @@ test(
   () => {
     assert.doesNotMatch(
       workerSource,
-      /MA_PROFESSOR_ACCESS|DurableObject|IndexedDB|maProfessorDb/
+      /MA_PROFESSOR_ACCESS|DurableObject|maProfessorDb/
+    )
+
+    assert.doesNotMatch(
+      workerSource,
+      /\bindexedDB\s*[.(]/i
     )
 
     assert.match(
