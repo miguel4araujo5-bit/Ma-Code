@@ -716,36 +716,6 @@ function escapeHtml(
     )
 }
 
-async function readResendError(
-  response: Response
-) {
-  try {
-    const parsed =
-      await response
-        .clone()
-        .json() as {
-          message?: unknown
-        }
-
-    if (
-      typeof parsed.message ===
-        'string' &&
-      parsed.message.trim()
-    ) {
-      return parsed.message
-        .trim()
-        .slice(
-          0,
-          240
-        )
-    }
-  } catch {
-    // A resposta externa não é exposta ao utilizador.
-  }
-
-  return `HTTP ${response.status}`
-}
-
 async function sendProblemReportEmail(
   env: MaProfessorProblemReportEnv,
   report: ValidProblemReport,
@@ -888,18 +858,11 @@ async function sendProblemReportEmail(
   }
 
   if (!response.ok) {
-    const reason =
-      await readResendError(
-        response
-      )
-
     console.error(
       'MA-Professor problem report delivery failed',
       {
         status:
-          response.status,
-
-        reason
+          response.status
       }
     )
 
