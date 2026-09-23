@@ -27,8 +27,10 @@ const [
   preloadSource,
   panelSource,
   settingsSource,
+  productSource,
   mainSource,
   workerSource,
+  workerEntrySource,
   migrationSource
 ] = await Promise.all([
   read('src/components/ma-professor/support/problemReportClient.ts'),
@@ -37,8 +39,10 @@ const [
   read('src/components/ma-professor/support/preloadRecovery.ts'),
   read('src/components/ma-professor/support/ProblemReportPanel.tsx'),
   read('src/components/ma-professor/settings/SettingsWorkspaceView.tsx'),
+  read('src/components/ma-professor/product/MAProfessorProduct.tsx'),
   read('src/main.tsx'),
   read('worker/maProfessorProblemReport.ts'),
+  read('worker/entry.ts'),
   read('migrations/ma-professor/0003_problem_report_rate_limit.sql')
 ])
 
@@ -144,6 +148,16 @@ test(
       settingsSource,
       /Diagnóstico e suporte/
     )
+
+    assert.match(
+      productSource,
+      /data-ma-professor-screen=/
+    )
+
+    assert.match(
+      productSource,
+      /menuNavigationRequest[\s\S]*\.target/
+    )
   }
 )
 
@@ -183,6 +197,16 @@ test(
     assert.match(
       workerSource,
       /RESEND_EMAIL_API_URL/
+    )
+
+    assert.match(
+      workerEntrySource,
+      /isMAProfessorProblemReportApiPath/
+    )
+
+    assert.match(
+      workerEntrySource,
+      /handleMAProfessorProblemReportApiRequest/
     )
 
     assert.match(
