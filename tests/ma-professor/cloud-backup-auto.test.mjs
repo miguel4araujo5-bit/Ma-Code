@@ -61,11 +61,29 @@ test(
     )
     assert.match(
       syncPanel,
-      /<CloudBackupPreferencePanel canEnable=\{ !needsReauthentication \}/
+      /<CloudBackupReauthentication forceRequired embedded/
     )
     assert.match(
       syncPanel,
-      /<CloudBackupReauthentication forceRequired embedded/
+      /<CloudBackupPreferencePanel \/>/
+    )
+    const reauthenticationPosition =
+      syncPanel.indexOf(
+        '<CloudBackupReauthentication forceRequired embedded'
+      )
+    const preferencePosition =
+      syncPanel.indexOf(
+        '<CloudBackupPreferencePanel />'
+      )
+    assert.ok(
+      reauthenticationPosition >= 0 &&
+      preferencePosition >
+        reauthenticationPosition,
+      'A confirmação da password tem de aparecer antes dos controlos de cópia online.'
+    )
+    assert.match(
+      syncPanel,
+      /\{needsReauthentication \? \( .*<CloudBackupReauthentication forceRequired embedded.*\) : \( <> .*<CloudBackupPreferencePanel \/>/
     )
     assert.doesNotMatch(
       automatic,

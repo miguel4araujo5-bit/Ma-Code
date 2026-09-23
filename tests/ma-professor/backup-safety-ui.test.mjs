@@ -157,20 +157,24 @@ test(
 )
 
 test(
-  'security and recovery page is organized around the four primary user actions',
+  'security and recovery page is organized around protect and recover without removing any backup path',
   () => {
     assert.match(
       settingsSource,
       /Segurança e recuperação/
     )
+    assert.match(
+      settingsSource,
+      /Dados locais · cópia online opcional/
+    )
 
-    const restorePosition =
+    const protectPosition =
       backupSource.indexOf(
-        'Restaurar uma cópia'
+        'Proteger os meus dados'
       )
-    const backupPosition =
+    const recoverPosition =
       backupSource.indexOf(
-        'Criar uma cópia de segurança'
+        'Recuperar os meus dados'
       )
     const exportPosition =
       backupSource.indexOf(
@@ -181,14 +185,26 @@ test(
         'Opções avançadas'
       )
 
-    assert.ok(restorePosition >= 0)
-    assert.ok(backupPosition >= 0)
+    assert.ok(protectPosition >= 0)
+    assert.ok(recoverPosition >= 0)
     assert.ok(exportPosition >= 0)
     assert.ok(advancedPosition >= 0)
-    assert.ok(restorePosition < backupPosition)
-    assert.ok(backupPosition < exportPosition)
+    assert.ok(protectPosition < exportPosition)
+    assert.ok(recoverPosition < exportPosition)
     assert.ok(exportPosition < advancedPosition)
 
+    assert.match(
+      backupSource,
+      /xl:grid-cols-2/
+    )
+    assert.match(
+      backupSource,
+      /id="ma-professor-security-backup"/
+    )
+    assert.match(
+      backupSource,
+      /id="ma-professor-security-restore"/
+    )
     assert.match(
       restoreSource,
       /<OnlineRestorePanel/
@@ -215,8 +231,8 @@ test(
     )
 
     assert.match(
-      backupSource,
-      /Proteção automática/
+      encryptedSyncSource,
+      /Cópia automática/
     )
     assert.match(
       backupSource,

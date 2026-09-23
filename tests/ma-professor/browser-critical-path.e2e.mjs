@@ -979,10 +979,16 @@ try {
   assert.equal(await manualBackupButton.count(), 0)
   assert.equal(await unlock.getByLabel('Password pessoal').getAttribute('autocomplete'), 'current-password')
   assert.equal(await unlock.locator('input[name=username]').getAttribute('autocomplete'), 'username')
-  // Opt-out must remain available even while the memory key is missing.
-  await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).click()
-  await cloudPanel.getByRole('button', { name: 'Ativar cópia automática', exact: true }).click()
-  assert.equal((await readCloudSession()).preference, 'disabled', 'A blocked activation must not silently opt in.')
+  assert.equal(
+    await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).count(),
+    0,
+    'Os controlos online não devem aparecer antes da confirmação da password.'
+  )
+  assert.equal(
+    await cloudPanel.getByRole('button', { name: 'Ativar cópia automática', exact: true }).count(),
+    0,
+    'A ativação automática só fica disponível depois da confirmação da password.'
+  )
 
   await unlock.getByLabel('Password pessoal').fill('Wrong-password-123!')
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
@@ -1021,9 +1027,11 @@ try {
     beforeUnlock.token,
     'OPAQUE reauthentication must rotate the account session token.'
   )
-  assert.equal((await readCloudSession()).preference, 'disabled', 'Password confirmation only unlocks the controls.')
+  assert.equal((await readCloudSession()).preference, 'enabled', 'A confirmação da password não pode alterar a escolha anterior.')
   await manualBackupButton.waitFor({ state: 'visible' })
   assert.equal(await manualBackupButton.isEnabled(), true)
+  await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).click()
+  assert.equal((await readCloudSession()).preference, 'disabled')
   releaseOldStatus()
   assert.equal(await page.evaluate(() => window.__lateCloudStatus), 'MAProfessorCloudBackupAuthenticationRequiredError')
   await page.unroute(statusRoute, holdOldStatus)

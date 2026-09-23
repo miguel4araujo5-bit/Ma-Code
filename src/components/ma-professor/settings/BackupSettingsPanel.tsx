@@ -274,83 +274,85 @@ export function BackupSettingsPanel({
         initialSection
       }
     >
-      <section
-        id="ma-professor-security-restore"
-        className="scroll-mt-24 space-y-4"
+      <div
+        id="ma-professor-security-protection"
+        className="grid scroll-mt-24 items-start gap-6 xl:grid-cols-2"
       >
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
-            Restaurar
-          </p>
-          <h2 className="mt-2 text-2xl font-black text-white">
-            Restaurar uma cópia
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Escolha onde está a cópia que pretende recuperar. Nenhum dado atual é substituído sem validação e confirmação.
-          </p>
-        </div>
-
-        <RestoreSettingsPanel
-          onDataChanged={
-            onDataChanged
-          }
-        />
-      </section>
-
-      <section
-        id="ma-professor-security-backup"
-        className="scroll-mt-24 space-y-4"
-      >
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-            Cópias de segurança
-          </p>
-          <h2 className="mt-2 text-2xl font-black text-white">
-            Criar uma cópia de segurança
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Escolha se quer guardar a cópia na nuvem ou descarregá-la para este dispositivo.
-          </p>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            Proteção automática: escolha abaixo se pretende ativar a cópia online neste dispositivo. Desativá-la mantém disponíveis as cópias já guardadas e o restauro.
-          </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <EncryptedSyncPanel />
-
-          <section className="h-full rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/20 p-5 sm:p-6">
+        <section
+          id="ma-professor-security-backup"
+          className="min-w-0 scroll-mt-24 space-y-4"
+        >
+          <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-              Dispositivo
+              Cópias de segurança
             </p>
-
-            <h3 className="mt-2 text-xl font-black text-white">
-              Descarregar cópia de segurança para o seu dispositivo
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Cria um ficheiro completo com anos letivos, turmas, alunos, planificações, aulas, sumários, faltas, avaliações e definições para guardar onde quiser.
+            <h2 className="mt-2 text-2xl font-black text-white">
+              Proteger os meus dados
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Guarde uma cópia online cifrada ou descarregue uma cópia completa para este dispositivo.
             </p>
+          </div>
 
-            <p className="mt-2 text-xs leading-5 text-amber-200/80">
-              Esta cópia local não está cifrada. Guarde-a apenas num local seguro.
+          <div className="space-y-4">
+            <EncryptedSyncPanel />
+
+            <section className="rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/20 p-5 sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Dispositivo
+              </p>
+
+              <h3 className="mt-2 text-xl font-black text-white">
+                Descarregar cópia de segurança para o seu dispositivo
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Cria um ficheiro completo com anos letivos, turmas, alunos, planificações, aulas, sumários, faltas, avaliações e definições para guardar onde quiser.
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-amber-200/80">
+                Esta cópia local não está cifrada. Guarde-a apenas num local seguro.
+              </p>
+
+              <button
+                type="button"
+                disabled={Boolean(busy)}
+                onClick={() =>
+                  void handleJsonExport()
+                }
+                className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
+              >
+                {busy === 'json'
+                  ? 'A criar e descarregar…'
+                  : 'Descarregar cópia de segurança para o seu dispositivo'}
+              </button>
+            </section>
+          </div>
+        </section>
+
+        <section
+          id="ma-professor-security-restore"
+          className="min-w-0 scroll-mt-24 space-y-4"
+        >
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+              Restaurar uma cópia
             </p>
+            <h2 className="mt-2 text-2xl font-black text-white">
+              Recuperar os meus dados
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Recupere a cópia online da sua conta ou escolha um ficheiro guardado neste dispositivo. Nada é substituído sem validação e confirmação.
+            </p>
+          </div>
 
-            <button
-              type="button"
-              disabled={Boolean(busy)}
-              onClick={() =>
-                void handleJsonExport()
-              }
-              className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
-            >
-              {busy === 'json'
-                ? 'A criar e descarregar…'
-                : 'Descarregar cópia de segurança para o seu dispositivo'}
-            </button>
-          </section>
-        </div>
-      </section>
+          <RestoreSettingsPanel
+            onDataChanged={
+              onDataChanged
+            }
+          />
+        </section>
+      </div>
 
       <section
         id="ma-professor-security-export"

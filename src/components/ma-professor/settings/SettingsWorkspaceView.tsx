@@ -152,7 +152,7 @@ export function SettingsWorkspaceView({
 
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
                 {securitySelected
-                  ? 'Proteja o trabalho, acompanhe a cópia cifrada online, guarde cópias locais, restaure informação e exporte apenas o que precisa.'
+                  ? 'Proteja os seus dados ou recupere uma cópia. As exportações e opções avançadas continuam disponíveis mais abaixo.'
                   : 'Personalize o perfil, consulte a pesquisa global e acompanhe a licença da aplicação.'}
               </p>
             </div>
@@ -166,7 +166,7 @@ export function SettingsWorkspaceView({
 
               <p className="mt-1 text-[0.65rem] leading-4 text-emerald-100/70">
                 {securitySelected
-                  ? 'Dados locais + cópia cifrada online'
+                  ? 'Dados locais · cópia online opcional'
                   : 'Alterações guardadas neste dispositivo'}
               </p>
             </div>

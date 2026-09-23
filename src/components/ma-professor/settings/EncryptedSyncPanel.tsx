@@ -199,18 +199,6 @@ export function EncryptedSyncPanel() {
   }, [session.deviceId, session.email, session.token])
 
   const [
-    automaticUnlockRequested,
-    setAutomaticUnlockRequested
-  ] =
-    useState(false)
-
-  useEffect(() => {
-    if (keyAvailable) {
-      setAutomaticUnlockRequested(false)
-    }
-  }, [keyAvailable])
-
-  const [
     status,
     setStatus
   ] =
@@ -441,109 +429,89 @@ export function EncryptedSyncPanel() {
         Cria uma cópia dos dados atuais, cifra-a neste dispositivo e só depois a envia para a nuvem. No final, o MA-Professor confirma que a cópia ficou guardada corretamente.
       </p>
 
-      <div className="mt-4">
-        <CloudBackupPreferencePanel
-          canEnable={
-            !needsReauthentication
-          }
-          onEnableBlocked={
-            () =>
-              setAutomaticUnlockRequested(
-                true
-              )
-          }
-          onChoice={
-            () =>
-              setAutomaticUnlockRequested(
-                false
-              )
-          }
-        />
-      </div>
-
       {needsReauthentication ? (
         <div className="mt-4">
-          {automaticUnlockRequested ? (
-            <p className="mb-3 text-xs font-bold leading-5 text-violet-100">
-              Confirme primeiro a password abaixo. Depois poderá ativar a cópia automática.
-            </p>
-          ) : null}
           <CloudBackupReauthentication
             forceRequired
             embedded
           />
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={
-            busy
-          }
-          onClick={() =>
-            void handleUpload()
-          }
-          className="mt-5 w-full rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
-        >
-          {busy
-            ? 'A cifrar, enviar e verificar…'
-            : 'Fazer cópia de segurança para a nuvem'}
-        </button>
-      )}
+        <>
+          <div className="mt-4">
+            <CloudBackupPreferencePanel />
+          </div>
 
-      <div className="mt-5 border-t border-white/10 pt-4">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
-          <span>
-            <strong className="text-slate-200">
-              Estado:
-            </strong>{' '}
-            {checking
-              ? 'A verificar…'
-              : !status
-                ? 'por confirmar'
-                : found
-                  ? 'cópia online disponível'
-                  : 'sem cópia online'}
-          </span>
+          <button
+            type="button"
+            disabled={
+              busy
+            }
+            onClick={() =>
+              void handleUpload()
+            }
+            className="mt-5 w-full rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
+          >
+            {busy
+              ? 'A cifrar, enviar e verificar…'
+              : 'Fazer cópia de segurança para a nuvem'}
+          </button>
 
-          <span>
-            <strong className="text-slate-200">
-              Última cópia:
-            </strong>{' '}
-            {checking || !status
-              ? '—'
-              : formatDateTime(
-                  status?.backup.updatedAt ?? null
-                )}
-          </span>
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
+              <span>
+                <strong className="text-slate-200">
+                  Estado:
+                </strong>{' '}
+                {checking
+                  ? 'A verificar…'
+                  : !status
+                    ? 'por confirmar'
+                    : found
+                      ? 'cópia online disponível'
+                      : 'sem cópia online'}
+              </span>
 
-          {found ? (
-            <span>
-              <strong className="text-slate-200">
-                Tamanho:
-              </strong>{' '}
-              {formatBytes(
-                status?.backup.ciphertextBytes ?? null
-              )}
-            </span>
+              <span>
+                <strong className="text-slate-200">
+                  Última cópia:
+                </strong>{' '}
+                {checking || !status
+                  ? '—'
+                  : formatDateTime(
+                      status?.backup.updatedAt ?? null
+                    )}
+              </span>
+
+              {found ? (
+                <span>
+                  <strong className="text-slate-200">
+                    Tamanho:
+                  </strong>{' '}
+                  {formatBytes(
+                    status?.backup.ciphertextBytes ?? null
+                  )}
+                </span>
+              ) : null}
+            </div>
+
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              {preference === 'enabled'
+                ? 'A cópia automática continua ativa em segundo plano quando este dispositivo está alinhado com a última revisão online.'
+                : 'A cópia automática está desativada neste dispositivo. O botão acima envia apenas uma cópia manual.'}
+            </p>
+          </div>
+
+          {statusError ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3 text-sm text-rose-200"
+            >
+              {statusError}
+            </p>
           ) : null}
-        </div>
-
-        <p className="mt-3 text-xs leading-5 text-slate-500">
-          {preference === 'enabled'
-            ? 'A cópia automática continua ativa em segundo plano quando este dispositivo está alinhado com a última revisão online.'
-            : 'A cópia automática está desativada neste dispositivo. O botão acima envia apenas uma cópia manual.'}
-        </p>
-      </div>
-
-      {statusError &&
-      !needsReauthentication ? (
-        <p
-          role="alert"
-          className="mt-4 rounded-2xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3 text-sm text-rose-200"
-        >
-          {statusError}
-        </p>
-      ) : null}
+        </>
+      )}
 
       {feedback ? (
         <p
