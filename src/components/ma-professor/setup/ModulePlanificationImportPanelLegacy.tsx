@@ -133,19 +133,19 @@ export default function ModulePlanificationImportPanel({
   const availableDestinations = useMemo(() => planificationDestinations(snapshot), [snapshot])
   const existingPlanifications = useMemo(() => {
     const moduleById = new Map(
-      snapshot.modules.map(module => [module.id, module] as const)
+      (snapshot.modules ?? []).map(module => [module.id, module] as const)
     )
     const assignmentById = new Map(
-      snapshot.teachingAssignments.map(assignment => [assignment.id, assignment] as const)
+      (snapshot.teachingAssignments ?? []).map(assignment => [assignment.id, assignment] as const)
     )
     const groupById = new Map(
-      snapshot.groups.map(group => [group.id, group] as const)
+      (snapshot.groups ?? []).map(group => [group.id, group] as const)
     )
     const subjectById = new Map(
-      snapshot.subjects.map(subject => [subject.id, subject] as const)
+      (snapshot.subjects ?? []).map(subject => [subject.id, subject] as const)
     )
 
-    return snapshot.planifications
+    return (snapshot.planifications ?? [])
       .filter(planification => planification.active)
       .flatMap(planification => {
         const module = moduleById.get(planification.moduleId)
