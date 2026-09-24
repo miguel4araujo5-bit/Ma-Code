@@ -8,6 +8,7 @@ export type PlanificationImportMode =
   | 'create'
   | 'skip'
   | 'append'
+  | 'replace'
 
 export interface PlanificationImportObservedItemVersion {
   id: string
@@ -368,7 +369,8 @@ export function setPlanificationImportMode(
   ) {
     if (
       mode !== 'skip' &&
-      mode !== 'append'
+      mode !== 'append' &&
+      mode !== 'replace'
     ) {
       return {
         ...row,
@@ -466,7 +468,7 @@ export function validatePlanificationImportPreview(
     includedRows.length === 0
   ) {
     errors.push(
-      'Selecione pelo menos uma UFCD para importar.'
+      'Selecione pelo menos uma UFCD, UC ou módulo para importar.'
     )
   }
 
@@ -484,7 +486,7 @@ export function validatePlanificationImportPreview(
         !row.selectedModuleId
       ) {
         errors.push(
-          `${label}: escolha a UFCD de destino.`
+          `${label}: escolha a unidade curricular de destino.`
         )
         return
       }
@@ -527,10 +529,11 @@ export function validatePlanificationImportPreview(
       ) {
         if (
           row.mode !== 'skip' &&
-          row.mode !== 'append'
+          row.mode !== 'append' &&
+          row.mode !== 'replace'
         ) {
           errors.push(
-            `${label}: a UFCD já possui uma planificação. Escolha explicitamente Ignorar ou Acrescentar.`
+            `${label}: a unidade curricular já possui uma planificação. Escolha explicitamente Substituir, Ignorar ou Acrescentar.`
           )
         }
       } else if (

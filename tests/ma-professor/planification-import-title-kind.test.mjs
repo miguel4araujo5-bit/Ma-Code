@@ -116,7 +116,7 @@ function row(code, name, moduleId, sectionOrdinal) {
   }
 }
 
-test('normal planification importer labels numeric codes as UFCD and module-style codes as Módulo', async () => {
+test('normal planification importer distinguishes UFCD, UC and Módulo codes', async () => {
   const bytes = new TextEncoder().encode('documento')
   const file = {
     name: 'planificacao.docx',
@@ -132,7 +132,8 @@ test('normal planification importer labels numeric codes as UFCD and module-styl
     file,
     [
       row('10380', 'Expressão dramática', 'ufcd-10380', 1),
-      row('M1', 'Comunicação', 'module-m1', 2)
+      row('UC04993', 'Segurança e saúde no trabalho', 'uc-04993', 2),
+      row('M1', 'Comunicação', 'module-m1', 3)
     ]
   )
 
@@ -144,6 +145,7 @@ test('normal planification importer labels numeric codes as UFCD and module-styl
     titles,
     [
       'Planificação — UFCD 10380 · Expressão dramática',
+      'Planificação — UC UC04993 · Segurança e saúde no trabalho',
       'Planificação — Módulo M1 · Comunicação'
     ]
   )

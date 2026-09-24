@@ -90,7 +90,7 @@ export function buildPlanificationPdfPreview(
           candidates.length === 0
         ) {
           warnings.push(
-            `Não existe uma UFCD ou módulo com o código ${section.code} na turma e disciplina atualmente selecionadas.`
+            `Não existe uma UFCD, UC ou módulo com o código ${section.code} na turma e disciplina atualmente selecionadas.`
           )
         }
 

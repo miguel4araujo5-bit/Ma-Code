@@ -588,6 +588,14 @@ test(
       panelSource,
       /Escolha explicitamente…/
     )
+    assert.match(
+      panelSource,
+      /Substituir planificação/
+    )
+    assert.match(
+      panelSource,
+      /mesma transação/
+    )
     assert.doesNotMatch(
       panelSource,
       /createPlanification\s*\(|importPlanificationLines\s*\(|onCreatePlanification|onImportLines|maProfessorDb\./,

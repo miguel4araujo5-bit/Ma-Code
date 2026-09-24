@@ -30,7 +30,12 @@ type SemanticPlanificationPoint = {
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-PT')
 const clean = (value: string) => value.trim().replace(/\s+/g, ' ')
 const validModuleCode = (value: string) => /^[A-Za-z0-9][A-Za-z0-9._/-]{0,15}$/.test(clean(value))
-const moduleKindLabel = (code: string) => /^\d{3,6}$/.test(clean(code)) ? 'UFCD' : 'Módulo'
+const moduleKindLabel = (code: string) => {
+  const normalized = clean(code)
+  if (/^\d{3,6}$/.test(normalized)) return 'UFCD'
+  if (/^UC(?:[\s._/-]*\d|\b)/i.test(normalized)) return 'UC'
+  return 'Módulo'
+}
 const tables = () => [
   maProfessorDb.academicYears, maProfessorDb.groups, maProfessorDb.subjects,
   maProfessorDb.teachingAssignments, maProfessorDb.modules,

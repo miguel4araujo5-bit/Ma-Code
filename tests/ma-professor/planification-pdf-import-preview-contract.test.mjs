@@ -162,7 +162,7 @@ test('same code in two classes never selects a destination silently', () => {
   assert.equal(rows[0].fingerprint, null)
 })
 
-test('existing planification requires explicit append or skip and preserves observed historical item state in the fingerprint', () => {
+test('existing planification requires an explicit action, including replace, and preserves observed historical item state in the fingerprint', () => {
   const destinations = [
     destination({
       activePlanification: {
@@ -208,6 +208,18 @@ test('existing planification requires explicit append or skip and preserves obse
   assert.equal(
     preview.validatePlanificationImportPreview([row], destinations).valid,
     false
+  )
+
+  row = preview.setPlanificationImportMode(
+    row,
+    'replace',
+    destinations
+  )
+
+  assert.equal(row.mode, 'replace')
+  assert.equal(
+    preview.validatePlanificationImportPreview([row], destinations).valid,
+    true
   )
 
   row = preview.setPlanificationImportMode(

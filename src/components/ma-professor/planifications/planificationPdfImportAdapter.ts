@@ -188,11 +188,26 @@ function moduleLabel(
 export function moduleKindLabel(
   code: string
 ) {
-  return /^\d{3,6}$/.test(
+  const normalized =
     code.trim()
-  )
-    ? 'UFCD'
-    : 'Módulo'
+
+  if (
+    /^\d{3,6}$/.test(
+      normalized
+    )
+  ) {
+    return 'UFCD'
+  }
+
+  if (
+    /^UC(?:[\s._/-]*\d|\b)/i.test(
+      normalized
+    )
+  ) {
+    return 'UC'
+  }
+
+  return 'Módulo'
 }
 
 function courseLabel(
@@ -393,13 +408,19 @@ export async function sha256PlanificationPdf(
     .join('')
 }
 
-function titleForSection(
-  section: ParsedPlanificationPdfSection
+function titleForRow(
+  row: PlanificationPdfImportConfirmedRow
 ) {
   const code =
-    section.code.trim()
+    (
+      row.destination.code ||
+      row.section.code
+    ).trim()
   const name =
-    section.name.trim()
+    (
+      row.destination.name ||
+      row.section.name
+    ).trim()
   const kind =
     moduleKindLabel(
       code
@@ -544,7 +565,7 @@ export async function commitPlanificationPdfImport(
 ): Promise<PlanificationImportBatchResult> {
   if (!rows.length) {
     throw new Error(
-      'Selecione pelo menos uma UFCD ou módulo para importar.'
+      'Selecione pelo menos uma UFCD, UC ou módulo para importar.'
     )
   }
 
@@ -588,8 +609,8 @@ export async function commitPlanificationPdfImport(
             },
             planification: {
               title:
-                titleForSection(
-                  row.section
+                titleForRow(
+                  row
                 ),
               description:
                 descriptionForRow(

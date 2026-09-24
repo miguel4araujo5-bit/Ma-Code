@@ -15,6 +15,7 @@ import type {
 export type PlanificationImportMode =
   | 'create'
   | 'append'
+  | 'replace'
   | 'skip'
 
 export interface PlanificationImportDocument {
@@ -68,6 +69,7 @@ export interface PlanificationImportDestinationState {
 export type PlanificationImportAction =
   | 'created'
   | 'appended'
+  | 'replaced'
   | 'skipped'
   | 'alreadyImported'
 
@@ -946,6 +948,77 @@ function assertUniqueWriteDestinations(
   )
 }
 
+async function assertReplaceablePlanification(
+  destination: LoadedDestination
+) {
+  const planification =
+    destination.activePlanification
+
+  if (!planification) {
+    throw new Error(
+      'Este destino ainda não possui uma planificação ativa para substituir.'
+    )
+  }
+
+  const linkedByUsage =
+    destination.activeItems.some(
+      item =>
+        item.status ===
+          'used' ||
+        Boolean(
+          item.usedLessonId
+        ) ||
+        Boolean(
+          item.usedAt
+        )
+    )
+
+  if (linkedByUsage) {
+    throw new Error(
+      'Esta planificação já está ligada a uma ou mais aulas e não pode ser substituída sem perder histórico.'
+    )
+  }
+
+  const itemIds =
+    new Set(
+      destination.activeItems.map(
+        item =>
+          item.id
+      )
+    )
+
+  if (
+    itemIds.size ===
+      0
+  ) {
+    return
+  }
+
+  const linkedLesson =
+    (
+      await maProfessorDb
+        .lessons
+        .toArray()
+    ).find(
+      lesson =>
+        (
+          lesson.planificationItemIds ??
+          []
+        ).some(
+          itemId =>
+            itemIds.has(
+              itemId
+            )
+        )
+    )
+
+  if (linkedLesson) {
+    throw new Error(
+      'Esta planificação já está ligada a uma ou mais aulas e não pode ser substituída sem perder histórico.'
+    )
+  }
+}
+
 export class PlanificationImportRepository {
   async initialize() {
     await openMAProfessorDatabase()
@@ -1056,6 +1129,7 @@ export class PlanificationImportRepository {
       maProfessorDb.modules,
       maProfessorDb.planifications,
       maProfessorDb.planificationItems,
+      maProfessorDb.lessons,
       async () => {
         const results:
           PlanificationImportEntryResult[] =
@@ -1153,13 +1227,94 @@ export class PlanificationImportRepository {
 
           if (
             entry.mode ===
+              'replace'
+          ) {
+            await assertReplaceablePlanification(
+              destination
+            )
+
+            const timestamp =
+              now()
+
+            const previousPlanification =
+              destination.activePlanification!
+
+            const planification =
+              createPlanificationRecord(
+                entry,
+                documentName,
+                timestamp
+              )
+
+            const itemRecords =
+              createItemRecords(
+                entry,
+                planification.id,
+                1,
+                documentName,
+                timestamp
+              )
+
+            if (
+              destination.activeItems.length >
+                0
+            ) {
+              await maProfessorDb
+                .planificationItems
+                .bulkDelete(
+                  destination.activeItems.map(
+                    item =>
+                      item.id
+                  )
+                )
+            }
+
+            await maProfessorDb
+              .planifications
+              .delete(
+                previousPlanification.id
+              )
+
+            await maProfessorDb
+              .planifications
+              .add(
+                planification
+              )
+
+            await maProfessorDb
+              .planificationItems
+              .bulkAdd(
+                itemRecords
+              )
+
+            results.push({
+              moduleId:
+                entry.moduleId,
+              action:
+                'replaced',
+              sourceImportKey:
+                entry.sourceImportKey,
+              planificationId:
+                planification.id,
+              createdItemIds:
+                itemRecords.map(
+                  item =>
+                    item.id
+                )
+            })
+
+            continue
+          }
+
+          if (
+            entry.mode ===
               'create'
           ) {
             if (
               destination.activePlanification
             ) {
               throw new Error(
-                'Esta UFCD já possui uma planificação ativa. Escolha explicitamente acrescentar ou ignorar.'
+                'Este destino já possui uma planificação ativa. Escolha explicitamente substituir, acrescentar ou ignorar.'
               )
             }
 
@@ -1217,7 +1372,7 @@ export class PlanificationImportRepository {
               !destination.activePlanification
             ) {
               throw new Error(
-                'Esta UFCD ainda não possui uma planificação ativa. Escolha criar em vez de acrescentar.'
+                'Este destino ainda não possui uma planificação ativa. Escolha criar em vez de acrescentar.'
               )
             }
 
@@ -1296,7 +1451,9 @@ export class PlanificationImportRepository {
           item.action ===
             'created' ||
           item.action ===
-            'appended'
+            'appended' ||
+          item.action ===
+            'replaced'
       )
     ) {
       markDashboardDataDirty()

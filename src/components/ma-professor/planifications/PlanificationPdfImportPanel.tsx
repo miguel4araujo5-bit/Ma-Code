@@ -40,6 +40,7 @@ interface PlanificationPdfImportPanelProps {
 type ImportMode =
   | 'create'
   | 'append'
+  | 'replace'
   | 'skip'
 
 type RowState = {
@@ -127,6 +128,7 @@ function stateForDestination(
           ? sameDestination &&
             (
               previous?.mode === 'append' ||
+              previous?.mode === 'replace' ||
               previous?.mode === 'skip'
             )
             ? previous.mode
@@ -439,7 +441,7 @@ export default function PlanificationPdfImportPanel({
       )
 
     if (!selectedRows.length) {
-      return 'Selecione pelo menos uma UFCD ou módulo para importar.'
+      return 'Selecione pelo menos uma UFCD, UC ou módulo para importar.'
     }
 
     const writeDestinations =
@@ -488,9 +490,10 @@ export default function PlanificationPdfImportPanel({
       ) {
         if (
           state.mode !== 'append' &&
+          state.mode !== 'replace' &&
           state.mode !== 'skip'
         ) {
-          return `${label}: escolha explicitamente Acrescentar ou Ignorar.`
+          return `${label}: escolha explicitamente Substituir, Acrescentar ou Ignorar.`
         }
       } else if (
         state.mode !== 'create'
@@ -550,9 +553,22 @@ export default function PlanificationPdfImportPanel({
       return
     }
 
+    const replacing =
+      preview.rows.some(
+        row =>
+          rows[row.key]?.included &&
+          rows[row.key]?.mode ===
+            'replace'
+      )
+
+    const confirmationMessage =
+      replacing
+        ? 'Confirmar a importação? As planificações marcadas como “Substituir” serão removidas e trocadas pela nova planificação deste documento. A UFCD, UC ou módulo, turma, horário, critérios e restantes dados não serão alterados. Se alguma planificação estiver ligada a uma aula, a operação será bloqueada. Todas as secções são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
+        : 'Confirmar a importação? Todas as secções deste documento são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
+
     if (
       !window.confirm(
-        'Confirmar a importação? Todas as secções deste documento são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
+        confirmationMessage
       )
     ) {
       return
@@ -620,6 +636,7 @@ export default function PlanificationPdfImportPanel({
         action:
           | 'created'
           | 'appended'
+          | 'replaced'
           | 'skipped'
           | 'alreadyImported'
       ) =>
@@ -630,7 +647,7 @@ export default function PlanificationPdfImportPanel({
 
       setCompleted(true)
       setFeedback(
-        `Importação concluída. Criadas: ${count('created')}; acrescentadas: ${count('appended')}; ignoradas: ${count('skipped')}; já importadas: ${count('alreadyImported')}.`
+        `Importação concluída. Criadas: ${count('created')}; substituídas: ${count('replaced')}; acrescentadas: ${count('appended')}; ignoradas: ${count('skipped')}; já importadas: ${count('alreadyImported')}.`
       )
 
       if (onImported) {
@@ -660,10 +677,10 @@ export default function PlanificationPdfImportPanel({
             Importar planificação
           </p>
           <h2 className="mt-3 text-xl font-black text-white">
-            PDF, Word ou Excel → UFCD/módulo → revisão → importação
+            PDF, Word ou Excel → UFCD/UC/módulo → revisão → importação
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            O documento é analisado localmente. Reveja a turma, disciplina, UFCD/módulo e os conteúdos antes da confirmação final. Não são inventados sumários.
+            O documento é analisado localmente. Reveja a turma, disciplina, UFCD/UC/módulo e os conteúdos antes da confirmação final. Não são inventados sumários.
           </p>
         </div>
 
@@ -794,7 +811,7 @@ export default function PlanificationPdfImportPanel({
           'yes'
         ) {
           warnings.push(
-            'Já existe uma planificação ativa neste destino. Apenas é permitido acrescentar no fim ou ignorar; não existe substituição automática.'
+            'Já existe uma planificação ativa neste destino. Nunca é substituída automaticamente: escolha explicitamente Substituir, Acrescentar no fim ou Ignorar.'
           )
         }
 
@@ -900,7 +917,7 @@ export default function PlanificationPdfImportPanel({
                       className={selectClass}
                     >
                       <option value="">
-                        Escolher turma, disciplina e UFCD/módulo…
+                        Escolher turma, disciplina e UFCD/UC/módulo…
                       </option>
                       {destinations.map(item => (
                         <option
@@ -948,15 +965,20 @@ export default function PlanificationPdfImportPanel({
                         <option value="">
                           Escolha explicitamente…
                         </option>
+                        <option value="replace">
+                          Substituir planificação
+                        </option>
                         <option value="append">
                           Acrescentar no fim
                         </option>
                         <option value="skip">
                           {kind === 'UFCD'
                             ? 'Ignorar esta UFCD'
-                            : kind === 'Módulo'
-                              ? 'Ignorar este módulo'
-                              : 'Ignorar esta secção'}
+                            : kind === 'UC'
+                              ? 'Ignorar esta UC'
+                              : kind === 'Módulo'
+                                ? 'Ignorar este módulo'
+                                : 'Ignorar esta secção'}
                         </option>
                       </select>
                     ) : (
@@ -1076,7 +1098,7 @@ export default function PlanificationPdfImportPanel({
                 Confirmação final
               </p>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
-                A duração e as aulas previstas são apenas informativas. A importação não altera aulas, sumários existentes, assiduidade, avaliações, GIAE, módulos, horários, carga horária ou progresso.
+                A duração e as aulas previstas são apenas informativas. A importação não altera aulas, sumários existentes, assiduidade, avaliações, GIAE, UFCDs, UCs ou módulos, horários, carga horária ou progresso.
               </p>
             </div>
 

@@ -18,10 +18,10 @@ const panelSource = await readFile(
   'utf8'
 )
 
-test('normal planification panel reuses the established UFCD/module classifier', () => {
+test('normal planification panel distinguishes UFCD, UC and Módulo and exposes explicit replacement', () => {
   assert.match(
     adapterSource,
-    /export function moduleKindLabel\([\s\S]*?\? 'UFCD'[\s\S]*?: 'Módulo'/
+    /export function moduleKindLabel\([\s\S]*?return 'UFCD'[\s\S]*?return 'UC'[\s\S]*?return 'Módulo'/
   )
 
   assert.match(
@@ -36,7 +36,7 @@ test('normal planification panel reuses the established UFCD/module classifier',
 
   assert.match(
     panelSource,
-    /kind === 'UFCD'[\s\S]*?'Ignorar esta UFCD'[\s\S]*?kind === 'Módulo'[\s\S]*?'Ignorar este módulo'/
+    /kind === 'UFCD'[\s\S]*?'Ignorar esta UFCD'[\s\S]*?kind === 'UC'[\s\S]*?'Ignorar esta UC'[\s\S]*?kind === 'Módulo'[\s\S]*?'Ignorar este módulo'/
   )
 })
 
@@ -58,18 +58,22 @@ test('normal planification panel no longer describes every section as a UFCD', (
 
   assert.match(
     panelSource,
-    /Selecione pelo menos uma UFCD ou módulo para importar\./
+    /Selecione pelo menos uma UFCD, UC ou módulo para importar\./
   )
   assert.match(
     panelSource,
-    /PDF, Word ou Excel → UFCD\/módulo → revisão → importação/
+    /PDF, Word ou Excel → UFCD\/UC\/módulo → revisão → importação/
   )
   assert.match(
     panelSource,
-    /Escolher turma, disciplina e UFCD\/módulo…/
+    /Escolher turma, disciplina e UFCD\/UC\/módulo…/
+  )
+  assert.match(
+    panelSource,
+    /<option value="replace">[\s\S]*?Substituir planificação/
   )
   assert.match(
     adapterSource,
-    /Selecione pelo menos uma UFCD ou módulo para importar\./
+    /Selecione pelo menos uma UFCD, UC ou módulo para importar\./
   )
 })

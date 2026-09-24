@@ -68,9 +68,18 @@ function rowIsReady(
 }
 
 function curricularUnitLabel(code: string) {
-  return /^\d{3,6}$/.test(code.trim())
-    ? 'UFCD'
-    : 'Módulo'
+  const normalized =
+    code.trim()
+
+  if (/^\d{3,6}$/.test(normalized)) {
+    return 'UFCD'
+  }
+
+  if (/^UC(?:[\s._/-]*\d|\b)/i.test(normalized)) {
+    return 'UC'
+  }
+
+  return 'Módulo'
 }
 
 export default function ModulePlanificationImportPanel({

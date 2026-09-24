@@ -93,6 +93,20 @@ class Table {
     }
   }
 
+  async delete(id) {
+    const index = rows(this.name).findIndex(item => item.id === id)
+    if (index >= 0) {
+      rows(this.name).splice(index, 1)
+    }
+  }
+
+  async bulkDelete(ids) {
+    const remove = new Set(ids)
+    state[this.name] = rows(this.name).filter(
+      item => !remove.has(item.id)
+    )
+  }
+
   async toArray() {
     return clone(rows(this.name))
   }
@@ -114,6 +128,7 @@ export const maProfessorDb = {
   modules: new Table('modules'),
   planifications: new Table('planifications'),
   planificationItems: new Table('planificationItems'),
+  lessons: new Table('lessons'),
 
   async transaction(mode, ...args) {
     const callback = args.at(-1)
@@ -575,19 +590,150 @@ test(
 )
 
 test(
-  'contract contains no replace mode or destructive planification operation',
+  'replace atomically swaps an unused planification while preserving the curricular unit and unrelated lessons',
+  async () => {
+    const seeded = baseState()
+    seeded.planifications = [
+      {
+        id: 'plan-old',
+        academicYearId: YEAR_ID,
+        teachingAssignmentId: ASSIGNMENT_ID,
+        moduleId: MODULE_A,
+        title: 'Planificação antiga',
+        description: '',
+        active: true,
+        createdAt: '2026-09-01T10:00:00.000Z',
+        updatedAt: '2026-09-01T10:00:00.000Z'
+      }
+    ]
+    seeded.planificationItems = [
+      {
+        id: 'item-old',
+        planificationId: 'plan-old',
+        order: 1,
+        content: 'Conteúdo errado',
+        activity: '',
+        objectives: '',
+        suggestedSummary: '',
+        status: 'planned',
+        usedLessonId: null,
+        usedAt: null,
+        createdAt: '2026-09-01T10:00:00.000Z',
+        updatedAt: '2026-09-01T10:00:00.000Z'
+      }
+    ]
+
+    dbModule.__reset(seeded)
+
+    const before = dbModule.__snapshot()
+    const state = await destinationState(MODULE_A)
+
+    const result = await repository.commitPlanificationImportBatch(
+      batch([
+        importEntry({
+          moduleId: MODULE_A,
+          mode: 'replace',
+          fingerprint: state.stateFingerprint,
+          content: 'Conteúdo correto'
+        })
+      ])
+    )
+
+    assert.equal(result.results[0].action, 'replaced')
+
+    const after = dbModule.__snapshot()
+    assert.equal(after.planifications.length, 1)
+    assert.notEqual(after.planifications[0].id, 'plan-old')
+    assert.equal(after.planifications[0].moduleId, MODULE_A)
+    assert.deepEqual(after.modules, before.modules)
+    assert.deepEqual(after.lessons, before.lessons)
+    assert.equal(after.planificationItems.length, 1)
+    assert.equal(after.planificationItems[0].content, 'Conteúdo correto')
+    assert.notEqual(after.planificationItems[0].id, 'item-old')
+  }
+)
+
+test(
+  'replace refuses a planification reserved by a lesson and leaves all data unchanged',
+  async () => {
+    const seeded = baseState()
+    seeded.planifications = [
+      {
+        id: 'plan-old',
+        academicYearId: YEAR_ID,
+        teachingAssignmentId: ASSIGNMENT_ID,
+        moduleId: MODULE_A,
+        title: 'Planificação antiga',
+        description: '',
+        active: true,
+        createdAt: '2026-09-01T10:00:00.000Z',
+        updatedAt: '2026-09-01T10:00:00.000Z'
+      }
+    ]
+    seeded.planificationItems = [
+      {
+        id: 'item-old',
+        planificationId: 'plan-old',
+        order: 1,
+        content: 'Conteúdo reservado',
+        activity: '',
+        objectives: '',
+        suggestedSummary: '',
+        status: 'planned',
+        usedLessonId: null,
+        usedAt: null,
+        createdAt: '2026-09-01T10:00:00.000Z',
+        updatedAt: '2026-09-01T10:00:00.000Z'
+      }
+    ]
+    seeded.lessons = [
+      {
+        id: 'lesson-reserved',
+        moduleId: MODULE_A,
+        summary: '',
+        planificationItemIds: ['item-old']
+      }
+    ]
+
+    dbModule.__reset(seeded)
+
+    const state = await destinationState(MODULE_A)
+    const before = dbModule.__snapshot()
+
+    await assert.rejects(
+      repository.commitPlanificationImportBatch(
+        batch([
+          importEntry({
+            moduleId: MODULE_A,
+            mode: 'replace',
+            fingerprint: state.stateFingerprint
+          })
+        ])
+      ),
+      /não pode ser substituída sem perder histórico/
+    )
+
+    assert.deepEqual(
+      dbModule.__snapshot(),
+      before
+    )
+  }
+)
+
+test(
+  'replace mode is explicit and guarded by lesson references',
   () => {
-    assert.doesNotMatch(
+    assert.match(
       source,
       /\|\s*'replace'/
     )
-    assert.doesNotMatch(
+    assert.match(
       source,
-      /planifications\.(?:delete|clear)\s*\(/
+      /assertReplaceablePlanification[\s\S]*planificationItemIds/
     )
-    assert.doesNotMatch(
+    assert.match(
       source,
-      /planificationItems\.(?:delete|clear)\s*\(/
+      /entry\.mode ===[\s\S]*'replace'[\s\S]*action:[\s\S]*'replaced'/
     )
   }
 )
