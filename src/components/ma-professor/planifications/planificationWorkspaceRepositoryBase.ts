@@ -843,6 +843,123 @@ export class PlanificationWorkspaceRepository {
     return updated
   }
 
+  async deletePlanification(
+    planificationId:
+      EntityId
+  ) {
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.planifications,
+      maProfessorDb.planificationItems,
+      maProfessorDb.lessons,
+      async () => {
+        const planification =
+          await maProfessorDb
+            .planifications
+            .get(
+              planificationId
+            )
+
+        if (
+          !planification
+        ) {
+          throw new Error(
+            'A planificação indicada não existe.'
+          )
+        }
+
+        const items =
+          await maProfessorDb
+            .planificationItems
+            .where(
+              'planificationId'
+            )
+            .equals(
+              planification.id
+            )
+            .toArray()
+
+        const linkedByUsage =
+          items.some(
+            item =>
+              item.status ===
+                'used' ||
+              Boolean(
+                item.usedLessonId
+              ) ||
+              Boolean(
+                item.usedAt
+              )
+          )
+
+        if (
+          linkedByUsage
+        ) {
+          throw new Error(
+            'Esta planificação já está ligada a uma ou mais aulas e não pode ser eliminada sem perder histórico.'
+          )
+        }
+
+        const itemIds =
+          new Set(
+            items.map(
+              item =>
+                item.id
+            )
+          )
+
+        if (
+          itemIds.size >
+          0
+        ) {
+          const lessons =
+            await maProfessorDb
+              .lessons
+              .toArray()
+
+          const linkedLesson =
+            lessons.find(
+              lesson =>
+                lesson
+                  .planificationItemIds
+                  .some(
+                    itemId =>
+                      itemIds.has(
+                        itemId
+                      )
+                  )
+            )
+
+          if (
+            linkedLesson
+          ) {
+            throw new Error(
+              'Esta planificação já está ligada a uma ou mais aulas e não pode ser eliminada sem perder histórico.'
+            )
+          }
+
+          await maProfessorDb
+            .planificationItems
+            .bulkDelete(
+              Array.from(
+                itemIds
+              )
+            )
+        }
+
+        await maProfessorDb
+          .planifications
+          .delete(
+            planification.id
+          )
+
+        return true
+      }
+    )
+  }
+
   async addPlanificationItem(
     planificationId:
       EntityId,

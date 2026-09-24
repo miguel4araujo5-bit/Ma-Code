@@ -47,6 +47,18 @@ export class PlanificationWorkspaceRepository
     return result
   }
 
+  async deletePlanification(
+    planificationId: EntityId
+  ) {
+    const result =
+      await super.deletePlanification(
+        planificationId
+      )
+
+    markDashboardDataDirty()
+    return result
+  }
+
   async addPlanificationItem(
     planificationId: EntityId,
     draft: PlanificationItemDraft

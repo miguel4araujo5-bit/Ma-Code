@@ -17,6 +17,9 @@ import type {
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
+import {
+  planificationWorkspaceRepository
+} from '../planifications/planificationWorkspaceRepository'
 
 type PlanificationsSetupStepProps = {
   snapshot: SetupSnapshot
@@ -563,6 +566,89 @@ export default function PlanificationsSetupStep({
     )
 
     return nextSnapshot
+  }
+
+  async function deleteExistingPlanification(
+    planificationId: EntityId,
+    moduleId: EntityId
+  ) {
+    if (
+      busy
+    ) {
+      return
+    }
+
+    if (
+      form.moduleId ===
+        moduleId &&
+      !confirmDiscardPlanificationDraft()
+    ) {
+      return
+    }
+
+    const confirmed =
+      window.confirm(
+        'Apagar esta planificação? Serão eliminados apenas a planificação e os respetivos conteúdos. A UFCD/módulo, turma, horário, critérios e restantes dados não serão alterados. Depois poderá importar ou criar outra planificação.'
+      )
+
+    if (
+      !confirmed
+    ) {
+      return
+    }
+
+    setBusy(true)
+    clearMessages()
+
+    try {
+      await planificationWorkspaceRepository
+        .deletePlanification(
+          planificationId
+        )
+
+      if (
+        form.moduleId ===
+          moduleId
+      ) {
+        const module =
+          moduleById.get(
+            moduleId
+          )
+
+        setForm(
+          current => ({
+            ...current,
+            title:
+              module
+                ? getDefaultPlanificationTitle(
+                    module.code,
+                    module.name
+                  )
+                : current.title,
+            description:
+              ''
+          })
+        )
+
+        resetItems()
+      }
+
+      await refreshSnapshot()
+
+      setSuccess(
+        'A planificação foi apagada. A UFCD/módulo e os restantes dados foram mantidos.'
+      )
+    } catch (
+      deleteError
+    ) {
+      setError(
+        getErrorMessage(
+          deleteError
+        )
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   function clearMessages() {
@@ -2100,7 +2186,23 @@ Realização de trabalho de grupo.`}
                               />
                             </div>
 
-                            {!planification ? (
+                            {planification ? (
+                              <button
+                                type="button"
+                                disabled={
+                                  busy
+                                }
+                                onClick={() =>
+                                  void deleteExistingPlanification(
+                                    planification.id,
+                                    module.id
+                                  )
+                                }
+                                className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3 text-xs font-bold text-rose-100 transition hover:bg-rose-300/[0.1] disabled:opacity-50"
+                              >
+                                Apagar planificação
+                              </button>
+                            ) : (
                               <button
                                 type="button"
                                 onClick={() =>
@@ -2112,7 +2214,7 @@ Realização de trabalho de grupo.`}
                               >
                                 Criar planificação
                               </button>
-                            ) : null}
+                            )}
                           </div>
                         )
                       }

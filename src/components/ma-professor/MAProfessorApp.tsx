@@ -1499,6 +1499,17 @@ export default function MAProfessorApp({
     handlePlanificationRefresh()
   }
 
+  async function handleDeletePlanification(
+    planificationId: EntityId
+  ) {
+    await planificationWorkspaceRepository.deletePlanification(
+      planificationId
+    )
+
+    handlePlanificationRefresh()
+    handleDashboardRefresh()
+  }
+
   async function handleAddPlanificationItem(
     planificationId: EntityId,
     draft: PlanificationItemDraft
@@ -1882,6 +1893,7 @@ export default function MAProfessorApp({
             onFiltersChange={handlePlanificationFiltersChange}
             onCreatePlanification={handleCreatePlanification}
             onUpdatePlanification={handleUpdatePlanification}
+            onDeletePlanification={handleDeletePlanification}
             onAddItem={handleAddPlanificationItem}
             onUpdateItem={handleUpdatePlanificationItem}
             onDeleteItem={handleDeletePlanificationItem}

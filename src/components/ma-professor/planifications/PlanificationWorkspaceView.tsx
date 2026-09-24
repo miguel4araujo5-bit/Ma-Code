@@ -60,6 +60,11 @@ interface PlanificationWorkspaceViewProps {
       UpdatePlanificationWorkspaceInput
   ) => Promise<void> | void
 
+  onDeletePlanification: (
+    planificationId:
+      EntityId
+  ) => Promise<void> | void
+
   onAddItem: (
     planificationId:
       EntityId,
@@ -466,6 +471,7 @@ export default function PlanificationWorkspaceView({
   onFiltersChange,
   onCreatePlanification,
   onUpdatePlanification,
+  onDeletePlanification,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
@@ -957,6 +963,51 @@ export default function PlanificationWorkspaceView({
           }
         ),
       'A identificação da planificação foi guardada.'
+    )
+  }
+
+  async function deletePlanification() {
+    const planification =
+      snapshot.planification
+
+    if (
+      !planification ||
+      !confirmDiscardUnsavedChanges()
+    ) {
+      return
+    }
+
+    const confirmed =
+      window.confirm(
+        'Apagar esta planificação? Serão eliminados apenas a planificação e os respetivos conteúdos. A UFCD/módulo, turma, horário, critérios e restantes dados não serão alterados. Depois poderá importar ou criar outra planificação.'
+      )
+
+    if (
+      !confirmed
+    ) {
+      return
+    }
+
+    await runAction(
+      'delete-planification',
+      async () => {
+        try {
+          await onDeletePlanification(
+            planification.id
+          )
+
+          discardOnNextSnapshotRef.current =
+            true
+        } catch (
+          actionError
+        ) {
+          discardOnNextSnapshotRef.current =
+            false
+
+          throw actionError
+        }
+      },
+      'A planificação foi apagada. Pode agora importar ou criar outra.'
     )
   }
 
@@ -1610,18 +1661,36 @@ export default function PlanificationWorkspaceView({
                 </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={
-                  busy
-                }
-                className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-50 disabled:opacity-60"
-              >
-                {busyAction ===
-                'metadata'
-                  ? 'A guardar...'
-                  : 'Guardar identificação'}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void deletePlanification()
+                  }
+                  disabled={
+                    busy
+                  }
+                  className="rounded-xl border border-rose-300/25 bg-rose-300/[0.07] px-4 py-2.5 text-xs font-black text-rose-100 transition hover:bg-rose-300/[0.12] disabled:opacity-60"
+                >
+                  {busyAction ===
+                  'delete-planification'
+                    ? 'A apagar...'
+                    : 'Apagar planificação'}
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    busy
+                  }
+                  className="rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-xs font-black text-cyan-50 disabled:opacity-60"
+                >
+                  {busyAction ===
+                  'metadata'
+                    ? 'A guardar...'
+                    : 'Guardar identificação'}
+                </button>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-5 lg:grid-cols-2">

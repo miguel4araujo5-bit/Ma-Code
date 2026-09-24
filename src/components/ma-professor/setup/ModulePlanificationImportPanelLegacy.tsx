@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SetupSnapshot } from '../repository'
+import { planificationWorkspaceRepository } from '../planifications/planificationWorkspaceRepository'
 import { samePlanificationModuleCode } from '../planifications/planificationPdfPreview'
 import PlanificationScheduleGrid from './PlanificationScheduleGrid'
 import {
@@ -130,6 +131,53 @@ export default function ModulePlanificationImportPanel({
     [selectedRows]
   )
   const availableDestinations = useMemo(() => planificationDestinations(snapshot), [snapshot])
+  const existingPlanifications = useMemo(() => {
+    const moduleById = new Map(
+      snapshot.modules.map(module => [module.id, module] as const)
+    )
+    const assignmentById = new Map(
+      snapshot.teachingAssignments.map(assignment => [assignment.id, assignment] as const)
+    )
+    const groupById = new Map(
+      snapshot.groups.map(group => [group.id, group] as const)
+    )
+    const subjectById = new Map(
+      snapshot.subjects.map(subject => [subject.id, subject] as const)
+    )
+
+    return snapshot.planifications
+      .filter(planification => planification.active)
+      .flatMap(planification => {
+        const module = moduleById.get(planification.moduleId)
+        const assignment = module
+          ? assignmentById.get(module.teachingAssignmentId)
+          : null
+        const group = assignment
+          ? groupById.get(assignment.groupId)
+          : null
+        const subject = assignment
+          ? subjectById.get(assignment.subjectId)
+          : null
+
+        if (!module || !assignment || !group || !subject) return []
+
+        const subjectLabel = subject.shortName.trim() || subject.name
+        const moduleName = module.code.trim()
+          ? `${module.code.trim()} · ${module.name}`
+          : module.name
+
+        return [{
+          planification,
+          label: `${group.name} · ${subjectLabel} · ${moduleName}`
+        }]
+      })
+      .sort((left, right) =>
+        left.label.localeCompare(right.label, 'pt-PT', {
+          numeric: true,
+          sensitivity: 'base'
+        })
+      )
+  }, [snapshot])
   const destinationReady = guided
     ? availableDestinations.some(item => item.assignment.id === targetAssignmentId)
     : Boolean(subjectName.trim() && matchingSubjects.length <= 1 && groupIds.length > 0)
@@ -275,6 +323,61 @@ export default function ModulePlanificationImportPanel({
     finally { setBusy(false) }
   }
 
+  async function removeExistingPlanification(
+    planificationId: string,
+    label: string
+  ) {
+    if (
+      saving.current ||
+      busy
+    ) {
+      return
+    }
+
+    const confirmed =
+      window.confirm(
+        'Apagar esta planificação? Serão eliminados apenas a planificação e os respetivos conteúdos. A UFCD/módulo, turma, horário, critérios e restantes dados não serão alterados. Depois poderá importar ou criar outra planificação.'
+      )
+
+    if (!confirmed) return
+
+    setBusy(true)
+    setError('')
+    setMessage('')
+
+    let removed = false
+
+    try {
+      await planificationWorkspaceRepository
+        .deletePlanification(
+          planificationId
+        )
+
+      removed = true
+
+      await onImported()
+
+      const state =
+        await readModuleImportState()
+
+      setFingerprint(
+        state.fingerprint
+      )
+
+      setMessage(
+        `A planificação de ${label} foi apagada. A UFCD/módulo e os restantes dados foram mantidos.`
+      )
+    } catch (failure) {
+      setError(
+        removed
+          ? 'A planificação foi apagada, mas a lista não foi atualizada. Recarregue a página antes de continuar.'
+          : errorText(failure)
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function save() {
     if (saving.current || busy || !document) return
     const selections = rows.filter(row => row.selected)
@@ -366,6 +469,59 @@ export default function ModulePlanificationImportPanel({
             </button>
           ) : null}
         </div>
+
+        {existingPlanifications.length > 0 ? (
+          <section className="mt-5 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+            <div>
+              <h3 className="font-black text-white">
+                Planificações já adicionadas
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                Se associou uma planificação errada, pode apagá-la sem remover a UFCD/módulo, a turma, o horário ou os critérios.
+              </p>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {existingPlanifications.map(
+                ({
+                  planification,
+                  label
+                }) => (
+                  <div
+                    key={planification.id}
+                    className="flex flex-col gap-3 rounded-xl border border-white/10 bg-slate-950/45 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white">
+                        {label}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-slate-500">
+                        {planification.title}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={
+                        busy ||
+                        disabled
+                      }
+                      onClick={() =>
+                        void removeExistingPlanification(
+                          planification.id,
+                          label
+                        )
+                      }
+                      className="shrink-0 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-3 py-2 text-xs font-black text-rose-100 transition hover:bg-rose-300/[0.1] disabled:opacity-50"
+                    >
+                      Apagar planificação
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          </section>
+        ) : null}
 
         <PlanificationScheduleGrid
           snapshot={snapshot}

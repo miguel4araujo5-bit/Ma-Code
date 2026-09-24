@@ -300,6 +300,7 @@ test(
     for (const method of [
       'createPlanification',
       'updatePlanification',
+      'deletePlanification',
       'addPlanificationItem',
       'updatePlanificationItem',
       'setPlanificationItemStatus',
