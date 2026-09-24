@@ -1,3 +1,6 @@
+import {
+  ufcdProgressRepository
+} from '../lessons/ufcdProgressRepository'
 import type {
   PlanificationItemDraft
 } from '../repository'
@@ -13,6 +16,7 @@ import {
 } from './planificationWorkspaceRepositoryBase'
 import type {
   CreatePlanificationWorkspaceInput,
+  PlanificationWorkspaceFilters,
   UpdatePlanificationItemInput,
   UpdatePlanificationWorkspaceInput
 } from './planificationWorkspaceRepositoryBase'
@@ -21,6 +25,38 @@ export * from './planificationWorkspaceRepositoryBase'
 
 export class PlanificationWorkspaceRepository
   extends BasePlanificationWorkspaceRepository {
+  async getWorkspace(
+    academicYearId: EntityId,
+    filters: PlanificationWorkspaceFilters = {}
+  ) {
+    const snapshot =
+      await super.getWorkspace(
+        academicYearId,
+        filters
+      )
+
+    if (
+      !snapshot.selectedAssignment
+    ) {
+      return snapshot
+    }
+
+    try {
+      const completionProjection =
+        await ufcdProgressRepository
+          .getAssignmentCompletionProjection(
+            snapshot.selectedAssignment.id
+          )
+
+      return {
+        ...snapshot,
+        completionProjection
+      }
+    } catch {
+      return snapshot
+    }
+  }
+
   async createPlanification(
     input: CreatePlanificationWorkspaceInput
   ) {

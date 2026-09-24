@@ -21,7 +21,7 @@ const progressRepositorySource = await readFile(
 
 const planificationRepositorySource = await readFile(
   new URL(
-    '../../src/components/ma-professor/planifications/planificationWorkspaceRepositoryBase.ts',
+    '../../src/components/ma-professor/planifications/planificationWorkspaceRepository.ts',
     import.meta.url
   ),
   'utf8'
