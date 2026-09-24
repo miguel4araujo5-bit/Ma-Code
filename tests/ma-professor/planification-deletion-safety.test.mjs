@@ -460,7 +460,15 @@ test(
     )
     assert.match(
       guidedImportSource,
-      /Planificações já adicionadas[\s\S]*deletePlanification[\s\S]*Apagar planificação/
+      /Planificações já adicionadas/
+    )
+    assert.match(
+      guidedImportSource,
+      /planificationWorkspaceRepository[\s\S]*?\.deletePlanification\(/
+    )
+    assert.match(
+      guidedImportSource,
+      /Apagar planificação/
     )
 
     for (const source of [
