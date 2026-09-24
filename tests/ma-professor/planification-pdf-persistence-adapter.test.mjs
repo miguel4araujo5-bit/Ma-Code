@@ -622,7 +622,11 @@ test('Agent 3 integration has no direct persistence path and blocks PDF import w
   )
   assert.doesNotMatch(
     panelSource,
-    /replace|delete\s*\+\s*recreate|plannedPeriods\s*[:=]/i
+    /delete\s*\+\s*recreate|plannedPeriods\s*[:=]/i
+  )
+  assert.match(
+    panelSource,
+    /Substituir planificação/
   )
   assert.match(
     workspaceSource,
