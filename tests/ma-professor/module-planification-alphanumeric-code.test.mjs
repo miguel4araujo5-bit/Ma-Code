@@ -41,11 +41,11 @@ test(
 )
 
 test(
-  'planification titles distinguish numeric UFCD codes from other module codes',
+  'planification titles distinguish UFCD, UC and other module codes',
   () => {
     assert.match(
       repositorySource,
-      /moduleKindLabel = \(code: string\) => \/\^\\d\{3,6\}\$\/\.test\(clean\(code\)\) \? 'UFCD' : 'Módulo'/
+      /moduleKindLabel = \(code: string\) => \{[\s\S]*?return 'UFCD'[\s\S]*?return 'UC'[\s\S]*?return 'Módulo'/
     )
     assert.match(
       repositorySource,
@@ -64,7 +64,7 @@ test(
     assert.ok(match, 'missing module code validation expression')
     const pattern = Function(`return ${match[1]}`)()
 
-    for (const value of ['10385', 'M1', 'P1', 'P2', 'OP5', 'OP8', 'M1.2']) {
+    for (const value of ['10385', 'UC04993', 'M1', 'P1', 'P2', 'OP5', 'OP8', 'M1.2']) {
       assert.equal(pattern.test(value), true, value)
     }
 
