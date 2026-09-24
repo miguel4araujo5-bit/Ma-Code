@@ -2,6 +2,9 @@ import {
   assessmentWorkspaceRepository
 } from '../assessments/assessmentWorkspaceRepository'
 import {
+  calendarEventBlocksAssignmentOnDate
+} from '../calendar/calendarRepository'
+import {
   maProfessorDb,
   openMAProfessorDatabase
 } from '../db'
@@ -28,6 +31,13 @@ import {
   todayISO,
   type UfcdModuleProgress
 } from './ufcdProgress'
+import {
+  projectSequentialUfcdCompletionDates,
+  type UfcdCompletionProjection
+} from './ufcdCompletionProjection'
+import {
+  planScheduledLessonReconciliation
+} from './scheduledLessonReconciliation'
 
 export interface UfcdEndingNotice {
   lessonId: EntityId
@@ -304,6 +314,103 @@ async function loadAssignmentProgressData(
   }
 }
 
+
+async function loadRelatedLessonIds(
+  lessons: Lesson[],
+  academicYearId: EntityId
+) {
+  const lessonIds =
+    new Set(
+      lessons.map(
+        lesson => lesson.id
+      )
+    )
+
+  if (lessonIds.size === 0) {
+    return new Set<EntityId>()
+  }
+
+  const [
+    attendanceRows,
+    assessments,
+    suggestions,
+    planificationItems
+  ] = await Promise.all([
+    maProfessorDb.lessonAttendance
+      .toArray(),
+    maProfessorDb.lessonAssessments
+      .where('academicYearId')
+      .equals(academicYearId)
+      .toArray(),
+    maProfessorDb.summarySuggestions
+      .toArray(),
+    maProfessorDb.planificationItems
+      .toArray()
+  ])
+
+  const relatedLessonIds =
+    new Set<EntityId>()
+
+  attendanceRows.forEach(
+    row => {
+      if (
+        lessonIds.has(
+          row.lessonId
+        )
+      ) {
+        relatedLessonIds.add(
+          row.lessonId
+        )
+      }
+    }
+  )
+
+  assessments.forEach(
+    assessment => {
+      if (
+        lessonIds.has(
+          assessment.lessonId
+        )
+      ) {
+        relatedLessonIds.add(
+          assessment.lessonId
+        )
+      }
+    }
+  )
+
+  suggestions.forEach(
+    suggestion => {
+      if (
+        lessonIds.has(
+          suggestion.lessonId
+        )
+      ) {
+        relatedLessonIds.add(
+          suggestion.lessonId
+        )
+      }
+    }
+  )
+
+  planificationItems.forEach(
+    item => {
+      if (
+        item.usedLessonId &&
+        lessonIds.has(
+          item.usedLessonId
+        )
+      ) {
+        relatedLessonIds.add(
+          item.usedLessonId
+        )
+      }
+    }
+  )
+
+  return relatedLessonIds
+}
+
 function buildProgressBeforeLesson(
   data: AssignmentProgressData,
   lesson: Lesson,
@@ -499,6 +606,170 @@ async function hasEnoughAssessmentEvidence(
 export class UfcdProgressRepository {
   async initialize() {
     await openMAProfessorDatabase()
+  }
+
+  async getAssignmentCompletionProjection(
+    teachingAssignmentId: EntityId
+  ): Promise<UfcdCompletionProjection> {
+    await this.initialize()
+
+    const data =
+      await loadAssignmentProgressData(
+        teachingAssignmentId
+      )
+
+    const referenceToday =
+      todayISO()
+
+    const progress =
+      buildUfcdModuleProgress(
+        data.modules,
+        data.lessons,
+        referenceToday
+      )
+
+    const actualCompletionDateByModuleId =
+      new Map<EntityId, ISODate | null>(
+        data.modules.map(
+          module => {
+            const row =
+              progress.find(
+                item =>
+                  item.moduleId ===
+                    module.id
+              )
+
+            return [
+              module.id,
+              row?.periodsRemaining === 0
+                ? getLastCountedLessonDate(
+                    module.id,
+                    data.lessons,
+                    referenceToday
+                  )
+                : null
+            ]
+          }
+        )
+      )
+
+    const dateFrom =
+      referenceToday <
+      data.academicYear.startDate
+        ? data.academicYear.startDate
+        : referenceToday
+
+    if (
+      dateFrom >
+      data.academicYear.endDate
+    ) {
+      return projectSequentialUfcdCompletionDates({
+        modules:
+          data.modules,
+        progress,
+        actualCompletionDateByModuleId,
+        futureLessons:
+          []
+      })
+    }
+
+    const relatedLessonIds =
+      await loadRelatedLessonIds(
+        data.lessons,
+        data.academicYear.id
+      )
+
+    const reconciliation =
+      planScheduledLessonReconciliation({
+        academicYear:
+          data.academicYear,
+        assignments: [
+          data.assignment
+        ],
+        slots:
+          data.slots,
+        modules:
+          data.modules,
+        events:
+          data.events,
+        lessons:
+          data.lessons,
+        relatedLessonIds,
+        dateFrom,
+        dateTo:
+          data.academicYear.endDate
+      })
+
+    const deletedLessonIds =
+      new Set(
+        reconciliation.deleteLessonIds
+      )
+
+    const existingFutureLessons =
+      data.lessons
+        .filter(
+          lesson =>
+            !deletedLessonIds.has(
+              lesson.id
+            ) &&
+            lesson.date >=
+              dateFrom &&
+            lesson.status !==
+              'cancelled' &&
+            lesson.countTowardProgress &&
+            !lessonCountsTowardUfcdProgress(
+              lesson,
+              referenceToday
+            ) &&
+            !data.events.some(
+              event =>
+                calendarEventBlocksAssignmentOnDate(
+                  event,
+                  data.assignment,
+                  lesson.date
+                )
+            )
+        )
+        .map(
+          lesson => ({
+            date:
+              lesson.date,
+            startTime:
+              lesson.startTime,
+            periodCount:
+              lesson.periodCount
+          })
+        )
+
+    const projectedFutureLessons =
+      reconciliation.createLessons
+        .filter(
+          lesson =>
+            lesson.countTowardProgress &&
+            lesson.date >=
+              dateFrom
+        )
+        .map(
+          lesson => ({
+            date:
+              lesson.date,
+            startTime:
+              lesson.startTime,
+            periodCount:
+              lesson.periodCount
+          })
+        )
+
+    return projectSequentialUfcdCompletionDates({
+      modules:
+        data.modules,
+      progress,
+      actualCompletionDateByModuleId,
+      futureLessons: [
+        ...existingFutureLessons,
+        ...projectedFutureLessons
+      ]
+    })
   }
 
   async ensureLessonUsesCurrentUfcd(

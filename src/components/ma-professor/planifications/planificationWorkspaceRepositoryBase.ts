@@ -4,6 +4,12 @@ import {
   type PlanificationItemDraft
 } from '../repository'
 import type {
+  UfcdCompletionProjection
+} from '../lessons/ufcdCompletionProjection'
+import {
+  ufcdProgressRepository
+} from '../lessons/ufcdProgressRepository'
+import type {
   ClassGroup,
   EntityId,
   Lesson,
@@ -59,6 +65,9 @@ export interface PlanificationWorkspaceSnapshot {
 
   planification: Planification | null
   items: PlanificationWorkspaceItem[]
+
+  completionProjection:
+    UfcdCompletionProjection | null
 
   totals: {
     itemCount: number
@@ -538,6 +547,25 @@ export class PlanificationWorkspaceRepository {
       )
     }
 
+    let completionProjection:
+      UfcdCompletionProjection | null =
+      null
+
+    if (
+      selectedAssignment
+    ) {
+      try {
+        completionProjection =
+          await ufcdProgressRepository
+            .getAssignmentCompletionProjection(
+              selectedAssignment.id
+            )
+      } catch {
+        completionProjection =
+          null
+      }
+    }
+
     const emptySnapshot =
       (): PlanificationWorkspaceSnapshot => ({
         academicYear:
@@ -568,6 +596,8 @@ export class PlanificationWorkspaceRepository {
 
         items:
           [],
+
+        completionProjection,
 
         totals:
           calculateTotals(

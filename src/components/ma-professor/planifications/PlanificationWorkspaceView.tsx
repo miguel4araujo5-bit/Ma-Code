@@ -390,6 +390,38 @@ function formatDate(
   )
 }
 
+
+function formatCompletionDate(
+  value: string | null
+) {
+  if (!value) {
+    return 'Sem previsão'
+  }
+
+  const [
+    year,
+    month,
+    day
+  ] =
+    value
+      .split('-')
+      .map(Number)
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value
+  }
+
+  return [
+    String(day).padStart(2, '0'),
+    String(month).padStart(2, '0'),
+    String(year).padStart(4, '0')
+  ].join('/')
+}
+
 function statusClass(
   status:
     PlanificationItemStatus
@@ -1383,6 +1415,67 @@ export default function PlanificationWorkspaceView({
           </label>
         </div>
       </section>
+
+      {snapshot.selectedAssignment &&
+      snapshot.completionProjection ? (
+        <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/70 p-5 shadow-xl shadow-black/15 sm:p-7">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
+            Previsão de conclusão
+          </p>
+
+          <h2 className="mt-3 text-xl font-black text-white">
+            UFCDs e disciplina
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            A previsão usa os tempos já registados e as aulas futuras do horário, respeitando os dias sem aula definidos no calendário.
+          </p>
+
+          <div className="mt-5 space-y-2">
+            {snapshot.moduleOptions.map(
+              option => {
+                const projection =
+                  snapshot.completionProjection
+                    ?.modules.find(
+                      row =>
+                        row.moduleId ===
+                          option.module.id
+                    )
+
+                return (
+                  <div
+                    key={
+                      option.module.id
+                    }
+                    className="flex flex-col gap-1 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  >
+                    <span className="text-sm font-bold text-slate-200">
+                      {option.label}
+                    </span>
+
+                    <span className="text-sm font-black text-cyan-100">
+                      Conclusão prevista:{' '}
+                      {formatCompletionDate(
+                        projection
+                          ?.estimatedCompletionDate ??
+                          null
+                      )}
+                    </span>
+                  </div>
+                )
+              }
+            )}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] px-4 py-3 text-sm font-black text-emerald-100">
+            Conclusão prevista da disciplina:{' '}
+            {formatCompletionDate(
+              snapshot.completionProjection
+                .disciplineCompletionDate
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <PlanificationPdfImportPanel
         snapshot={snapshot}
