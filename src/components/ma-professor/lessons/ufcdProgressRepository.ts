@@ -36,6 +36,7 @@ import {
   type UfcdCompletionProjection
 } from './ufcdCompletionProjection'
 import {
+  isPristineScheduledLesson,
   planScheduledLessonReconciliation
 } from './scheduledLessonReconciliation'
 
@@ -716,7 +717,15 @@ export class UfcdProgressRepository {
               dateFrom &&
             lesson.status !==
               'cancelled' &&
-            lesson.countTowardProgress &&
+            (
+              lesson.countTowardProgress ||
+              isPristineScheduledLesson(
+                lesson,
+                relatedLessonIds.has(
+                  lesson.id
+                )
+              )
+            ) &&
             !lessonCountsTowardUfcdProgress(
               lesson,
               referenceToday

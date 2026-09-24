@@ -332,6 +332,10 @@ test(
       /lessonCountsTowardUfcdProgress\(/
     )
     assert.match(
+      progressRepositorySource,
+      /lesson\.countTowardProgress\s*\|\|\s*isPristineScheduledLesson\(/
+    )
+    assert.match(
       planificationRepositorySource,
       /getAssignmentCompletionProjection\(/
     )
