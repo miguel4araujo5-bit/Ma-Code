@@ -1124,12 +1124,14 @@ export class PlanificationImportRepository {
 
     const result = await maProfessorDb.transaction(
       'rw',
-      maProfessorDb.academicYears,
-      maProfessorDb.teachingAssignments,
-      maProfessorDb.modules,
-      maProfessorDb.planifications,
-      maProfessorDb.planificationItems,
-      maProfessorDb.lessons,
+      [
+        maProfessorDb.academicYears,
+        maProfessorDb.teachingAssignments,
+        maProfessorDb.modules,
+        maProfessorDb.planifications,
+        maProfessorDb.planificationItems,
+        maProfessorDb.lessons
+      ],
       async () => {
         const results:
           PlanificationImportEntryResult[] =
