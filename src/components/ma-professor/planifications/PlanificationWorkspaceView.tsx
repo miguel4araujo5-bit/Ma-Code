@@ -1,3 +1,4 @@
+import ModuleUnitActions from '../setup/ModuleUnitActions'
 import {
   type ChangeEvent,
   type FormEvent,
@@ -41,6 +42,7 @@ interface PlanificationWorkspaceViewProps {
   loading?: boolean
   error?: string
   onRefresh?: () => void
+  onModuleChanged?: () => Promise<void>
 
   onFiltersChange: (
     filters:
@@ -500,6 +502,7 @@ export default function PlanificationWorkspaceView({
   loading = false,
   error = '',
   onRefresh,
+  onModuleChanged,
   onFiltersChange,
   onCreatePlanification,
   onUpdatePlanification,
@@ -1011,7 +1014,7 @@ export default function PlanificationWorkspaceView({
 
     const confirmed =
       window.confirm(
-        'Apagar esta planificação? Serão eliminados apenas a planificação e os respetivos conteúdos. A UFCD/módulo, turma, horário, critérios e restantes dados não serão alterados. Depois poderá importar ou criar outra planificação.'
+        'Apagar esta planificação? A planificação será removida da lista ativa. Os conteúdos já associados a aulas ficam guardados nessas aulas. A UFCD, módulo ou UC, turma, horário, critérios e restantes dados serão mantidos. Depois poderá importar ou criar outra planificação.'
       )
 
     if (
@@ -1474,6 +1477,20 @@ export default function PlanificationWorkspaceView({
                 .disciplineCompletionDate
             )}
           </div>
+        </section>
+      ) : null}
+
+      {snapshot.selectedModule ? (
+        <section className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+          <p className="text-sm font-bold text-white">{selectedModuleLabel}</p>
+          <p className="mt-1 text-xs text-slate-400">Gerir a própria UFCD, módulo ou UC.</p>
+          <ModuleUnitActions key={snapshot.selectedModule.id} module={snapshot.selectedModule}
+            disabled={busy} beforeOpen={confirmDiscardUnsavedChanges}
+            onChanged={async () => {
+              discardOnNextSnapshotRef.current = true
+              if (onModuleChanged) await onModuleChanged()
+              else onRefresh?.()
+            }} />
         </section>
       ) : null}
 

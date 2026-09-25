@@ -214,7 +214,11 @@ test('append preserves the existing description, adds new general context once a
     export function markDashboardDataDirty() {}
   `)
 
+  const removalSource = await readFile(new URL('../../src/components/ma-professor/planifications/planificationRemoval.ts', import.meta.url), 'utf8')
+  const removalUrl = dataUrl(transpile(removalSource.replace("from '../db'", `from '${dbUrl}'`), 'planificationRemoval.ts'))
+
   const runtimeSource = transpile(source, 'planificationImportRepository.ts')
+    .replaceAll("'./planifications/planificationRemoval'", `'${removalUrl}'`)
     .replaceAll("'./db'", `'${dbUrl}'`)
     .replaceAll('"./db"', `"${dbUrl}"`)
     .replaceAll("'./dashboard/dashboardRefreshSignal'", `'${dashboardUrl}'`)

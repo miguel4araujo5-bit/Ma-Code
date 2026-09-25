@@ -8,6 +8,8 @@ import {
   createInitialStudentMembership,
   getLocalISODate
 } from './students/studentMembership'
+import { isPristineScheduledLesson } from './lessons/scheduledLessonReconciliation'
+import { markDashboardDataDirty } from './dashboard/dashboardRefreshSignal'
 
 import type {
   AcademicYear,
@@ -1471,6 +1473,110 @@ export class MAProfessorRepository {
     )
 
     return record
+  }
+
+  async deleteModule(id: EntityId, expectedUpdatedAt: string) {
+    return this.changeModule(id, expectedUpdatedAt, null)
+  }
+
+  async replaceModule(
+    id: EntityId,
+    expectedUpdatedAt: string,
+    replacement: Pick<ModuleUnit, 'code' | 'name' | 'plannedPeriods'>
+  ) {
+    return this.changeModule(id, expectedUpdatedAt, replacement)
+  }
+
+  private async changeModule(
+    id: EntityId,
+    expectedUpdatedAt: string,
+    replacement: Pick<ModuleUnit, 'code' | 'name' | 'plannedPeriods'> | null
+  ) {
+    await this.initialize()
+    const result = await maProfessorDb.transaction('rw', [
+      maProfessorDb.modules, maProfessorDb.planifications, maProfessorDb.planificationItems,
+      maProfessorDb.lessons, maProfessorDb.lessonAttendance, maProfessorDb.lessonAssessments,
+      maProfessorDb.summarySuggestions, maProfessorDb.assessmentSchemes,
+      maProfessorDb.assessmentCriteria, maProfessorDb.moduleFinalGrades,
+      maProfessorDb.learningRecoveries
+    ], async () => {
+      const current = await maProfessorDb.modules.get(id)
+      if (!current?.active || current.regularAnnual) {
+        throw new Error('A UFCD, módulo ou UC indicada já não está disponível para esta operação.')
+      }
+      if (current.updatedAt !== expectedUpdatedAt) {
+        throw new Error('Esta unidade foi alterada. Atualize a lista e confirme novamente.')
+      }
+
+      const [lessons, attendance, assessments, suggestions, plans, allItems, schemes,
+        finalGrades, recoveries] = await Promise.all([
+        maProfessorDb.lessons.toArray(),
+        maProfessorDb.lessonAttendance.toArray(),
+        maProfessorDb.lessonAssessments.toArray(),
+        maProfessorDb.summarySuggestions.toArray(),
+        maProfessorDb.planifications.where('moduleId').equals(id).toArray(),
+        maProfessorDb.planificationItems.toArray(),
+        maProfessorDb.assessmentSchemes.where('moduleId').equals(id).toArray(),
+        maProfessorDb.moduleFinalGrades.where('moduleId').equals(id).toArray(),
+        maProfessorDb.learningRecoveries.where('moduleId').equals(id).toArray()
+      ])
+      const planIds = new Set(plans.map(plan => plan.id))
+      const items = allItems.filter(item => planIds.has(item.planificationId))
+      const itemIds = new Set(items.map(item => item.id))
+      const moduleLessons = lessons.filter(lesson => lesson.moduleId === id)
+      const relatedLessonIds = new Set([
+        ...attendance.map(row => row.lessonId),
+        ...assessments.map(row => row.lessonId),
+        ...suggestions.map(row => row.lessonId),
+        ...allItems.flatMap(item => item.usedLessonId ? [item.usedLessonId] : [])
+      ])
+      const criteria = (await Promise.all(schemes.map(scheme =>
+        maProfessorDb.assessmentCriteria.where('schemeId').equals(scheme.id).toArray()
+      ))).flat()
+      const criterionIds = new Set(criteria.map(criterion => criterion.id))
+      const hasHistory = finalGrades.length > 0 || recoveries.length > 0 ||
+        assessments.some(row => row.moduleId === id || criterionIds.has(row.criterionId)) ||
+        moduleLessons.some(lesson => !isPristineScheduledLesson(lesson, relatedLessonIds.has(lesson.id))) ||
+        items.some(item => item.status === 'used' || item.usedLessonId || item.usedAt) ||
+        lessons.some(lesson => lesson.planificationItemIds.some(itemId => itemIds.has(itemId)))
+      if (hasHistory) {
+        throw new Error('Esta unidade tem aulas com trabalho guardado, faltas, avaliações ou recuperações. Para preservar esse histórico, não pode eliminar ou substituir a unidade inteira. Pode substituir apenas a planificação; para corrigir a unidade, reveja primeiro os registos associados.')
+      }
+
+      let next: ModuleUnit | null = null
+      if (replacement) {
+        const code = normalizeText(replacement.code)
+        const name = requireText(replacement.name, 'A designação da UFCD, módulo ou UC')
+        assertPositiveInteger(replacement.plannedPeriods, 'A carga horária')
+        const existing = await maProfessorDb.modules
+          .where('teachingAssignmentId').equals(current.teachingAssignmentId).toArray()
+        if (existing.some(module => module.id !== id &&
+          ((code && normalizeForComparison(module.code) === normalizeForComparison(code)) ||
+            normalizeForComparison(module.name) === normalizeForComparison(name)))) {
+          throw new Error('Já existe uma unidade com este código ou designação nesta turma e disciplina.')
+        }
+        next = createRecord<ModuleUnit>('module', {
+          academicYearId: current.academicYearId,
+          teachingAssignmentId: current.teachingAssignmentId,
+          order: current.order,
+          code, name, plannedPeriods: replacement.plannedPeriods,
+          plannedStartDate: null, plannedEndDate: null, active: true
+        })
+      }
+
+      // Only automatically generated, untouched lessons reach this point.
+      // The normal schedule reconciliation recreates them with the new sequence.
+      await maProfessorDb.lessons.bulkDelete(moduleLessons.map(lesson => lesson.id))
+      await maProfessorDb.planificationItems.bulkDelete([...itemIds])
+      await maProfessorDb.planifications.bulkDelete([...planIds])
+      await maProfessorDb.assessmentCriteria.bulkDelete([...criterionIds])
+      await maProfessorDb.assessmentSchemes.bulkDelete(schemes.map(scheme => scheme.id))
+      await maProfessorDb.modules.delete(id)
+      if (next) await maProfessorDb.modules.add(next)
+      return next
+    })
+    markDashboardDataDirty()
+    return result
   }
 
   async saveStudentsForGroup(

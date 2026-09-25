@@ -173,8 +173,12 @@ export function getDashboardDataRevision() {
 }
 `)
 
+const removalSource = await readFile(new URL('../../src/components/ma-professor/planifications/planificationRemoval.ts', import.meta.url), 'utf8')
+const removalUrl = transpile(removalSource.replace("from '../db'", `from '${dbUrl}'`))
+
 const repositoryUrl = transpile(
   source
+    .replace("from './planifications/planificationRemoval'", `from '${removalUrl}'`)
     .replace(
       "from './db'",
       `from '${dbUrl}'`
@@ -654,7 +658,7 @@ test(
 )
 
 test(
-  'replace refuses a planification reserved by a lesson and leaves all data unchanged',
+  'replace preserves an old reservation and installs a new active planification',
   async () => {
     const seeded = baseState()
     seeded.planifications = [
@@ -700,23 +704,16 @@ test(
     const state = await destinationState(MODULE_A)
     const before = dbModule.__snapshot()
 
-    await assert.rejects(
-      repository.commitPlanificationImportBatch(
-        batch([
-          importEntry({
-            moduleId: MODULE_A,
-            mode: 'replace',
-            fingerprint: state.stateFingerprint
-          })
-        ])
-      ),
-      /não pode ser substituída sem perder histórico/
-    )
-
-    assert.deepEqual(
-      dbModule.__snapshot(),
-      before
-    )
+    const result = await repository.commitPlanificationImportBatch(batch([
+      importEntry({ moduleId: MODULE_A, mode: 'replace', fingerprint: state.stateFingerprint })
+    ]))
+    const after = dbModule.__snapshot()
+    assert.equal(result.results[0].action, 'replaced')
+    assert.equal(after.planifications.find(plan => plan.id === 'plan-old').active, false)
+    assert.equal(after.planifications.filter(plan => plan.active).length, 1)
+    assert.deepEqual(after.planificationItems.find(item => item.id === 'item-old'), before.planificationItems[0])
+    assert.deepEqual(after.lessons, before.lessons)
+    assert.deepEqual(after.modules, before.modules)
   }
 )
 
@@ -729,7 +726,7 @@ test(
     )
     assert.match(
       source,
-      /assertReplaceablePlanification[\s\S]*planificationItemIds/
+      /assertReplaceablePlanification[\s\S]*removePlanificationPreservingLessons/
     )
     assert.match(
       source,

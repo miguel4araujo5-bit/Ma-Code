@@ -197,7 +197,11 @@ export const maProfessorRepository = {
 }
 `)
 
+const removalSource = await readFile(new URL('../../src/components/ma-professor/planifications/planificationRemoval.ts', import.meta.url), 'utf8')
+const removalUrl = transpile(removalSource.replace("from '../db'", `from '${dbUrl}'`))
+
 const runtimeSource = repositorySource
+  .replace("from './planificationRemoval'", `from '${removalUrl}'`)
   .replace(
     "from '../db'",
     `from '${dbUrl}'`
@@ -338,7 +342,7 @@ test(
 )
 
 test(
-  'whole-planification deletion refuses historical items and leaves all data unchanged',
+  'whole-planification deletion archives historical items and keeps lessons unchanged',
   async () => {
     const seeded =
       baseState()
@@ -361,22 +365,18 @@ test(
     const before =
       dbModule.__snapshot()
 
-    await assert.rejects(
-      repository.deletePlanification(
-        'plan-a'
-      ),
-      /não pode ser eliminada sem perder histórico/
-    )
-
-    assert.deepEqual(
-      dbModule.__snapshot(),
-      before
-    )
+    await repository.deletePlanification('plan-a')
+    const after = dbModule.__snapshot()
+    assert.equal(after.planifications.find(plan => plan.id === 'plan-a').active, false)
+    assert.deepEqual(after.planifications.find(plan => plan.id === 'plan-b'), before.planifications[1])
+    assert.deepEqual(after.planificationItems, before.planificationItems)
+    assert.deepEqual(after.lessons, before.lessons)
+    assert.deepEqual(after.modules, before.modules)
   }
 )
 
 test(
-  'whole-planification deletion refuses items reserved by a planned lesson even before they are marked used',
+  'whole-planification deletion preserves future reservations while removing the active plan',
   async () => {
     const seeded =
       baseState()
@@ -393,17 +393,13 @@ test(
     const before =
       dbModule.__snapshot()
 
-    await assert.rejects(
-      repository.deletePlanification(
-        'plan-a'
-      ),
-      /não pode ser eliminada sem perder histórico/
-    )
-
-    assert.deepEqual(
-      dbModule.__snapshot(),
-      before
-    )
+    await repository.deletePlanification('plan-a')
+    const after = dbModule.__snapshot()
+    assert.equal(after.planifications.find(plan => plan.id === 'plan-a').active, false)
+    assert.deepEqual(after.planifications.find(plan => plan.id === 'plan-b'), before.planifications[1])
+    assert.deepEqual(after.planificationItems, before.planificationItems)
+    assert.deepEqual(after.lessons, before.lessons)
+    assert.deepEqual(after.modules, before.modules)
   }
 )
 
@@ -435,15 +431,15 @@ test(
 )
 
 test(
-  'deletion is exposed in the normal workspace, advanced setup and guided onboarding without adding replace semantics',
+  'deletion and replacement keep their distinct UI actions and preserve lesson history',
   () => {
     assert.match(
       repositorySource,
       /async deletePlanification\([\s\S]*maProfessorDb\.planifications[\s\S]*maProfessorDb\.planificationItems[\s\S]*maProfessorDb\.lessons/
     )
     assert.match(
-      repositorySource,
-      /planificationItemIds[\s\S]*bulkDelete[\s\S]*planifications[\s\S]*\.delete\(/
+      removalSource,
+      /planificationItemIds[\s\S]*bulkDelete[\s\S]*planifications\.delete\(/
     )
 
     assert.match(
@@ -478,7 +474,7 @@ test(
     ]) {
       assert.match(
         source,
-        /UFCD\/módulo, turma, horário, critérios/
+        /UFCD, módulo ou UC, turma, horário, critérios/
       )
     }
 

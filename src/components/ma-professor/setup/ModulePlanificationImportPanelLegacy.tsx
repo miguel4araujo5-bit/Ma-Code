@@ -345,7 +345,7 @@ export default function ModulePlanificationImportPanel({
 
     const confirmed =
       window.confirm(
-        'Apagar esta planificação? Serão eliminados apenas a planificação e os respetivos conteúdos. A UFCD/módulo, turma, horário, critérios e restantes dados não serão alterados. Depois poderá importar ou criar outra planificação.'
+        'Apagar esta planificação? A planificação será removida da lista ativa. Os conteúdos já associados a aulas ficam guardados nessas aulas. A UFCD, módulo ou UC, turma, horário, critérios e restantes dados serão mantidos. Depois poderá importar ou criar outra planificação.'
       )
 
     if (!confirmed) return
@@ -387,6 +387,26 @@ export default function ModulePlanificationImportPanel({
     }
   }
 
+  function existingPlanificationChoice(row: Row, index: number) {
+    const assignmentIds = guided ? [targetAssignmentId] : snapshot.teachingAssignments
+      .filter(assignment => assignment.active && groupIds.includes(assignment.groupId) && assignment.subjectId === matchedSubject?.id)
+      .map(assignment => assignment.id)
+    const modules = snapshot.modules.filter(module => module.active &&
+      assignmentIds.includes(module.teachingAssignmentId) && samePlanificationModuleCode(module.code, row.code))
+    const hasPlanification = (snapshot.planifications ?? []).some(planification => planification.active &&
+      modules.some(module => module.id === planification.moduleId))
+    if (!hasPlanification) return null
+    return <label className="mt-3 block text-sm font-bold text-amber-100">
+      Já existe uma planificação para esta unidade
+      <select className={field + ' mt-2'} value={row.existingPlanificationAction ?? 'preserve'}
+        onChange={event => edit(index, { existingPlanificationAction: event.target.value as 'preserve' | 'replace' })}>
+        <option value="preserve">Manter planificação existente</option>
+        <option value="replace">Substituir planificação</option>
+      </select>
+      {row.existingPlanificationAction === 'replace' ? <span className="mt-2 block text-xs font-normal text-slate-300">A unidade e os seus tempos mantêm-se. Os conteúdos já associados a aulas ficam guardados nessas aulas.</span> : null}
+    </label>
+  }
+
   async function save() {
     if (saving.current || busy || !document) return
     const selections = rows.filter(row => row.selected)
@@ -405,6 +425,8 @@ export default function ModulePlanificationImportPanel({
       setError('Selecione o destino e reveja apenas as UFCD/módulos ainda assinalados como pendentes.')
       return
     }
+
+    if (selections.some(row => row.existingPlanificationAction === 'replace') && !window.confirm('Substituir as planificações assinaladas? Os conteúdos já associados a aulas ficam guardados nessas aulas. As UFCDs, módulos e UCs e os seus tempos não serão alterados.')) return
 
     if (!guided && !window.confirm('Criar as UFCD/módulos e planificações nos destinos selecionados? A disciplina indicada será usada se já existir ou criada se ainda não existir. As UFCD/módulos já existentes serão preservados; quando ainda não tiverem planificação ativa, a planificação importada será associada sem duplicar o módulo.')) return
 
@@ -435,10 +457,11 @@ export default function ModulePlanificationImportPanel({
       setShowAllDetails(false)
       changeOpen(false)
       const attached = result.attached ?? 0
+      const replacedMessage = result.replaced ? `; ${result.replaced} planificações substituídas` : ''
       const attachedMessage = attached
         ? `; ${attached} planificações adicionadas a UFCD/módulos existentes`
         : ''
-      setMessage(`Importação concluída: ${result.created} UFCD/módulos com planificação criados${attachedMessage}; ${result.skipped} existentes preservados.`)
+      setMessage(`Importação concluída: ${result.created} UFCD/módulos com planificação criados${attachedMessage}${replacedMessage}; ${result.skipped} existentes preservados.`)
       await onImported()
     } catch (failure) {
       setError(committed
@@ -638,6 +661,7 @@ export default function ModulePlanificationImportPanel({
                           </span>
                         </div>
 
+                        {existingPlanificationChoice(row, index)}
                         {expanded ? (
                           <div className="mt-4 space-y-3">
                             {warning ? <p className="text-xs leading-5 text-amber-100">{warning}</p> : null}
@@ -799,7 +823,7 @@ export default function ModulePlanificationImportPanel({
                 ))}
               </div>
             </div>
-            <p className="text-sm text-slate-300">Os tempos a criar têm {minutes} minutos. Confirme os valores antes de guardar. UFCD/módulos já existentes são preservados; se ainda não tiverem planificação ativa, a planificação importada será associada sem duplicar o módulo. Se já tiverem planificação ativa, essa planificação será preservada.</p>
+            <p className="text-sm text-slate-300">Os tempos a criar têm {minutes} minutos. Confirme os valores antes de guardar. UFCD/módulos já existentes são preservados; se ainda não tiverem planificação ativa, a planificação importada será associada sem duplicar o módulo. Se já tiverem planificação ativa, escolha se pretende manter ou substituir essa planificação.</p>
             {rows.map((row, index) => {
               const source = document.sections[row.sectionIndex]
               const warning = durationWarning(source, document.periodMinutes)
@@ -818,6 +842,7 @@ export default function ModulePlanificationImportPanel({
                   <label className="text-sm">Designação<input className={field} value={row.name} onChange={e => edit(index, { name: e.target.value })} /></label>
                   <label className="text-sm">Tempos de {minutes} min<input className={field} type="number" min="1" step="1" value={row.plannedPeriods || ''} onChange={e => edit(index, { plannedPeriods: Number(e.target.value) })} /></label>
                 </div>
+                {existingPlanificationChoice(row, index)}
                 {groupIds.map(id => {
                   const group = snapshot.groups.find(g => g.id === id)
                   const assignment = matchedSubject
@@ -844,7 +869,7 @@ export default function ModulePlanificationImportPanel({
                     ? 'Existem várias correspondências — rever antes de importar'
                     : existingModule
                       ? hasActivePlanification
-                        ? 'Já existe com planificação — preservar e ignorar'
+                        ? row.existingPlanificationAction === 'replace' ? 'Substituir planificação — manter a unidade' : 'Já existe com planificação — preservar e ignorar'
                         : 'UFCD/módulo já existe — adicionar planificação'
                       : 'Criar módulo e planificação'
                   const currentCourse = group?.courseName?.trim() || 'não indicado'

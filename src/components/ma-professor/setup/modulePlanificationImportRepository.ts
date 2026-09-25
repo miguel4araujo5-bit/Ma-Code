@@ -1,3 +1,4 @@
+import { removePlanificationPreservingLessons } from '../planifications/planificationRemoval'
 import { maProfessorDb, openMAProfessorDatabase } from '../db'
 import { markDashboardDataDirty } from '../dashboard/dashboardRefreshSignal'
 import type {
@@ -15,6 +16,7 @@ export interface ModuleImportSelection {
   name: string
   plannedPeriods: number
   reviewed: boolean
+  existingPlanificationAction?: 'preserve' | 'replace'
 }
 
 type PlanificationSummaryPoint = {
@@ -554,7 +556,7 @@ export async function commitModulePlanificationImport(input: {
 
   const confirmedCourseName = clean(request.courseName ?? '')
   await openMAProfessorDatabase()
-  const result = await maProfessorDb.transaction('rw', tables(), async () => {
+  const result = await maProfessorDb.transaction('rw', [...tables(), maProfessorDb.lessons], async () => {
     if (await state() !== request.expectedFingerprint) {
       throw new Error('Os dados foram alterados após a revisão. Atualize a revisão antes de confirmar novamente.')
     }
@@ -572,6 +574,7 @@ export async function commitModulePlanificationImport(input: {
     let skipped = 0
     let repaired = 0
     let attached = 0
+    let replaced = 0
     const updatedGroupIds = new Set<string>()
 
     for (const assignmentId of assignments) {
@@ -612,8 +615,11 @@ export async function commitModulePlanificationImport(input: {
           if (
             existingModule.active &&
             existingModule.academicYearId === request.academicYearId &&
-            activePlanifications.length === 0
+            (activePlanifications.length === 0 || row.existingPlanificationAction === 'replace')
           ) {
+            if (activePlanifications.length > 1) {
+              throw new Error('Existem várias planificações ativas para esta unidade. Reveja a lista antes de substituir.')
+            }
             if (!source.contentsText.trim() && !source.objectivesText.trim()) {
               throw new Error('Uma UFCD ou módulo selecionado não contém conteúdos nem objetivos de planificação.')
             }
@@ -644,9 +650,15 @@ export async function commitModulePlanificationImport(input: {
 
             if (!items.length) throw new Error('Uma UFCD ou módulo selecionado não contém pontos de planificação válidos.')
 
+            for (const previous of activePlanifications) {
+              const previousItems = await maProfessorDb.planificationItems
+                .where('planificationId').equals(previous.id).toArray()
+              await removePlanificationPreservingLessons(previous, previousItems)
+            }
             await maProfessorDb.planifications.add(planification)
             await maProfessorDb.planificationItems.bulkAdd(items)
-            attached++
+            if (activePlanifications.length) replaced++
+            else attached++
             continue
           }
 
@@ -709,12 +721,13 @@ export async function commitModulePlanificationImport(input: {
         created++
       }
     }
-    return { created, skipped, repaired, attached }
+    return { created, skipped, repaired, attached, replaced }
   })
-  if (result.created || result.repaired || result.attached) markDashboardDataDirty()
+  if (result.created || result.repaired || result.attached || result.replaced) markDashboardDataDirty()
   return {
     created: result.created,
     skipped: result.skipped,
+    ...(result.replaced > 0 ? { replaced: result.replaced } : {}),
     ...(result.attached > 0
       ? { attached: result.attached }
       : {})

@@ -132,8 +132,12 @@ export function __reset() {
 }
 `)
 
+const removalSource = await readFile(new URL('../../src/components/ma-professor/planifications/planificationRemoval.ts', import.meta.url), 'utf8')
+const removalUrl = transpile(removalSource.replace("from '../db'", `from '${dbUrl}'`))
+
 const repositoryUrl = transpile(
   source
+    .replace("from './planifications/planificationRemoval'", `from '${removalUrl}'`)
     .replace(
       "from './db'",
       `from '${dbUrl}'`

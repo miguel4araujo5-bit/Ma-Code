@@ -588,7 +588,7 @@ export default function PlanificationsSetupStep({
 
     const confirmed =
       window.confirm(
-        'Apagar esta planificação? Serão eliminados apenas a planificação e os respetivos conteúdos. A UFCD/módulo, turma, horário, critérios e restantes dados não serão alterados. Depois poderá importar ou criar outra planificação.'
+        'Apagar esta planificação? A planificação será removida da lista ativa. Os conteúdos já associados a aulas ficam guardados nessas aulas. A UFCD, módulo ou UC, turma, horário, critérios e restantes dados serão mantidos. Depois poderá importar ou criar outra planificação.'
       )
 
     if (

@@ -563,7 +563,7 @@ export default function PlanificationPdfImportPanel({
 
     const confirmationMessage =
       replacing
-        ? 'Confirmar a importação? As planificações marcadas como “Substituir” serão removidas e trocadas pela nova planificação deste documento. A UFCD, UC ou módulo, turma, horário, critérios e restantes dados não serão alterados. Se alguma planificação estiver ligada a uma aula, a operação será bloqueada. Todas as secções são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
+        ? 'Confirmar a importação? As planificações marcadas como “Substituir” serão removidas e trocadas pela nova planificação deste documento. A UFCD, UC ou módulo, turma, horário, critérios e restantes dados não serão alterados. Os conteúdos já associados a aulas ficam guardados nessas aulas, sem alterar sumários, faltas ou avaliações. Todas as secções são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
         : 'Confirmar a importação? Todas as secções deste documento são tratadas na mesma transação: se alguma falhar, nenhuma alteração será gravada.'
 
     if (

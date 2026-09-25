@@ -1289,6 +1289,14 @@ export default function MAProfessorApp({
     )
   }
 
+  async function handleCurricularUnitChanged() {
+    if (!snapshot) return
+    setSnapshot(await maProfessorRepository.getSetupSnapshot(snapshot.academicYear.id))
+    handlePlanificationRefresh()
+    handleAssessmentRefresh()
+    handleGIAERefresh()
+  }
+
   function handleGroupsRefresh() {
     setGroupsReloadKey(
       current =>
@@ -1890,6 +1898,7 @@ export default function MAProfessorApp({
             loading={planificationLoading}
             error={planificationError}
             onRefresh={handlePlanificationRefresh}
+            onModuleChanged={handleCurricularUnitChanged}
             onFiltersChange={handlePlanificationFiltersChange}
             onCreatePlanification={handleCreatePlanification}
             onUpdatePlanification={handleUpdatePlanification}

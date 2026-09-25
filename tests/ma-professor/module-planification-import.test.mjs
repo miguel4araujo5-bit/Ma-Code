@@ -463,6 +463,77 @@ test('React interface selects a document, requires review and imports the course
   }
 })
 
+test('guided React import exposes replacement for an existing unit and preserves its reserved lesson', async () => {
+  await seed()
+  await commitModulePlanificationImport(await request(['a1']))
+  const modules = await maProfessorDb.modules.toArray()
+  const unit = modules.find(row => row.code === '0349')
+  const oldPlan = (await maProfessorDb.planifications.toArray()).find(row => row.moduleId === unit.id)
+  const oldItem = (await maProfessorDb.planificationItems.toArray()).find(row => row.planificationId === oldPlan.id)
+  const reservedLesson = { id: 'reserved', moduleId: unit.id, summary: 'Sumário a preservar', planificationItemIds: [oldItem.id] }
+  await maProfessorDb.lessons.add(reservedLesson)
+  const snapshot = {
+    academicYear: { id: 'year' }, modules,
+    subjects: (await maProfessorDb.subjects.toArray()).map(subject => ({ ...subject, shortName: 'Test', code: 'TEST' })),
+    groups: await maProfessorDb.groups.toArray(),
+    teachingAssignments: await maProfessorDb.teachingAssignments.toArray(),
+    planifications: await maProfessorDb.planifications.toArray(),
+    planificationItems: await maProfessorDb.planificationItems.toArray(),
+    weeklyScheduleSlots: []
+  }
+  globalThis.document = window.document
+  globalThis.HTMLElement = window.HTMLElement
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  const { createElement, act } = require('react')
+  const { createRoot } = require('react-dom/client')
+  const Panel = require(join(output, base, 'setup/ModulePlanificationImportPanel.js')).default
+  const host = window.document.createElement('div')
+  window.document.body.append(host)
+  const root = createRoot(host)
+  let refreshed = 0
+  const button = text => [...host.querySelectorAll('button')].find(node => node.textContent === text)
+  const click = async element => { assert.ok(element); await act(async () => element.click()) }
+  try {
+    await act(async () => root.render(createElement(Panel, {
+      snapshot, guided: true, disabled: false, onActiveChange: () => {}, onImported: async () => { refreshed++ }
+    })))
+    // Guided setup starts with the file picker already open.
+    if (button('Adicionar outra planificação')) await click(button('Adicionar outra planificação'))
+    const input = [...host.querySelectorAll('input[type=file]')].at(-1)
+    Object.defineProperty(input, 'files', { value: [new File([zipSync({ 'word/document.xml': strToU8(xml) })], 'nova.docx')] })
+    await act(async () => {
+      input.dispatchEvent(new window.Event('change', { bubbles: true }))
+      for (let i = 0; i < 50 && host.querySelectorAll('article').length !== 2; i++) await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    const destination = [...host.querySelectorAll('select')].find(select => [...select.options].some(option => option.value === 'a1'))
+    assert.ok(destination, host.textContent)
+    await act(async () => { destination.value = 'a1'; destination.dispatchEvent(new window.Event('change', { bubbles: true })) })
+    const articles = [...host.querySelectorAll('article')]
+    assert.equal(articles.length, 2)
+    await click(articles[1].querySelector('input[type=checkbox]'))
+    const choice = articles[0].querySelector('select')
+    assert.ok(choice)
+    assert.equal(choice.value, 'preserve')
+    await act(async () => { choice.value = 'replace'; choice.dispatchEvent(new window.Event('change', { bubbles: true })) })
+    await click(button('Confirmar esta correção'))
+    window.confirm = () => true
+    const save = button('Importar 1 planificação')
+    assert.equal(save.disabled, false, host.textContent)
+    await act(async () => {
+      save.click()
+      for (let i = 0; i < 100 && !refreshed; i++) await new Promise(resolve => setTimeout(resolve, 10))
+    })
+    assert.equal(refreshed, 1, host.textContent)
+    assert.match(host.textContent, /1 planificações substituídas/)
+    assert.equal((await maProfessorDb.planifications.get(oldPlan.id)).active, false)
+    assert.deepEqual(await maProfessorDb.modules.get(unit.id), unit)
+    assert.deepEqual(await maProfessorDb.lessons.get('reserved'), reservedLesson)
+    assert.deepEqual(await maProfessorDb.planificationItems.get(oldItem.id), oldItem)
+  } finally {
+    await act(async () => root.unmount()); host.remove(); globalThis.IS_REACT_ACT_ENVIRONMENT = false
+  }
+})
+
 if (process.env.MA_IMPORT_PRIVATE_DOCX_DIR) {
   test('private real documents: all six UFCD and the 10384 discrepancy', async () => {
     const sections = []

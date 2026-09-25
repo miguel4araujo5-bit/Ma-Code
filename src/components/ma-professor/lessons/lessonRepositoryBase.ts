@@ -818,6 +818,15 @@ async function getValidatedPlanificationItems(
       )
       .toArray()
 
+  const previousLesson = lessonId
+    ? await maProfessorDb.lessons.get(lessonId)
+    : null
+  const previousItemIds = new Set(previousLesson?.planificationItemIds ?? [])
+  const archivedPlanificationIds = new Set(
+    planifications.filter(planification => !planification.active)
+      .map(planification => planification.id)
+  )
+
   const validPlanificationIds =
     new Set(
       planifications
@@ -836,8 +845,8 @@ async function getValidatedPlanificationItems(
     )
 
   if (
-    validPlanificationIds.size ===
-    0
+    validPlanificationIds.size === 0 &&
+    previousItemIds.size === 0
   ) {
     throw new Error(
       'A UFCD selecionada não possui uma planificação ativa.'
@@ -869,9 +878,9 @@ async function getValidatedPlanificationItems(
       }
 
       if (
-        !validPlanificationIds.has(
-          item.planificationId
-        )
+        !validPlanificationIds.has(item.planificationId) &&
+        !(previousItemIds.has(item.id) &&
+          archivedPlanificationIds.has(item.planificationId))
       ) {
         throw new Error(
           'Um dos itens selecionados não pertence à UFCD da aula.'

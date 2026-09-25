@@ -1,3 +1,4 @@
+import ModuleUnitActions from './ModuleUnitActions'
 import {
   useEffect,
   useMemo,
@@ -1257,7 +1258,7 @@ export default function ModulesSetupStep({
             </p>
 
             <h3 className="mt-2 text-xl font-black text-white">
-              UFCD / módulos por turma
+              UFCD / módulos / UCs por turma
             </h3>
           </div>
 
@@ -1335,6 +1336,8 @@ export default function ModulesSetupStep({
                                 }{' '}
                                 tempos
                               </p>
+                              <ModuleUnitActions module={module} disabled={busy || importActive}
+                                onChanged={refreshSnapshot} />
                             </div>
                           )
                         )}

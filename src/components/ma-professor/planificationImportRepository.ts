@@ -1,3 +1,4 @@
+import { removePlanificationPreservingLessons } from './planifications/planificationRemoval'
 import {
   maProfessorDb,
   openMAProfessorDatabase
@@ -959,64 +960,6 @@ async function assertReplaceablePlanification(
       'Este destino ainda não possui uma planificação ativa para substituir.'
     )
   }
-
-  const linkedByUsage =
-    destination.activeItems.some(
-      item =>
-        item.status ===
-          'used' ||
-        Boolean(
-          item.usedLessonId
-        ) ||
-        Boolean(
-          item.usedAt
-        )
-    )
-
-  if (linkedByUsage) {
-    throw new Error(
-      'Esta planificação já está ligada a uma ou mais aulas e não pode ser substituída sem perder histórico.'
-    )
-  }
-
-  const itemIds =
-    new Set(
-      destination.activeItems.map(
-        item =>
-          item.id
-      )
-    )
-
-  if (
-    itemIds.size ===
-      0
-  ) {
-    return
-  }
-
-  const linkedLesson =
-    (
-      await maProfessorDb
-        .lessons
-        .toArray()
-    ).find(
-      lesson =>
-        (
-          lesson.planificationItemIds ??
-          []
-        ).some(
-          itemId =>
-            itemIds.has(
-              itemId
-            )
-        )
-    )
-
-  if (linkedLesson) {
-    throw new Error(
-      'Esta planificação já está ligada a uma ou mais aulas e não pode ser substituída sem perder histórico.'
-    )
-  }
 }
 
 export class PlanificationImportRepository {
@@ -1257,25 +1200,10 @@ export class PlanificationImportRepository {
                 timestamp
               )
 
-            if (
-              destination.activeItems.length >
-                0
-            ) {
-              await maProfessorDb
-                .planificationItems
-                .bulkDelete(
-                  destination.activeItems.map(
-                    item =>
-                      item.id
-                  )
-                )
-            }
-
-            await maProfessorDb
-              .planifications
-              .delete(
-                previousPlanification.id
-              )
+            await removePlanificationPreservingLessons(
+              previousPlanification,
+              destination.activeItems
+            )
 
             await maProfessorDb
               .planifications
