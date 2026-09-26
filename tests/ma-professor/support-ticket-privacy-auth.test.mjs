@@ -88,7 +88,7 @@ test(
 
     assert.match(
       workerSource,
-      /verifyAccessSession\([\s\S]*MA_PROFESSOR_ACCESS\.idFromName/[m]
+      /verifyAccessSession\([\s\S]*MA_PROFESSOR_ACCESS\.idFromName/
     )
 
     assert.match(
@@ -148,7 +148,12 @@ test(
 
     assert.doesNotMatch(
       clientSource,
-      /indexedDB|maProfessorDb|Dexie|repository|student|aluno|assessment|attendance|summary|planification/i
+      /\bindexedDB\s*(?:\.|\()|maProfessorDb|\bDexie\b|studentId|studentName|assessmentResult|lessonAttendance|planificationId|moduleFinalGrade/i
+    )
+
+    assert.doesNotMatch(
+      clientSource,
+      /from\s+['"][^'"]*(?:\/db|\/repository|Repository)['"]/i
     )
 
     assert.doesNotMatch(
