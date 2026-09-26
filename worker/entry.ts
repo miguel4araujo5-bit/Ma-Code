@@ -31,7 +31,7 @@ import {
   handleMAProfessorAdminApiRequest,
   isMAProfessorAdminApiPath,
   type MaProfessorAdminEnv
-} from './maProfessorAdminAtomicApproval'
+} from './maProfessorAdminSupport'
 import {
   notifyMAProfessorNewAccessRequest,
   type MAProfessorAccessAdminNotifierEnv
@@ -52,6 +52,11 @@ import {
   isMAProfessorProblemReportApiPath,
   type MaProfessorProblemReportEnv
 } from './maProfessorProblemReport'
+import {
+  handleMAProfessorSupportTicketsApiRequest,
+  isMAProfessorSupportTicketsApiPath,
+  type MaProfessorSupportTicketEnv
+} from './maProfessorSupportTickets'
 import {
   handleConquistadorMatchmakingApiRequest,
   isConquistadorMatchmakingApiPath,
@@ -85,6 +90,7 @@ export type Env =
   MaProfessorSyncEnv &
   MaProfessorCloudBackupEnv &
   MaProfessorProblemReportEnv &
+  MaProfessorSupportTicketEnv &
   ConquistadorMatchmakingEnv &
   ConquistadorGameSessionEnv
 
@@ -444,6 +450,17 @@ export default {
       )
     ) {
       return handleBtcAlertsApiRequest(
+        request,
+        env
+      )
+    }
+
+    if (
+      isMAProfessorSupportTicketsApiPath(
+        url.pathname
+      )
+    ) {
+      return handleMAProfessorSupportTicketsApiRequest(
         request,
         env
       )

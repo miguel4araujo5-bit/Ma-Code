@@ -8,6 +8,7 @@ import AdminShell from '../components/admin/AdminShell'
 import MAProfessorAccountMaintenanceCollapsible from '../components/admin/ma-professor/MAProfessorAccountMaintenanceCollapsible'
 import MAProfessorAdminWorkspaceCompact from '../components/admin/ma-professor/MAProfessorAdminWorkspaceCompact'
 import MAProfessorApprovalQueue from '../components/admin/ma-professor/MAProfessorApprovalQueue'
+import MAProfessorSupportTickets from '../components/admin/ma-professor/MAProfessorSupportTickets'
 
 import {
   getMAProfessorAdminOverview,
@@ -451,6 +452,8 @@ function MAProfessorAdminContent() {
         )}
       </section>
 
+      <MAProfessorSupportTickets />
+
       <MAProfessorAccountMaintenanceCollapsible
         overview={overview}
         loading={loading}
@@ -465,7 +468,7 @@ export default function MAProfessorAdminPage() {
       activeSection="ma-professor"
       eyebrow="Módulo administrativo"
       title="MA-Professor"
-      description="Gestão central de pedidos, modalidade de acesso, credenciais, ativações, licenças, renovações e histórico através do backend protegido da MA-CODE."
+      description="Gestão central de pedidos, modalidade de acesso, credenciais, ativações, licenças, renovações, suporte e histórico através do backend protegido da MA-CODE."
     >
       <MAProfessorAdminContent />
     </AdminShell>

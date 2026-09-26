@@ -13,6 +13,14 @@ import {
   ProblemReportDialog
 } from './ProblemReportDialog'
 
+import {
+  SupportTicketPanel
+} from './SupportTicketPanel'
+
+import type {
+  SupportTicketCategory
+} from './supportTicketClient'
+
 type CategoryFilter =
   HelpCategoryId | 'all'
 
@@ -47,6 +55,12 @@ export function ProblemReportPanel() {
         query
       ]
     )
+
+  const suggestedTicketCategory:
+    SupportTicketCategory =
+      category === 'all'
+        ? 'technical'
+        : category
 
   return (
     <section
@@ -197,23 +211,29 @@ export function ProblemReportPanel() {
             </p>
 
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Tente outras palavras ou use o relatório técnico abaixo se o problema continuar.
+              Tente outras palavras ou envie um pedido de apoio abaixo se o problema continuar.
             </p>
           </div>
         )}
       </div>
 
+      <SupportTicketPanel
+        suggestedCategory={
+          suggestedTicketCategory
+        }
+      />
+
       <div className="mt-6 rounded-2xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
-          Continua sem solução?
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+          Diagnóstico técnico
         </p>
 
         <h3 className="mt-2 text-lg font-black text-white">
-          Reportar um problema técnico
+          Reportar um erro da aplicação
         </h3>
 
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          O relatório atual continua separado da base de ajuda. Apenas inclui um resumo técnico, a versão da aplicação, o ecrã atual, o navegador e a data. Não são recolhidos automaticamente dados escolares, ficheiros, conteúdos do IndexedDB ou passwords.
+          Este relatório técnico continua separado dos pedidos de apoio. Use-o para erros ou falhas da aplicação. Apenas inclui um resumo técnico, a versão da aplicação, o ecrã atual, o navegador e a data. Não são recolhidos automaticamente dados escolares, ficheiros, conteúdos do IndexedDB ou passwords.
         </p>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -227,7 +247,7 @@ export function ProblemReportPanel() {
               true
             )
           }}
-          className="mt-4 rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+          className="mt-4 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-black text-slate-300 transition hover:bg-white/5 hover:text-white"
         >
           Reportar problema técnico
         </button>

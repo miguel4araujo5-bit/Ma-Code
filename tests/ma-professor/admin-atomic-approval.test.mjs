@@ -19,6 +19,14 @@ const wrapperSource = await readFile(
   'utf8'
 )
 
+const supportWrapperSource = await readFile(
+  new URL(
+    '../../worker/maProfessorAdminSupport.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 const entrySource = await readFile(
   new URL(
     '../../worker/entry.ts',
@@ -463,10 +471,15 @@ test(
 )
 
 test(
-  'production admin routing uses the atomic wrapper for current and legacy approvals',
+  'production admin routing keeps atomic approval underneath the support wrapper',
   () => {
     assert.match(
       entrySource,
+      /from '\.\/maProfessorAdminSupport'/
+    )
+
+    assert.match(
+      supportWrapperSource,
       /from '\.\/maProfessorAdminAtomicApproval'/
     )
 
