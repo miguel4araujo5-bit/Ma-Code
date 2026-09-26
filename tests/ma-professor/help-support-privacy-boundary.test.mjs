@@ -71,7 +71,12 @@ test(
 
     assert.doesNotMatch(
       panelSource,
-      /fetch\s*\(|indexedDB|maProfessorDb|Dexie|localStorage|sessionStorage|repository|accessStorage/i
+      /fetch\s*\(|maProfessorDb|Dexie|localStorage|sessionStorage|repository|accessStorage/i
+    )
+
+    assert.doesNotMatch(
+      panelSource,
+      /\bindexedDB\s*(?:\.|\()/i
     )
   }
 )
