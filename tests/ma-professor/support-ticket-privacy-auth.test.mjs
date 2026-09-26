@@ -189,6 +189,36 @@ test(
 )
 
 test(
+  'ticket storage failure stays isolated from the rest of MA-Professor and MA-Admin',
+  () => {
+    assert.match(
+      panelSource,
+      /setAvailable\(false\)/
+    )
+
+    assert.match(
+      panelSource,
+      /A base de ajuda e o relatório técnico continuam disponíveis normalmente/
+    )
+
+    assert.match(
+      adminPanelSource,
+      /setAvailable\(false\)/
+    )
+
+    assert.match(
+      adminPanelSource,
+      /O restante MA-Admin continua normal/
+    )
+
+    assert.match(
+      adminPanelSource,
+      /0004_support_tickets\.sql/
+    )
+  }
+)
+
+test(
   'admin support routes reuse the existing MA-Code admin session and origin guard',
   () => {
     assert.match(
