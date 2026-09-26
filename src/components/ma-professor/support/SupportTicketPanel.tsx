@@ -104,70 +104,38 @@ interface SupportTicketPanelProps {
 export function SupportTicketPanel({
   suggestedCategory = 'technical'
 }: SupportTicketPanelProps) {
-  const [
-    tickets,
-    setTickets
-  ] =
+  const [tickets, setTickets] =
     useState<SupportTicket[]>([])
-  const [
-    loading,
-    setLoading
-  ] = useState(true)
-  const [
-    error,
-    setError
-  ] = useState('')
-  const [
-    createOpen,
-    setCreateOpen
-  ] = useState(false)
-  const [
-    category,
-    setCategory
-  ] =
+  const [loading, setLoading] =
+    useState(true)
+  const [available, setAvailable] =
+    useState<boolean | null>(null)
+  const [error, setError] =
+    useState('')
+  const [createOpen, setCreateOpen] =
+    useState(false)
+  const [category, setCategory] =
     useState<SupportTicketCategory>(
       suggestedCategory
     )
-  const [
-    subject,
-    setSubject
-  ] = useState('')
-  const [
-    message,
-    setMessage
-  ] = useState('')
-  const [
-    submitting,
-    setSubmitting
-  ] = useState(false)
-  const [
-    selectedId,
-    setSelectedId
-  ] = useState<string | null>(null)
-  const [
-    selectedTicket,
-    setSelectedTicket
-  ] =
-    useState<SupportTicket | null>(
-      null
-    )
-  const [
-    messages,
-    setMessages
-  ] =
+  const [subject, setSubject] =
+    useState('')
+  const [message, setMessage] =
+    useState('')
+  const [submitting, setSubmitting] =
+    useState(false)
+  const [selectedId, setSelectedId] =
+    useState<string | null>(null)
+  const [selectedTicket, setSelectedTicket] =
+    useState<SupportTicket | null>(null)
+  const [messages, setMessages] =
     useState<SupportTicketMessage[]>([])
-  const [
-    detailLoading,
-    setDetailLoading
-  ] = useState(false)
-  const [
-    reply,
-    setReply
-  ] = useState('')
-  const [
-    replySending,
-    setReplySending
-  ] = useState(false)
+  const [detailLoading, setDetailLoading] =
+    useState(false)
+  const [reply, setReply] =
+    useState('')
+  const [replySending, setReplySending] =
+    useState(false)
 
   const loadTickets =
     useCallback(
@@ -178,15 +146,22 @@ export function SupportTicketPanel({
         try {
           const result =
             await listSupportTickets()
+
+          setAvailable(true)
           setTickets(
             result.tickets
           )
-        } catch (loadError) {
-          setError(
-            getErrorMessage(
-              loadError
-            )
-          )
+        } catch {
+          // Fail closed inside the new support subsystem only.
+          // The rest of MA-Professor, including the knowledge base,
+          // must remain usable even if the support D1 migration has
+          // not yet been applied in this environment.
+          setAvailable(false)
+          setTickets([])
+          setCreateOpen(false)
+          setSelectedId(null)
+          setSelectedTicket(null)
+          setMessages([])
         } finally {
           setLoading(false)
         }
@@ -199,6 +174,10 @@ export function SupportTicketPanel({
       async (
         ticketId: string
       ) => {
+        if (available !== true) {
+          return
+        }
+
         setSelectedId(ticketId)
         setDetailLoading(true)
         setError('')
@@ -224,7 +203,7 @@ export function SupportTicketPanel({
           setDetailLoading(false)
         }
       },
-      []
+      [available]
     )
 
   useEffect(
@@ -250,6 +229,10 @@ export function SupportTicketPanel({
 
   const submitTicket =
     async () => {
+      if (available !== true) {
+        return
+      }
+
       if (
         subject.trim().length < 4 ||
         message.trim().length < 8
@@ -291,6 +274,7 @@ export function SupportTicketPanel({
   const sendReply =
     async () => {
       if (
+        available !== true ||
         !selectedId ||
         !reply.trim()
       ) {
@@ -341,23 +325,36 @@ export function SupportTicketPanel({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setCreateOpen(
-                current =>
-                  !current
-              )
-            }}
-            className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
-          >
-            {createOpen
-              ? 'Cancelar pedido'
-              : 'Pedir ajuda'}
-          </button>
+          {available === true ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCreateOpen(
+                  current =>
+                    !current
+                )
+              }}
+              className="rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+            >
+              {createOpen
+                ? 'Cancelar pedido'
+                : 'Pedir ajuda'}
+            </button>
+          ) : available === false ? (
+            <span className="rounded-full border border-white/10 px-3 py-2 text-xs font-black text-slate-500">
+              Temporariamente indisponível
+            </span>
+          ) : null}
         </div>
 
-        {createOpen ? (
+        {available === false ? (
+          <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm leading-6 text-slate-400">
+            Os pedidos de apoio ainda não estão disponíveis neste ambiente. A base de ajuda e o relatório técnico continuam disponíveis normalmente.
+          </div>
+        ) : null}
+
+        {createOpen &&
+        available === true ? (
           <div className="mt-5 border-t border-white/10 pt-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -452,80 +449,84 @@ export function SupportTicketPanel({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-              Os meus pedidos
-            </p>
-            <p className="mt-1 text-sm text-slate-400">
-              Acompanhe as respostas sem depender do email.
-            </p>
+      {available === true ? (
+        <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                Os meus pedidos
+              </p>
+              <p className="mt-1 text-sm text-slate-400">
+                Acompanhe as respostas sem depender do email.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                void loadTickets()
+              }}
+              className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-slate-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+            >
+              Atualizar
+            </button>
           </div>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => {
-              void loadTickets()
-            }}
-            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-slate-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
-          >
-            Atualizar
-          </button>
-        </div>
 
-        {loading && tickets.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">
-            A carregar pedidos…
-          </p>
-        ) : tickets.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">
-            Ainda não tem pedidos de apoio.
-          </p>
-        ) : (
-          <div className="mt-4 space-y-2">
-            {tickets.map(ticket => (
-              <button
-                key={ticket.id}
-                type="button"
-                onClick={() => {
-                  void openTicket(
-                    ticket.id
-                  )
-                }}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-left transition hover:border-cyan-300/20 hover:bg-white/[0.04]"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-white">
-                      {ticket.subject}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {ticket.id
-                        .replace(
-                          'ticket-',
-                          '#'
-                        )
-                        .slice(0, 13)}
-                      {' · '}
-                      {formatDate(
-                        ticket.updatedAt
-                      )}
-                    </p>
+          {loading &&
+          tickets.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500">
+              A carregar pedidos…
+            </p>
+          ) : tickets.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500">
+              Ainda não tem pedidos de apoio.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {tickets.map(ticket => (
+                <button
+                  key={ticket.id}
+                  type="button"
+                  onClick={() => {
+                    void openTicket(
+                      ticket.id
+                    )
+                  }}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-left transition hover:border-cyan-300/20 hover:bg-white/[0.04]"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-white">
+                        {ticket.subject}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {ticket.id
+                          .replace(
+                            'ticket-',
+                            '#'
+                          )
+                          .slice(0, 13)}
+                        {' · '}
+                        {formatDate(
+                          ticket.updatedAt
+                        )}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/10 px-2.5 py-1 text-[0.68rem] font-black text-slate-300">
+                      {STATUS_LABELS[
+                        ticket.status
+                      ]}
+                    </span>
                   </div>
-                  <span className="rounded-full border border-white/10 px-2.5 py-1 text-[0.68rem] font-black text-slate-300">
-                    {STATUS_LABELS[
-                      ticket.status
-                    ]}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
-      {selectedId ? (
+      {available === true &&
+      selectedId ? (
         <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 sm:p-5">
           {detailLoading ? (
             <p className="text-sm text-slate-500">
