@@ -184,7 +184,7 @@ export function buildUfcdCfpModel(
     !snapshot.selectedModule
   ) {
     throw new Error(
-      'Selecione uma turma, disciplina e UFCD antes de preparar a folha CFP.'
+      'Selecione uma turma, disciplina e UFCD/UC/módulo antes de preparar a folha CFP.'
     )
   }
 
