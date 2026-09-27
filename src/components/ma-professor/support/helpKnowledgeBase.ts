@@ -35,8 +35,8 @@ export const helpCategories: HelpCategory[] = [
   },
   {
     id: 'planning',
-    label: 'Planificações e UFCDs',
-    description: 'Planificações, módulos, UCs e previsão de conclusão.'
+    label: 'Planificações · UFCD/UC/módulo',
+    description: 'Planificações, UFCD, UC, módulos e previsão de conclusão.'
   },
   {
     id: 'attendance',
@@ -96,7 +96,7 @@ export const helpArticles: HelpArticle[] = [
   {
     id: 'ufcd-completion-forecast',
     categoryId: 'planning',
-    title: 'A previsão de conclusão de uma UFCD aparece como indisponível',
+    title: 'A previsão de conclusão de uma UFCD/UC/módulo aparece como indisponível',
     summary: 'A previsão depende do progresso já registado e das aulas futuras que podem ser projetadas.',
     keywords: [
       'ufcd',
@@ -107,11 +107,11 @@ export const helpArticles: HelpArticle[] = [
       'sem conclusão prevista'
     ],
     steps: [
-      'Abra Planificações e confirme se a UFCD ou módulo tem duração e ordem definidas.',
+      'Abra Planificações e confirme se a UFCD, UC ou módulo tem duração e ordem definidas.',
       'Confirme se o horário futuro contém aulas dessa disciplina.',
       'Verifique se feriados, interrupções ou outras regras de calendário não retiram todas as aulas futuras disponíveis.'
     ],
-    note: 'Se a primeira UFCD tiver previsão mas as seguintes não tiverem, reporte o problema para podermos analisar a sequência projetada.'
+    note: 'Se a primeira unidade curricular tiver previsão mas as seguintes não tiverem, reporte o problema para podermos analisar a sequência projetada.'
   },
   {
     id: 'attendance-warning',
@@ -127,7 +127,7 @@ export const helpArticles: HelpArticle[] = [
     ],
     steps: [
       'Abra Faltas e recuperações.',
-      'Confirme a disciplina e a UFCD ou UC associada ao aviso.',
+      'Confirme a disciplina e a UFCD, UC ou módulo associado ao aviso.',
       'Abra as aulas relevantes e confirme se as faltas e recuperações guardadas correspondem ao que pretende.'
     ]
   },
