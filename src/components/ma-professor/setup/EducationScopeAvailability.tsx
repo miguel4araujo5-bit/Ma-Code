@@ -21,20 +21,20 @@ export default function EducationScopeAvailability() {
           <input
             type="checkbox"
             disabled
-            aria-label="Ensino regular — em breve"
+            aria-label="Ensino Regular — em breve"
             className="h-4 w-4 rounded border-white/10 bg-slate-900"
           />
-          <span>Ensino regular (Em breve)</span>
+          <span>Ensino Regular (Em breve)</span>
         </label>
 
         <label className="flex cursor-not-allowed items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm font-bold text-slate-500">
           <input
             type="checkbox"
             disabled
-            aria-label="Misto — profissional e regular — em breve"
+            aria-label="Misto — Profissional e Regular — em breve"
             className="h-4 w-4 rounded border-white/10 bg-slate-900"
           />
-          <span>Misto — profissional e regular (Em breve)</span>
+          <span>Misto — Profissional e Regular (Em breve)</span>
         </label>
 
         <label className="flex cursor-not-allowed items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm font-bold text-slate-500">
