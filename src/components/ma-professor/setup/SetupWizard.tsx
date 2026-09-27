@@ -730,10 +730,7 @@ export default function SetupWizard({
             <SchedulePdfImportStep
               snapshot={snapshot}
               onImported={handleGuidedScheduleImported}
-              onContinueWithoutPdf={() => {
-                setGuidedStage('planifications')
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-              }}
+              onContinueWithoutPdf={() => openAdvancedStep('weekly_schedule')}
             />
           </div>
         ) : null}
