@@ -713,6 +713,9 @@ export default function SetupWizard({
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
             Comece pelo horário. Depois usamos a estrutura já confirmada para associar planificações e critérios às disciplinas certas e, no fim, adicionar os alunos. Pode saltar qualquer etapa e voltar mais tarde.
           </p>
+          <div className="mt-4">
+            <EducationScopeAvailability />
+          </div>
           <div className="mt-6">
             <GuidedProgress
               stage={guidedStage}
@@ -725,8 +728,7 @@ export default function SetupWizard({
         </section>
 
         {guidedStage === 'schedule' ? (
-          <div className="mt-6 space-y-6">
-            <EducationScopeAvailability />
+          <div className="mt-6">
             <SchedulePdfImportStep
               snapshot={snapshot}
               onImported={handleGuidedScheduleImported}
