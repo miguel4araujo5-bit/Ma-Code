@@ -85,7 +85,7 @@ export function buildUfcdFinalGradeExcelModel(
     !snapshot.selectedModule
   ) {
     throw new Error(
-      'Selecione uma turma, disciplina e UFCD antes de exportar a grelha.'
+      'Selecione uma turma, disciplina e UFCD/UC/módulo antes de exportar a grelha.'
     )
   }
 
