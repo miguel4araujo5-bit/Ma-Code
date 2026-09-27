@@ -200,6 +200,37 @@ test(
 )
 
 test(
+  'UC-only document is classified as planification',
+  () => {
+    const result = classify(
+      documentWith(
+        [
+          'PLANIFICAÇÃO DE COMPETÊNCIAS PROFISSIONAIS',
+          'Período Letivo UC Temas/Conteúdos Objetivos/Competências Estratégias/Metodologias Aulas previstas',
+          'UC00033 Comunicar e interagir em contexto profissional',
+          'Temas/Conteúdos Comunicação escrita',
+          'Objetivos/Competências Reportar informação profissional'
+        ],
+        {
+          __planificationSections: [
+            { code: 'UC00033' }
+          ]
+        }
+      ),
+      'Planificacao_UC_10D.pdf'
+    )
+
+    assert.equal(result.kind, 'planification')
+    assert.equal(result.confidence, 'high')
+    assert.equal(result.summary.planificationSections, 1)
+    assert.match(
+      result.evidence.join(' '),
+      /UFCD\/UC\/módulo/
+    )
+  }
+)
+
+test(
   '60/20/20 evaluation matrix is classified as criteria',
   () => {
     const result = classify(
