@@ -17,6 +17,7 @@ import type {
 } from '../types'
 import AssessmentCriteriaPdfImportPanel from './AssessmentCriteriaPdfImportPanel'
 import AssessmentCriteriaSetupStep from './AssessmentCriteriaSetupStep'
+import EducationScopeAvailability from './EducationScopeAvailability'
 import GroupsSetupStep from './GroupsSetupStep'
 import GuidedAssessmentCriteriaImportPanel from './GuidedAssessmentCriteriaImportPanel'
 import ModulePlanificationImportPanel from './ModulePlanificationImportPanel'
@@ -647,6 +648,7 @@ export default function SetupWizard({
       case 'weekly_schedule':
         return (
           <div className="space-y-6">
+            <EducationScopeAvailability />
             <SchedulePdfImportStep
               snapshot={snapshot}
               onImported={async nextSnapshot => {
@@ -723,7 +725,8 @@ export default function SetupWizard({
         </section>
 
         {guidedStage === 'schedule' ? (
-          <div className="mt-6">
+          <div className="mt-6 space-y-6">
+            <EducationScopeAvailability />
             <SchedulePdfImportStep
               snapshot={snapshot}
               onImported={handleGuidedScheduleImported}
