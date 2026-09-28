@@ -648,7 +648,6 @@ export default function SetupWizard({
       case 'weekly_schedule':
         return (
           <div className="space-y-6">
-            <EducationScopeAvailability />
             <SchedulePdfImportStep
               snapshot={snapshot}
               onImported={async nextSnapshot => {
