@@ -11,15 +11,15 @@ const source = await readFile(
 )
 
 test(
-  'MA-Professor presentation covers regular subjects as well as UFCD and modules',
+  'MA-Professor presentation covers regular subjects as well as UFCD, UC and modules',
   () => {
     assert.match(
       source,
-      /disciplinas regulares, UFCD ou módulos/
+      /disciplinas regulares, UFCD, UC ou módulos/
     )
     assert.match(
       source,
-      /avaliações de período, de disciplina, de UFCD ou módulo e finais/
+      /avaliações de período, de disciplina, de UFCD, UC ou módulo e finais/
     )
     assert.match(
       source,

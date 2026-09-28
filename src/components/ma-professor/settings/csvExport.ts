@@ -95,7 +95,7 @@ export function exportLessonsCsv(
       'Fim',
       'Turma',
       'Disciplina',
-      'UFCD/Módulo',
+      'UFCD/UC/Módulo',
       'Tempos',
       'Estado',
       'Conta para progresso',
@@ -157,7 +157,7 @@ export function exportAttendanceCsv(
       'Data',
       'Aluno',
       'Número',
-      'UFCD/Módulo',
+      'UFCD/UC/Módulo',
       'Presença',
       'Código',
       'Nota'
@@ -202,7 +202,7 @@ export function exportGradesCsv(
     [
       'Aluno',
       'Número',
-      'UFCD/Módulo',
+      'UFCD/UC/Módulo',
       'Média calculada',
       'Nota sugerida',
       'ACS',

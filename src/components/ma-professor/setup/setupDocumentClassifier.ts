@@ -254,7 +254,7 @@ export function classifySetupPdfDocument(
   if (planification.sections.length > 0) {
     scores.planification += 7
     evidence.planification.push(
-      `${planification.sections.length} UFCD/módulo${planification.sections.length === 1 ? '' : 's'} foram reconhecido${planification.sections.length === 1 ? '' : 's'} pelo parser de planificações.`
+      `${planification.sections.length} UFCD/UC/módulo${planification.sections.length === 1 ? '' : 's'} foram reconhecido${planification.sections.length === 1 ? '' : 's'} pelo parser de planificações.`
     )
   }
 
@@ -267,7 +267,7 @@ export function classifySetupPdfDocument(
   }
 
   const hasCurricularUnitMarker =
-    /\b(?:ufcd|modulo)\b/.test(normalizedText)
+    /\b(?:ufcd|uc|modulo)\b/.test(normalizedText)
 
   if (hasCurricularUnitMarker) {
     scores.planification += 2

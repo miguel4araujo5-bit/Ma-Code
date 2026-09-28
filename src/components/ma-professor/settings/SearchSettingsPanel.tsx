@@ -18,7 +18,7 @@ interface SearchSettingsPanelProps {
 const kindLabels: Record<MAProfessorSearchKind, string> = {
   student: 'Aluno',
   lesson: 'Aula ou sumário',
-  module: 'UFCD ou módulo',
+  module: 'UFCD/UC/módulo',
   planification: 'Planificação',
   assessment: 'Avaliação',
   recovery: 'Recuperação',
@@ -146,7 +146,7 @@ export function SearchSettingsPanel({
           Encontre qualquer registo
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Pesquise alunos, sumários, UFCD, conteúdos de planificações,
+          Pesquise alunos, sumários, UFCD, UC, módulos, conteúdos de planificações,
           avaliações, classificações e recuperações do ano letivo ativo.
         </p>
 
@@ -158,7 +158,7 @@ export function SearchSettingsPanel({
             type="search"
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder="Nome, número, UFCD, sumário, conteúdo…"
+            placeholder="Nome, número, UFCD, UC, módulo, sumário, conteúdo…"
             aria-label="Texto a pesquisar"
             className="rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/50"
           />

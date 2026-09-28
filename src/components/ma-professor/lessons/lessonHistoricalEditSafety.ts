@@ -41,6 +41,6 @@ export function assertLessonHistoricalModuleChangeAllowed(
   }
 
   throw new Error(
-    'Esta aula já possui faltas ou avaliações. Para preservar o histórico, não é possível alterar a UFCD ou módulo através da edição normal da aula.'
+    'Esta aula já possui faltas ou avaliações. Para preservar o histórico, não é possível alterar a UFCD, UC ou módulo através da edição normal da aula.'
   )
 }
