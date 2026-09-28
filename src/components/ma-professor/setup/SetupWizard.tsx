@@ -704,18 +704,24 @@ export default function SetupWizard({
     return (
       <div className="mx-auto max-w-[100rem]">
         <section className="rounded-[2rem] border border-cyan-300/15 bg-slate-950/75 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-6 lg:p-7">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-            Configuração inicial · {snapshot.academicYear.name}
-          </p>
-          <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
-            Vamos preparar o essencial, um passo de cada vez.
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-            Comece pelo horário. Depois usamos a estrutura já confirmada para associar planificações e critérios às disciplinas certas e, no fim, adicionar os alunos. Pode saltar qualquer etapa e voltar mais tarde.
-          </p>
-          <div className="mt-4">
-            <EducationScopeAvailability />
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+                Configuração inicial · {snapshot.academicYear.name}
+              </p>
+              <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
+                Vamos preparar o essencial, um passo de cada vez.
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+                Comece pelo horário. Depois usamos a estrutura já confirmada para associar planificações e critérios às disciplinas certas e, no fim, adicionar os alunos. Pode saltar qualquer etapa e voltar mais tarde.
+              </p>
+            </div>
+
+            <div className="lg:justify-self-end lg:pt-5">
+              <EducationScopeAvailability />
+            </div>
           </div>
+
           <div className="mt-6">
             <GuidedProgress
               stage={guidedStage}
