@@ -1,12 +1,12 @@
 export default function EducationScopeAvailability() {
   return (
-    <section className="w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.02] p-3">
-      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+    <section className="w-full max-w-[17rem] rounded-xl border border-white/10 bg-white/[0.015] p-3">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
         Tipo de ensino
       </p>
 
-      <div className="mt-2 space-y-1.5">
-        <label className="flex items-center gap-2.5 rounded-lg border border-cyan-300/20 bg-cyan-300/[0.05] px-2.5 py-2 text-xs font-bold text-cyan-50">
+      <div className="mt-2 space-y-1">
+        <label className="flex items-center gap-2.5 rounded-lg bg-white/[0.025] px-2.5 py-1.5 text-xs font-bold text-slate-200">
           <input
             type="checkbox"
             checked
