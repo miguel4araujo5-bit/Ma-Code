@@ -121,6 +121,7 @@ async function automaticHarness(t, initialize) {
     }
     export async function downloadMAProfessorCloudBackup() { calls.download++; return null }
     export async function downloadCompatibleMAProfessorCloudBackup() { calls.download++; return null }
+    export async function downloadMAProfessorCloudBackupV3() { calls.download++; return null }
     export async function uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, options) {
       if (!options.canUpload()) throw new Error('disabled')
       calls.upload++
