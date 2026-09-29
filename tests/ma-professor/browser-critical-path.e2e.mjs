@@ -964,8 +964,11 @@ try {
   const cloudPanel = page.getByRole('heading', {
     name: 'Fazer cópia de segurança para a nuvem', exact: true
   }).locator('..')
-  const manualBackupButton = page.getByRole('button', {
-    name: 'Fazer cópia de segurança para a nuvem', exact: true
+  const prepareBackupButton = page.getByRole('button', {
+    name: 'Preparar cópia para a nuvem', exact: true
+  })
+  const uploadPreparedBackupButton = page.getByRole('button', {
+    name: 'Enviar esta cópia para a nuvem', exact: true
   })
   const readCloudSession = () => page.evaluate(async () => {
     const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
@@ -976,7 +979,7 @@ try {
   })
   const beforeUnlock = await readCloudSession()
   assert.equal(beforeUnlock.keyAvailable, false)
-  assert.equal(await manualBackupButton.count(), 0)
+  assert.equal(await prepareBackupButton.count(), 0)
   assert.equal(await unlock.getByLabel('Password pessoal').getAttribute('autocomplete'), 'current-password')
   assert.equal(await unlock.locator('input[name=username]').getAttribute('autocomplete'), 'username')
   assert.equal(
@@ -1028,29 +1031,34 @@ try {
     'OPAQUE reauthentication must rotate the account session token.'
   )
   assert.equal((await readCloudSession()).preference, 'enabled', 'A confirmação da password não pode alterar a escolha anterior.')
-  await manualBackupButton.waitFor({ state: 'visible' })
-  assert.equal(await manualBackupButton.isEnabled(), true)
+  await prepareBackupButton.waitFor({ state: 'visible' })
+  assert.equal(await prepareBackupButton.isEnabled(), true)
   await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'disabled')
   releaseOldStatus()
   assert.equal(await page.evaluate(() => window.__lateCloudStatus), 'MAProfessorCloudBackupAuthenticationRequiredError')
   await page.unroute(statusRoute, holdOldStatus)
   assert.equal(await unlock.count(), 0, 'A late 401 must not relock the new session.')
-  assert.equal(await manualBackupButton.isEnabled(), true)
+  assert.equal(await prepareBackupButton.isEnabled(), true)
+
+  // The manual flow prepares one exact local snapshot before any cloud write.
+  await prepareBackupButton.click()
+  await cloudPanel.getByText('Dados que vão ser enviados', { exact: true }).waitFor({ state: 'visible' })
+  assert.match(await cloudPanel.innerText(), /Sumários/)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
 
   // A temporary status failure must not claim the existing backup is absent or disable retry.
   const unavailableStatus = route => fulfilJson(route, { message: 'Serviço temporariamente indisponível.' }, 503)
   await page.route(statusRoute, unavailableStatus)
-  await manualBackupButton.click()
+  await uploadPreparedBackupButton.click()
   await cloudPanel.getByRole('alert').waitFor({ state: 'visible' })
   assert.match(await cloudPanel.innerText(), /por confirmar/)
   assert.doesNotMatch(await cloudPanel.innerText(), /sem cópia online/)
-  assert.equal(await manualBackupButton.isEnabled(), true)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
   await page.unroute(statusRoute, unavailableStatus)
-  await manualBackupButton.click()
+  await uploadPreparedBackupButton.click()
   await page.getByText(
-    'Cópia de segurança cifrada, enviada e verificada com sucesso.',
-    { exact: true }
+    /Cópia de segurança cifrada, enviada e confirmada no servidor como revisão \d+\./
   ).waitFor({ state: 'visible' })
   assert.equal(
     await page.getByText('A sessão já não é válida.', { exact: true }).count(),
@@ -1092,7 +1100,7 @@ try {
   await unlock.waitFor({ state: 'hidden' })
   assert.notEqual((await readCloudSession()).token, beforeSecondUnlock.token)
   assert.equal((await readCloudSession()).preference, 'disabled')
-  assert.equal(await manualBackupButton.isEnabled(), true)
+  assert.equal(await prepareBackupButton.isEnabled(), true)
   assert.equal(await page.getByText('A sessão já não é válida.', { exact: true }).count(), 0)
   assert.deepEqual(await persistedLesson(page), afterReload)
 
@@ -1104,12 +1112,14 @@ try {
     storage.saveMAProfessorAccessSession({ ...storage.readMAProfessorAccessSession(), token })
   }, otherTabToken)
   cloudWorker.setToken(otherTabToken)
-  await manualBackupButton.click()
+  await prepareBackupButton.click()
+  await cloudPanel.getByText('Dados que vão ser enviados', { exact: true }).waitFor({ state: 'visible' })
+  await uploadPreparedBackupButton.click()
   await unlock.waitFor({ state: 'visible' })
   await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.waitFor({ state: 'hidden' })
-  assert.equal(await manualBackupButton.isEnabled(), true)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
   assert.equal((await readCloudSession()).preference, 'disabled')
   assert.deepEqual(await persistedLesson(page), afterReload)
 
