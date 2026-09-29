@@ -388,40 +388,37 @@ test(
 )
 
 test(
-  'manual and automatic saves use compatible upload without activating migration',
+  'manual and automatic saves use compatible upload only after excluding v2 profiles',
   () => {
     assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup/)
     assert.doesNotMatch(automatic, /\buploadAndVerifyMAProfessorCloudBackup\(/)
+    assert.match(automatic, /currentStatus\.cryptoVersion === 2/)
+    assert.match(automatic, /blockLegacyProfile\(\)/)
     assert.doesNotMatch(automatic, /migrateMAProfessorCloudBackupV2ToV3/)
+
     assert.match(syncPanelSource, /uploadAndVerifyCompatibleMAProfessorCloudBackup/)
     assert.doesNotMatch(syncPanelSource, /\buploadAndVerifyMAProfessorCloudBackup\(/)
+    assert.match(syncPanelSource, /currentStatus\.cryptoVersion === 2/)
+    assert.doesNotMatch(syncPanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
   }
 )
 
 test(
-  'manual save is the only production trigger for v2 to v3 migration and records migrated trust',
+  'production backup and restore paths no longer migrate or read v2',
   () => {
-    assert.match(syncPanelSource, /currentStatus\.cryptoVersion === 2/)
-    assert.match(syncPanelSource, /currentStatus\.backup\.found/)
-    assert.match(syncPanelSource, /currentStatus\.backup\.recordRevision !== null/)
-    assert.match(syncPanelSource, /await\s+migrateMAProfessorCloudBackupV2ToV3\(\s*session\s*\)/)
-    assert.match(syncPanelSource, /serverRevision:\s*migrated\.serverRevision/)
-    assert.match(syncPanelSource, /recordRevision:\s*migrated\.recordRevision/)
-    assert.doesNotMatch(automatic, /migrateMAProfessorCloudBackupV2ToV3/)
-    assert.doesNotMatch(restoreService, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.doesNotMatch(syncPanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.doesNotMatch(automaticSource, /migrateMAProfessorCloudBackupV2ToV3/)
+    assert.doesNotMatch(restoreServiceSource, /migrateMAProfessorCloudBackupV2ToV3/)
     assert.doesNotMatch(restorePanelSource, /migrateMAProfessorCloudBackupV2ToV3/)
     assert.doesNotMatch(dailySource, /migrateMAProfessorCloudBackupV2ToV3/)
-  }
-)
 
-test(
-  'first manual backup does not invoke migration when no remote copy exists',
-  () => {
-    const condition = /currentStatus\.cryptoVersion === 2 && currentStatus\.backup\.found && currentStatus\.backup\.recordRevision !== null/
-    assert.match(syncPanel, condition)
-    const migrationCall = syncPanel.indexOf('await migrateMAProfessorCloudBackupV2ToV3')
-    const conditionStart = syncPanel.indexOf('currentStatus.cryptoVersion === 2')
-    assert.ok(conditionStart >= 0 && migrationCall > conditionStart)
+    assert.match(syncPanelSource, /currentStatus\.cryptoVersion === 2/)
+    assert.match(syncPanelSource, /proteção de cópia antiga/)
+    assert.match(automaticSource, /status\.cryptoVersion === 2/)
+    assert.match(automaticSource, /downloadMAProfessorCloudBackupV3/)
+    assert.doesNotMatch(automaticSource, /downloadCompatibleMAProfessorCloudBackup/)
+    assert.match(restoreServiceSource, /downloadMAProfessorCloudBackupV3/)
+    assert.doesNotMatch(restoreServiceSource, /downloadCompatibleMAProfessorCloudBackup/)
   }
 )
 
@@ -436,17 +433,6 @@ test(
     const readExportKeyStart = accessStorage.indexOf('export function readMAProfessorOpaqueExportKey', saveExportKeyStart)
     const saveExportKey = accessStorage.slice(saveExportKeyStart, readExportKeyStart)
     assert.doesNotMatch(saveExportKey, /localStorage|sessionStorage|writeStoredValue/)
-  }
-)
-
-test(
-  'manual migration preserves v3 trust if the following upload fails',
-  () => {
-    assert.match(syncPanelSource, /let migratedTrust:/)
-    assert.match(syncPanelSource, /migratedTrust = \{/)
-    assert.match(syncPanelSource, /writeMAProfessorCloudBackupTrust\(\s*session,\s*migratedTrust\s*\)/)
-    assert.match(syncPanelSource, /catch \(error\) \{\s*if \(migratedTrust\)/)
-    assert.match(syncPanelSource, /await uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
   }
 )
 
@@ -501,15 +487,15 @@ test(
 )
 
 test(
-  'restore is v3-only while automatic trust reconciliation still uses the compatibility dispatcher',
+  'restore and automatic trust reconciliation both read only v3 backups',
   async () => {
     const restore = await readFile('src/components/ma-professor/sync/cloudBackupRestoreService.ts', 'utf8')
     const automatic = await readFile('src/components/ma-professor/sync/AutomaticCloudBackup.tsx', 'utf8')
 
     assert.match(restore, /downloadMAProfessorCloudBackupV3/)
     assert.doesNotMatch(restore, /downloadCompatibleMAProfessorCloudBackup/)
-    assert.match(automatic, /downloadCompatibleMAProfessorCloudBackup/)
-    assert.doesNotMatch(automatic, /\bdownloadMAProfessorCloudBackup\(/)
+    assert.match(automatic, /downloadMAProfessorCloudBackupV3/)
+    assert.doesNotMatch(automatic, /downloadCompatibleMAProfessorCloudBackup/)
     assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
     assert.doesNotMatch(automatic, /promotePreparedMAProfessorCloudBackupV3|prepareMAProfessorCloudBackupV3Promotion|migrateMAProfessorCloudBackupV2ToV3/)
   }
