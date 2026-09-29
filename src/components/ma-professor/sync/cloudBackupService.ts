@@ -37,14 +37,11 @@ const API_PREFIX =
 const RECORD_ID =
   'database-v1'
 
-const ENCRYPTION_VERSION =
-  1 as const
+const CRYPTO_VERSION =
+  3 as const
 
 const ENCRYPTION_ALGORITHM =
   'AES-256-GCM' as const
-
-const AAD =
-  'MA-PROF-CLOUD-BACKUP-1'
 
 const MAX_REQUEST_BYTES =
   1_500_000
@@ -58,7 +55,7 @@ const textDecoder =
 export interface MAProfessorCloudBackupStatus {
   success: true
   serverRevision: number
-  cryptoVersion: number | null
+  cryptoVersion: typeof CRYPTO_VERSION | null
   updatedAt: string | null
   protection: import('./cloudBackupV3Crypto').MAProfessorBackupV3WrappedMasterKey | null
   backup: {
@@ -67,23 +64,6 @@ export interface MAProfessorCloudBackupStatus {
     updatedAt: string | null
     ciphertextBytes: number | null
   }
-}
-
-interface CloudBackupKeyResult {
-  success: true
-  cryptoVersion: number
-  keyAlgorithm: typeof ENCRYPTION_ALGORITHM
-  key: string
-}
-
-interface EncryptedCloudBackupRecord {
-  encryptionVersion:
-    typeof ENCRYPTION_VERSION
-  encryptionAlgorithm:
-    typeof ENCRYPTION_ALGORITHM
-  nonce: string
-  ciphertext: string
-  ciphertextHash: string
 }
 
 interface CloudBackupGetNotFound {
@@ -98,12 +78,10 @@ interface CloudBackupGetFound {
   found: true
   recordId: string
   serverRevision: number
-  cryptoVersion: number
+  cryptoVersion: typeof CRYPTO_VERSION
   recordRevision: number
   updatedAt: string
-  encrypted:
-    | EncryptedCloudBackupRecord
-    | MAProfessorBackupV3EncryptedData
+  encrypted: MAProfessorBackupV3EncryptedData
 }
 
 type CloudBackupGetResult =
@@ -161,7 +139,8 @@ export class MAProfessorCloudBackupRevisionConflictError
   }
 }
 
-export const MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT = 'ma-professor-backup-auth-required'
+export const MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT =
+  'ma-professor-backup-auth-required'
 
 export interface MAProfessorCloudBackupAuthenticationRequiredDetail {
   email: string
@@ -169,7 +148,8 @@ export interface MAProfessorCloudBackupAuthenticationRequiredDetail {
   deviceId?: string
 }
 
-export class MAProfessorCloudBackupAuthenticationRequiredError extends Error {
+export class MAProfessorCloudBackupAuthenticationRequiredError
+  extends Error {
   constructor(
     email: string,
     message =
@@ -177,13 +157,27 @@ export class MAProfessorCloudBackupAuthenticationRequiredError extends Error {
     requestSession?: MAProfessorAccessSession
   ) {
     super(message)
-    this.name = 'MAProfessorCloudBackupAuthenticationRequiredError'
-    if (typeof window !== 'undefined') {
-      // Consumers compare against their mounted session, including in other tabs.
-      window.dispatchEvent(new window.CustomEvent<MAProfessorCloudBackupAuthenticationRequiredDetail>(
-        MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
-        { detail: { email, token: requestSession?.token, deviceId: requestSession?.deviceId } }
-      ))
+    this.name =
+      'MAProfessorCloudBackupAuthenticationRequiredError'
+
+    if (
+      typeof window !==
+      'undefined'
+    ) {
+      window.dispatchEvent(
+        new window.CustomEvent<MAProfessorCloudBackupAuthenticationRequiredDetail>(
+          MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
+          {
+            detail: {
+              email,
+              token:
+                requestSession?.token,
+              deviceId:
+                requestSession?.deviceId
+            }
+          }
+        )
+      )
     }
   }
 }
@@ -219,8 +213,7 @@ function isPositiveInteger(
 }
 
 function assertSession(
-  session:
-    MAProfessorAccessSession
+  session: MAProfessorAccessSession
 ) {
   if (
     !session.token.trim() ||
@@ -234,16 +227,13 @@ function assertSession(
 }
 
 function sessionBody(
-  session:
-    MAProfessorAccessSession
+  session: MAProfessorAccessSession
 ) {
   assertSession(session)
 
   return {
-    token:
-      session.token,
-    deviceId:
-      session.deviceId
+    token: session.token,
+    deviceId: session.deviceId
   }
 }
 
@@ -275,37 +265,6 @@ function bytesToBase64(
   }
 
   return globalThis.btoa(binary)
-}
-
-function base64ToBytes(
-  value: string
-) {
-  let binary: string
-
-  try {
-    binary =
-      globalThis.atob(value)
-  } catch {
-    throw new Error(
-      'A cópia cifrada recebida não tem um formato válido.'
-    )
-  }
-
-  const bytes =
-    new Uint8Array(
-      binary.length
-    )
-
-  for (
-    let index = 0;
-    index < binary.length;
-    index += 1
-  ) {
-    bytes[index] =
-      binary.charCodeAt(index)
-  }
-
-  return bytes
 }
 
 function toArrayBuffer(
@@ -368,10 +327,8 @@ async function postJson(
             Accept:
               'application/json'
           },
-          cache:
-            'no-store',
-          body:
-            serialized
+          cache: 'no-store',
+          body: serialized
         }
       )
   } catch {
@@ -387,8 +344,7 @@ async function postJson(
     data =
       await response.json()
   } catch {
-    data =
-      null
+    data = null
   }
 
   if (!response.ok) {
@@ -412,7 +368,10 @@ async function postJson(
 
     if (
       response.status === 409 &&
-      ['/promote-v3', '/initialize-v3', '/push-v3'].includes(path)
+      [
+        '/initialize-v3',
+        '/push-v3'
+      ].includes(path)
     ) {
       throw new MAProfessorCloudBackupRevisionConflictError(
         message
@@ -430,13 +389,16 @@ function isValidV3Protection(
 ): value is import('./cloudBackupV3Crypto').MAProfessorBackupV3WrappedMasterKey {
   return (
     isObject(value) &&
-    value.cryptoVersion === 3 &&
-    value.recoveryKdfAlgorithm === 'OPAQUE-RFC9807-EXPORT-HKDF-SHA256' &&
+    value.cryptoVersion ===
+      CRYPTO_VERSION &&
+    value.recoveryKdfAlgorithm ===
+      'OPAQUE-RFC9807-EXPORT-HKDF-SHA256' &&
     typeof value.recoveryKdfSalt === 'string' &&
     value.recoveryKdfSalt.length > 0 &&
     typeof value.recoveryKdfParameters === 'string' &&
     value.recoveryKdfParameters.length > 0 &&
-    value.recoveryKeyWrapAlgorithm === 'AES-256-GCM' &&
+    value.recoveryKeyWrapAlgorithm ===
+      'AES-256-GCM' &&
     typeof value.recoveryWrappedMasterKey === 'string' &&
     value.recoveryWrappedMasterKey.length > 0 &&
     typeof value.recoveryWrappedMasterKeyNonce === 'string' &&
@@ -453,29 +415,35 @@ function parseStatus(
     !isNonNegativeInteger(
       value.serverRevision
     ) ||
-    !(value.cryptoVersion === null || isPositiveInteger(value.cryptoVersion)) ||
-    !(value.updatedAt === null || (typeof value.updatedAt === 'string' && value.updatedAt)) ||
     !(
-      value.protection === null ||
-      isObject(value.protection)
+      value.cryptoVersion === null ||
+      value.cryptoVersion ===
+        CRYPTO_VERSION
+    ) ||
+    !(
+      value.updatedAt === null ||
+      (
+        typeof value.updatedAt === 'string' &&
+        value.updatedAt
+      )
     ) ||
     !isObject(value.backup)
   ) {
     throw new Error(
-      'O serviço devolveu um estado de cópia inválido.'
+      'O serviço devolveu um estado de cópia incompatível com a proteção v3.'
     )
   }
 
   if (
-    !(value.cryptoVersion === null || [2, 3].includes(value.cryptoVersion)) ||
-    (
-      value.cryptoVersion === 3
-        ? !isValidV3Protection(value.protection)
-        : value.protection !== null
-    )
+    value.cryptoVersion ===
+      CRYPTO_VERSION
+      ? !isValidV3Protection(
+          value.protection
+        )
+      : value.protection !== null
   ) {
     throw new Error(
-      'O serviço devolveu uma proteção de cópia incompatível com a versão criptográfica.'
+      'O serviço devolveu uma proteção de cópia incompatível com a versão v3.'
     )
   }
 
@@ -494,7 +462,9 @@ function parseStatus(
     typeof found !== 'boolean' ||
     !(
       recordRevision === null ||
-      isPositiveInteger(recordRevision)
+      isPositiveInteger(
+        recordRevision
+      )
     ) ||
     !(
       backupUpdatedAt === null ||
@@ -512,9 +482,20 @@ function parseStatus(
     )
   }
 
-  if (value.cryptoVersion === null && (value.serverRevision !== 0 || value.updatedAt !== null ||
-      found || recordRevision !== null || backupUpdatedAt !== null || ciphertextBytes !== null)) {
-    throw new Error('O estado inicial da cópia online não é válido.')
+  if (
+    value.cryptoVersion === null &&
+    (
+      value.serverRevision !== 0 ||
+      value.updatedAt !== null ||
+      found ||
+      recordRevision !== null ||
+      backupUpdatedAt !== null ||
+      ciphertextBytes !== null
+    )
+  ) {
+    throw new Error(
+      'O estado inicial da cópia online não é válido.'
+    )
   }
 
   return {
@@ -526,7 +507,8 @@ function parseStatus(
     updatedAt:
       value.updatedAt,
     protection:
-      value.protection as MAProfessorCloudBackupStatus['protection'],
+      value.protection as
+        MAProfessorCloudBackupStatus['protection'],
     backup: {
       found,
       recordRevision,
@@ -537,87 +519,15 @@ function parseStatus(
   }
 }
 
-function parseKey(
-  value: unknown
-): CloudBackupKeyResult {
-  if (
-    !isObject(value) ||
-    value.success !== true ||
-    !isPositiveInteger(
-      value.cryptoVersion
-    ) ||
-    value.keyAlgorithm !==
-      ENCRYPTION_ALGORITHM ||
-    typeof value.key !== 'string' ||
-    !value.key
-  ) {
-    throw new Error(
-      'O serviço devolveu uma chave de cópia inválida.'
-    )
-  }
-
-  if (
-    base64ToBytes(value.key)
-      .byteLength !== 32
-  ) {
-    throw new Error(
-      'A chave de cópia devolvida não tem o tamanho esperado.'
-    )
-  }
-
-  return {
-    success: true,
-    cryptoVersion:
-      value.cryptoVersion,
-    keyAlgorithm:
-      ENCRYPTION_ALGORITHM,
-    key:
-      value.key
-  }
-}
-
-function parseEncryptedRecord(
-  value: unknown
-): EncryptedCloudBackupRecord {
-  if (
-    !isObject(value) ||
-    value.encryptionVersion !==
-      ENCRYPTION_VERSION ||
-    value.encryptionAlgorithm !==
-      ENCRYPTION_ALGORITHM ||
-    typeof value.nonce !== 'string' ||
-    !value.nonce ||
-    typeof value.ciphertext !== 'string' ||
-    !value.ciphertext ||
-    typeof value.ciphertextHash !== 'string' ||
-    !value.ciphertextHash
-  ) {
-    throw new Error(
-      'O serviço devolveu uma cópia cifrada inválida.'
-    )
-  }
-
-  return {
-    encryptionVersion:
-      ENCRYPTION_VERSION,
-    encryptionAlgorithm:
-      ENCRYPTION_ALGORITHM,
-    nonce:
-      value.nonce,
-    ciphertext:
-      value.ciphertext,
-    ciphertextHash:
-      value.ciphertextHash
-  }
-}
-
 function parseV3EncryptedRecord(
   value: unknown
 ): MAProfessorBackupV3EncryptedData {
   if (
     !isObject(value) ||
-    value.encryptionVersion !== 3 ||
-    value.encryptionAlgorithm !== ENCRYPTION_ALGORITHM ||
+    value.encryptionVersion !==
+      CRYPTO_VERSION ||
+    value.encryptionAlgorithm !==
+      ENCRYPTION_ALGORITHM ||
     typeof value.nonce !== 'string' ||
     !value.nonce ||
     typeof value.ciphertext !== 'string' ||
@@ -631,11 +541,14 @@ function parseV3EncryptedRecord(
   }
 
   return {
-    encryptionVersion: 3,
-    encryptionAlgorithm: ENCRYPTION_ALGORITHM,
+    encryptionVersion:
+      CRYPTO_VERSION,
+    encryptionAlgorithm:
+      ENCRYPTION_ALGORITHM,
     nonce: value.nonce,
     ciphertext: value.ciphertext,
-    ciphertextHash: value.ciphertextHash
+    ciphertextHash:
+      value.ciphertextHash
   }
 }
 
@@ -660,17 +573,15 @@ function parseGetResult(
     return {
       success: true,
       found: false,
-      recordId:
-        RECORD_ID,
+      recordId: RECORD_ID,
       serverRevision:
         value.serverRevision
     }
   }
 
   if (
-    !isPositiveInteger(
-      value.cryptoVersion
-    ) ||
+    value.cryptoVersion !==
+      CRYPTO_VERSION ||
     !isPositiveInteger(
       value.recordRevision
     ) ||
@@ -678,41 +589,37 @@ function parseGetResult(
     !value.updatedAt
   ) {
     throw new Error(
-      'O serviço devolveu metadados inválidos para a cópia.'
+      'O serviço devolveu metadados incompatíveis com uma cópia v3.'
     )
   }
 
   return {
     success: true,
     found: true,
-    recordId:
-      RECORD_ID,
+    recordId: RECORD_ID,
     serverRevision:
       value.serverRevision,
     cryptoVersion:
-      value.cryptoVersion,
+      CRYPTO_VERSION,
     recordRevision:
       value.recordRevision,
     updatedAt:
       value.updatedAt,
     encrypted:
-      value.cryptoVersion === 3
-        ? parseV3EncryptedRecord(
-            value.encrypted
-          )
-        : parseEncryptedRecord(
-            value.encrypted
-          )
+      parseV3EncryptedRecord(
+        value.encrypted
+      )
   }
 }
 
-function parsePromoteV3Result(
+function parseV3WriteResult(
   value: unknown
 ) {
   if (
     !isObject(value) ||
     value.success !== true ||
-    value.cryptoVersion !== 3 ||
+    value.cryptoVersion !==
+      CRYPTO_VERSION ||
     value.recordId !== RECORD_ID ||
     !isPositiveInteger(
       value.serverRevision
@@ -724,42 +631,13 @@ function parsePromoteV3Result(
     !value.updatedAt
   ) {
     throw new Error(
-      'O serviço devolveu uma resposta inválida ao promover a cópia v3.'
+      'O serviço devolveu uma resposta inválida ao guardar a cópia v3.'
     )
   }
 
   return {
-    cryptoVersion: 3 as const,
-    serverRevision:
-      value.serverRevision,
-    recordRevision:
-      value.recordRevision,
-    updatedAt:
-      value.updatedAt
-  }
-}
-
-function parsePushResult(
-  value: unknown
-) {
-  if (
-    !isObject(value) ||
-    value.success !== true ||
-    !isPositiveInteger(
-      value.serverRevision
-    ) ||
-    !isPositiveInteger(
-      value.recordRevision
-    ) ||
-    typeof value.updatedAt !== 'string' ||
-    !value.updatedAt
-  ) {
-    throw new Error(
-      'O serviço devolveu uma resposta inválida ao guardar a cópia.'
-    )
-  }
-
-  return {
+    cryptoVersion:
+      CRYPTO_VERSION,
     serverRevision:
       value.serverRevision,
     recordRevision:
@@ -770,8 +648,7 @@ function parsePushResult(
 }
 
 async function readStatus(
-  session:
-    MAProfessorAccessSession
+  session: MAProfessorAccessSession
 ) {
   const data =
     await postJson(
@@ -784,238 +661,15 @@ async function readStatus(
   return parseStatus(data)
 }
 
-async function readKey(
-  session:
-    MAProfessorAccessSession
-) {
-  const data =
-    await postJson(
-      '/key',
-      sessionBody(session),
-      'Não foi possível abrir a proteção da cópia.',
-      session
-    )
-
-  return parseKey(data)
-}
-
-async function importBackupKey(
-  session:
-    MAProfessorAccessSession
-) {
-  if (!globalThis.crypto?.subtle) {
-    throw new Error(
-      'Este browser não suporta a proteção criptográfica necessária.'
-    )
-  }
-
-  const keyResult =
-    await readKey(session)
-
-  return globalThis.crypto.subtle.importKey(
-    'raw',
-    toArrayBuffer(
-      base64ToBytes(
-        keyResult.key
-      )
-    ),
-    {
-      name: 'AES-GCM',
-      length: 256
-    },
-    false,
-    [
-      'encrypt',
-      'decrypt'
-    ]
-  )
-}
-
-async function encryptBackup(
-  backup:
-    MAProfessorBackup,
-  key:
-    CryptoKey
-) {
-  const plaintext =
-    textEncoder.encode(
-      JSON.stringify(backup)
-    )
-
-  const compressed =
-    zlibSync(
-      plaintext,
-      {
-        level: 6
-      }
-    )
-
-  const nonce =
-    globalThis.crypto.getRandomValues(
-      new Uint8Array(12)
-    )
-
-  const encryptedBuffer =
-    await globalThis.crypto.subtle.encrypt(
-      {
-        name: 'AES-GCM',
-        iv: nonce,
-        additionalData:
-          textEncoder.encode(AAD),
-        tagLength: 128
-      },
-      key,
-      toArrayBuffer(compressed)
-    )
-
-  const ciphertext =
-    new Uint8Array(
-      encryptedBuffer
-    )
-
-  return {
-    plaintextBytes:
-      plaintext.byteLength,
-    plaintextHash:
-      await sha256Base64(plaintext),
-    encryptedBytes:
-      ciphertext.byteLength,
-    encrypted: {
-      encryptionVersion:
-        ENCRYPTION_VERSION,
-      encryptionAlgorithm:
-        ENCRYPTION_ALGORITHM,
-      nonce:
-        bytesToBase64(nonce),
-      ciphertext:
-        bytesToBase64(ciphertext),
-      ciphertextHash:
-        await sha256Base64(
-          ciphertext
-        )
-    } satisfies
-      EncryptedCloudBackupRecord
-  }
-}
-
-async function decryptBackup(
-  encrypted:
-    EncryptedCloudBackupRecord,
-  key:
-    CryptoKey
-) {
-  const nonce =
-    base64ToBytes(
-      encrypted.nonce
-    )
-
-  if (nonce.byteLength !== 12) {
-    throw new Error(
-      'A cópia cifrada contém um nonce inválido.'
-    )
-  }
-
-  const ciphertext =
-    base64ToBytes(
-      encrypted.ciphertext
-    )
-
-  const actualHash =
-    await sha256Base64(
-      ciphertext
-    )
-
-  if (
-    actualHash !==
-    encrypted.ciphertextHash
-  ) {
-    throw new Error(
-      'A integridade da cópia cifrada não pôde ser confirmada.'
-    )
-  }
-
-  let compressedBuffer:
-    ArrayBuffer
-
-  try {
-    compressedBuffer =
-      await globalThis.crypto.subtle.decrypt(
-        {
-          name: 'AES-GCM',
-          iv: nonce,
-          additionalData:
-            textEncoder.encode(AAD),
-          tagLength: 128
-        },
-        key,
-        toArrayBuffer(ciphertext)
-      )
-  } catch {
-    throw new Error(
-      'Não foi possível decifrar a cópia com esta sessão.'
-    )
-  }
-
-  let plaintext:
-    Uint8Array
-
-  try {
-    plaintext =
-      unzlibSync(
-        new Uint8Array(
-          compressedBuffer
-        )
-      )
-  } catch {
-    throw new Error(
-      'A cópia cifrada está danificada ou incompleta.'
-    )
-  }
-
-  let parsed: unknown
-
-  try {
-    parsed =
-      JSON.parse(
-        textDecoder.decode(
-          plaintext
-        )
-      )
-  } catch {
-    throw new Error(
-      'A cópia decifrada não contém dados JSON válidos.'
-    )
-  }
-
-  const validation =
-    validateMAProfessorBackup(parsed)
-
-  if (!validation.valid) {
-    throw new Error(
-      'A cópia online foi decifrada, mas contém erros que impedem o restauro.'
-    )
-  }
-
-  return {
-    backup:
-      parsed as MAProfessorBackup,
-    validation,
-    plaintextHash:
-      await sha256Base64(plaintext)
-  }
-}
-
 async function getEncryptedBackup(
-  session:
-    MAProfessorAccessSession
+  session: MAProfessorAccessSession
 ) {
   const data =
     await postJson(
       '/get',
       {
         ...sessionBody(session),
-        recordId:
-          RECORD_ID
+        recordId: RECORD_ID
       },
       'Não foi possível descarregar a cópia cifrada.',
       session
@@ -1025,8 +679,7 @@ async function getEncryptedBackup(
 }
 
 export async function inspectMAProfessorCloudBackup(
-  session:
-    MAProfessorAccessSession
+  session: MAProfessorAccessSession
 ) {
   return readStatus(session)
 }
@@ -1043,7 +696,11 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
     )
 
   if (!exportKey) {
-    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email, undefined, session)
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(
+      session.email,
+      undefined,
+      session
+    )
   }
 
   const plaintext =
@@ -1091,7 +748,7 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
       plaintextHash
   ) {
     throw new Error(
-      'A validação local da cópia v3 falhou. A cópia online anterior foi preservada.'
+      'A validação local da cópia v3 falhou. Nenhuma cópia online foi alterada.'
     )
   }
 
@@ -1106,7 +763,7 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
       )
   } catch {
     throw new Error(
-      'A validação local da cópia v3 não encontrou dados JSON válidos. A cópia online anterior foi preservada.'
+      'A validação local da cópia v3 não encontrou dados JSON válidos. Nenhuma cópia online foi alterada.'
     )
   }
 
@@ -1117,7 +774,7 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
 
   if (!validation.valid) {
     throw new Error(
-      'A validação local da cópia v3 encontrou dados incompatíveis. A cópia online anterior foi preservada.'
+      'A validação local da cópia v3 encontrou dados incompatíveis. Nenhuma cópia online foi alterada.'
     )
   }
 
@@ -1130,85 +787,25 @@ export async function prepareMAProfessorCloudBackupV3Promotion(
       plaintext.byteLength,
     encryptedBytes:
       Math.floor(
-        encrypted.ciphertext.length * 3 / 4
+        encrypted.ciphertext.length *
+          3 /
+          4
       )
   }
 }
 
-export async function promotePreparedMAProfessorCloudBackupV3(
-  session: MAProfessorAccessSession,
-  prepared: MAProfessorPreparedCloudBackupV3Promotion,
-  expectedServerRevision: number,
-  expectedRecordRevision: number
+function assertUploadAllowed(
+  options:
+    MAProfessorCloudBackupUploadOptions
 ) {
-  assertSession(session)
-
   if (
-    !isNonNegativeInteger(
-      expectedServerRevision
-    ) ||
-    !isNonNegativeInteger(
-      expectedRecordRevision
-    )
+    options.canUpload &&
+    !options.canUpload()
   ) {
     throw new Error(
-      'A revisão esperada da cópia v3 não é válida.'
+      'A cópia automática foi desativada. Não foram enviados novos dados.'
     )
   }
-
-  const data =
-    await postJson(
-      '/promote-v3',
-      {
-        ...sessionBody(session),
-        recordId:
-          RECORD_ID,
-        expectedServerRevision,
-        expectedRecordRevision,
-        profile:
-          prepared.profile,
-        encrypted:
-          prepared.encrypted
-      },
-      'Não foi possível promover a cópia protegida para v3.',
-      session
-    )
-
-  return parsePromoteV3Result(
-    data
-  )
-}
-
-export async function uploadAndVerifyCompatibleMAProfessorCloudBackup(
-  session: MAProfessorAccessSession,
-  backup: MAProfessorBackup,
-  options: MAProfessorCloudBackupUploadOptions = {}
-): Promise<MAProfessorUploadedCloudBackup> {
-  const status = await readStatus(session)
-
-  if (options.expectedServerRevision !== undefined &&
-      status.serverRevision !== options.expectedServerRevision) {
-    throw new MAProfessorCloudBackupRevisionConflictError()
-  }
-
-  const forwardedOptions = {
-    ...options,
-    expectedServerRevision: status.serverRevision
-  }
-
-  if (status.cryptoVersion === null) {
-    return initializeAndVerifyMAProfessorCloudBackupV3(session, backup, forwardedOptions)
-  }
-
-  if (status.cryptoVersion === 3) {
-    return uploadAndVerifyMAProfessorCloudBackupV3(session, backup, forwardedOptions)
-  }
-
-  if (status.cryptoVersion === 2) {
-    return uploadAndVerifyMAProfessorCloudBackup(session, backup, forwardedOptions)
-  }
-
-  throw new Error('A cópia online utiliza uma versão de proteção não suportada.')
 }
 
 async function initializeAndVerifyMAProfessorCloudBackupV3(
@@ -1216,306 +813,32 @@ async function initializeAndVerifyMAProfessorCloudBackupV3(
   backup: MAProfessorBackup,
   options: MAProfessorCloudBackupUploadOptions
 ): Promise<MAProfessorUploadedCloudBackup> {
-  const assertAllowed = () => {
-    if (options.canUpload && !options.canUpload()) {
-      throw new Error('A cópia automática foi desativada. Não foram enviados novos dados.')
-    }
-  }
-  assertAllowed()
-  const prepared = await prepareMAProfessorCloudBackupV3Promotion(session, backup)
-  assertAllowed()
-  const pushed = parsePromoteV3Result(await postJson('/initialize-v3', {
-    ...sessionBody(session), recordId: RECORD_ID,
-    expectedServerRevision: 0, expectedRecordRevision: 0,
-    profile: prepared.profile, encrypted: prepared.encrypted
-  }, 'Não foi possível criar a primeira cópia protegida.', session))
-  const verified = await downloadMAProfessorCloudBackupV3(session)
-  if (!verified || verified.serverRevision !== pushed.serverRevision ||
-      verified.recordRevision !== pushed.recordRevision ||
-      verified.plaintextHash !== prepared.plaintextHash) {
-    throw new MAProfessorCloudBackupRevisionConflictError('A primeira cópia foi enviada, mas mudou durante a verificação. Atualize o estado antes de continuar.')
-  }
-  return { serverRevision: pushed.serverRevision, recordRevision: pushed.recordRevision,
-    updatedAt: pushed.updatedAt, plaintextBytes: prepared.plaintextBytes,
-    encryptedBytes: prepared.encryptedBytes }
-}
-
-export async function uploadAndVerifyMAProfessorCloudBackupV3(
-  session: MAProfessorAccessSession,
-  backup: MAProfessorBackup,
-  options: MAProfessorCloudBackupUploadOptions = {}
-): Promise<MAProfessorUploadedCloudBackup> {
-  const assertUploadAllowed = () => {
-    if (options.canUpload && !options.canUpload()) {
-      throw new Error('A cópia automática foi desativada. Não foram enviados novos dados.')
-    }
-  }
-
-  assertUploadAllowed()
-  const status = await readStatus(session)
-
-  if (status.cryptoVersion !== 3 || !status.protection || !status.backup.found ||
-      !isNonNegativeInteger(status.backup.recordRevision)) {
-    throw new Error('A proteção v3 da cópia online não está pronta para receber novos dados.')
-  }
-
-  if (options.expectedServerRevision !== undefined &&
-      status.serverRevision !== options.expectedServerRevision) {
-    throw new MAProfessorCloudBackupRevisionConflictError()
-  }
-
-  const exportKey = readMAProfessorOpaqueExportKey(session.email)
-  if (!exportKey) {
-    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email, undefined, session)
-  }
-
-  assertUploadAllowed()
-  const masterKey = await unwrapMAProfessorBackupV3MasterKey(exportKey, status.protection)
-  const plaintext = textEncoder.encode(JSON.stringify(backup))
-  const compressed = zlibSync(plaintext, { level: 6 })
-  const plaintextHash = await sha256Base64(plaintext)
-  const encrypted = await encryptMAProfessorBackupV3Data(masterKey, compressed, RECORD_ID)
-  assertUploadAllowed()
-
-  const pushed = parsePromoteV3Result(
-    await postJson('/push-v3', {
-      ...sessionBody(session), recordId: RECORD_ID,
-      expectedServerRevision: status.serverRevision,
-      expectedRecordRevision: status.backup.recordRevision,
-      encrypted
-    }, 'Não foi possível guardar a cópia cifrada v3.', session)
-  )
-
-  const verified = await downloadMAProfessorCloudBackupV3(session)
-  if (!verified || verified.serverRevision !== pushed.serverRevision ||
-      verified.recordRevision !== pushed.recordRevision ||
-      verified.plaintextHash !== plaintextHash) {
-    throw new MAProfessorCloudBackupRevisionConflictError('A cópia v3 foi enviada, mas a verificação local não corresponde aos dados enviados.')
-  }
-
-  return {
-    serverRevision: pushed.serverRevision,
-    recordRevision: pushed.recordRevision,
-    updatedAt: pushed.updatedAt,
-    plaintextBytes: plaintext.byteLength,
-    encryptedBytes: Math.floor(encrypted.ciphertext.length * 3 / 4)
-  }
-}
-
-export async function uploadAndVerifyMAProfessorCloudBackup(
-  session:
-    MAProfessorAccessSession,
-  backup:
-    MAProfessorBackup,
-  options:
-    MAProfessorCloudBackupUploadOptions = {}
-): Promise<MAProfessorUploadedCloudBackup> {
-  const assertUploadAllowed = () => {
-    if (options.canUpload && !options.canUpload()) {
-      throw new Error('A cópia automática foi desativada. Não foram enviados novos dados.')
-    }
-  }
-
-  assertUploadAllowed()
-
-  const expectedServerRevision =
-    options.expectedServerRevision
-
-  if (
-    expectedServerRevision !== undefined &&
-    !isNonNegativeInteger(
-      expectedServerRevision
-    )
-  ) {
-    throw new Error(
-      'A revisão esperada da cópia online não é válida.'
-    )
-  }
-
-  const status =
-    await readStatus(session)
-
-  if (
-    expectedServerRevision !== undefined &&
-    status.serverRevision !==
-      expectedServerRevision
-  ) {
-    throw new MAProfessorCloudBackupRevisionConflictError()
-  }
-
-  assertUploadAllowed()
-
-  const key =
-    await importBackupKey(session)
-  assertUploadAllowed()
-
-  const prepared =
-    await encryptBackup(
-      backup,
-      key
-    )
-
-  // A escolha pode mudar enquanto o browser cifra uma cópia grande.
-  assertUploadAllowed()
-
-  let pushData:
-    ReturnType<typeof parsePushResult>
-
-  try {
-    pushData =
-      parsePushResult(
-        await postJson(
-          '/push',
-          {
-            ...sessionBody(session),
-            recordId:
-              RECORD_ID,
-            expectedServerRevision:
-              status.serverRevision,
-            encrypted:
-              prepared.encrypted
-          },
-          'Não foi possível guardar a cópia cifrada.',
-          session
-        )
-      )
-  } catch (error) {
-    if (
-      expectedServerRevision !== undefined &&
-      error instanceof Error &&
-      error.message.includes(
-        'cópia online mais recente'
-      )
-    ) {
-      throw new MAProfessorCloudBackupRevisionConflictError(
-        error.message
-      )
-    }
-
-    throw error
-  }
-
-  const remote =
-    await getEncryptedBackup(session)
-
-  if (remote.found === false) {
-    throw new Error(
-      'A cópia foi enviada, mas não pôde ser confirmada no servidor.'
-    )
-  }
-
-  if (
-    remote.serverRevision !==
-      pushData.serverRevision ||
-    remote.recordRevision !==
-      pushData.recordRevision
-  ) {
-    if (
-      expectedServerRevision !== undefined
-    ) {
-      throw new MAProfessorCloudBackupRevisionConflictError(
-        'A cópia online foi atualizada noutro dispositivo durante a verificação. A cópia automática foi interrompida.'
-      )
-    }
-
-    throw new Error(
-      'A cópia online foi atualizada noutro dispositivo durante a verificação. Atualize o estado antes de continuar.'
-    )
-  }
-
-  if (remote.encrypted.encryptionVersion !== ENCRYPTION_VERSION) {
-    throw new Error(
-      'A cópia devolvida durante a verificação já não usa o formato v2 esperado.'
-    )
-  }
-
-  const verified =
-    await decryptBackup(
-      remote.encrypted,
-      key
-    )
-
-  if (
-    verified.plaintextHash !==
-      prepared.plaintextHash
-  ) {
-    throw new Error(
-      'A cópia guardada no servidor não corresponde aos dados enviados.'
-    )
-  }
-
-  return {
-    serverRevision:
-      pushData.serverRevision,
-    recordRevision:
-      pushData.recordRevision,
-    updatedAt:
-      pushData.updatedAt,
-    plaintextBytes:
-      prepared.plaintextBytes,
-    encryptedBytes:
-      prepared.encryptedBytes
-  }
-}
-
-// A migração permanece explícita e exclusiva da ação manual: nunca é acionada por login, restauro ou abertura da aplicação.
-export async function migrateMAProfessorCloudBackupV2ToV3(
-  session: MAProfessorAccessSession
-): Promise<MAProfessorDownloadedCloudBackup | null> {
-  const status =
-    await readStatus(session)
-
-  if (status.cryptoVersion !== 2) {
-    throw new Error(
-      'A migração v3 só pode começar a partir de uma cópia v2 válida.'
-    )
-  }
-
-  if (!status.backup.found) {
-    return null
-  }
-
-  if (!isNonNegativeInteger(status.backup.recordRevision)) {
-    throw new Error(
-      'A revisão da cópia v2 não é válida para iniciar a migração.'
-    )
-  }
-
-  const expectedRecordRevision =
-    status.backup.recordRevision
-
-  const legacy =
-    await downloadMAProfessorCloudBackup(
-      session
-    )
-
-  if (!legacy) {
-    throw new MAProfessorCloudBackupRevisionConflictError(
-      'A cópia v2 deixou de estar disponível durante a preparação da migração.'
-    )
-  }
-
-  if (
-    legacy.serverRevision !== status.serverRevision ||
-    legacy.recordRevision !== expectedRecordRevision
-  ) {
-    throw new MAProfessorCloudBackupRevisionConflictError(
-      'A cópia v2 mudou durante a preparação da migração.'
-    )
-  }
+  assertUploadAllowed(options)
 
   const prepared =
     await prepareMAProfessorCloudBackupV3Promotion(
       session,
-      legacy.backup
+      backup
     )
 
-  const promoted =
-    await promotePreparedMAProfessorCloudBackupV3(
-      session,
-      prepared,
-      legacy.serverRevision,
-      legacy.recordRevision
+  assertUploadAllowed(options)
+
+  const pushed =
+    parseV3WriteResult(
+      await postJson(
+        '/initialize-v3',
+        {
+          ...sessionBody(session),
+          recordId: RECORD_ID,
+          expectedServerRevision: 0,
+          expectedRecordRevision: 0,
+          profile: prepared.profile,
+          encrypted:
+            prepared.encrypted
+        },
+        'Não foi possível criar a primeira cópia protegida.',
+        session
+      )
     )
 
   const verified =
@@ -1525,61 +848,219 @@ export async function migrateMAProfessorCloudBackupV2ToV3(
 
   if (
     !verified ||
-    verified.serverRevision !== promoted.serverRevision ||
-    verified.recordRevision !== promoted.recordRevision ||
-    verified.plaintextHash !== prepared.plaintextHash
+    verified.serverRevision !==
+      pushed.serverRevision ||
+    verified.recordRevision !==
+      pushed.recordRevision ||
+    verified.plaintextHash !==
+      prepared.plaintextHash
   ) {
-    throw new Error(
-      'A promoção v3 terminou, mas a verificação local da cópia promovida não corresponde aos dados preparados.'
+    throw new MAProfessorCloudBackupRevisionConflictError(
+      'A primeira cópia foi enviada, mas mudou durante a verificação. Atualize o estado antes de continuar.'
     )
   }
 
-  return verified
+  return {
+    serverRevision:
+      pushed.serverRevision,
+    recordRevision:
+      pushed.recordRevision,
+    updatedAt:
+      pushed.updatedAt,
+    plaintextBytes:
+      prepared.plaintextBytes,
+    encryptedBytes:
+      prepared.encryptedBytes
+  }
 }
 
-export async function downloadCompatibleMAProfessorCloudBackup(
-  session: MAProfessorAccessSession
-): Promise<MAProfessorDownloadedCloudBackup | null> {
+export async function uploadAndVerifyMAProfessorCloudBackupV3(
+  session: MAProfessorAccessSession,
+  backup: MAProfessorBackup,
+  options:
+    MAProfessorCloudBackupUploadOptions = {}
+): Promise<MAProfessorUploadedCloudBackup> {
+  assertUploadAllowed(options)
+
   const status =
     await readStatus(session)
 
-  if (status.cryptoVersion === null) {
-    return null
+  if (
+    status.cryptoVersion !==
+      CRYPTO_VERSION ||
+    !status.protection ||
+    !status.backup.found ||
+    !isPositiveInteger(
+      status.backup.recordRevision
+    )
+  ) {
+    throw new Error(
+      'A proteção v3 da cópia online não está pronta para receber novos dados.'
+    )
   }
 
-  if (status.cryptoVersion === 3) {
-    return downloadMAProfessorCloudBackupV3(
+  if (
+    options.expectedServerRevision !==
+      undefined &&
+    status.serverRevision !==
+      options.expectedServerRevision
+  ) {
+    throw new MAProfessorCloudBackupRevisionConflictError()
+  }
+
+  const exportKey =
+    readMAProfessorOpaqueExportKey(
+      session.email
+    )
+
+  if (!exportKey) {
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(
+      session.email,
+      undefined,
       session
     )
   }
 
-  if (status.cryptoVersion === 2) {
-    return downloadMAProfessorCloudBackup(
+  assertUploadAllowed(options)
+
+  const masterKey =
+    await unwrapMAProfessorBackupV3MasterKey(
+      exportKey,
+      status.protection
+    )
+  const plaintext =
+    textEncoder.encode(
+      JSON.stringify(backup)
+    )
+  const compressed =
+    zlibSync(
+      plaintext,
+      {
+        level: 6
+      }
+    )
+  const plaintextHash =
+    await sha256Base64(
+      plaintext
+    )
+  const encrypted =
+    await encryptMAProfessorBackupV3Data(
+      masterKey,
+      compressed,
+      RECORD_ID
+    )
+
+  assertUploadAllowed(options)
+
+  const pushed =
+    parseV3WriteResult(
+      await postJson(
+        '/push-v3',
+        {
+          ...sessionBody(session),
+          recordId: RECORD_ID,
+          expectedServerRevision:
+            status.serverRevision,
+          expectedRecordRevision:
+            status.backup.recordRevision,
+          encrypted
+        },
+        'Não foi possível guardar a cópia cifrada v3.',
+        session
+      )
+    )
+
+  const verified =
+    await downloadMAProfessorCloudBackupV3(
       session
+    )
+
+  if (
+    !verified ||
+    verified.serverRevision !==
+      pushed.serverRevision ||
+    verified.recordRevision !==
+      pushed.recordRevision ||
+    verified.plaintextHash !==
+      plaintextHash
+  ) {
+    throw new MAProfessorCloudBackupRevisionConflictError(
+      'A cópia v3 foi enviada, mas a verificação local não corresponde aos dados enviados.'
     )
   }
 
-  throw new Error(
-    'A cópia online utiliza uma versão de proteção não suportada.'
+  return {
+    serverRevision:
+      pushed.serverRevision,
+    recordRevision:
+      pushed.recordRevision,
+    updatedAt:
+      pushed.updatedAt,
+    plaintextBytes:
+      plaintext.byteLength,
+    encryptedBytes:
+      Math.floor(
+        encrypted.ciphertext.length *
+          3 /
+          4
+      )
+  }
+}
+
+export async function uploadAndVerifyCompatibleMAProfessorCloudBackup(
+  session: MAProfessorAccessSession,
+  backup: MAProfessorBackup,
+  options:
+    MAProfessorCloudBackupUploadOptions = {}
+): Promise<MAProfessorUploadedCloudBackup> {
+  const status =
+    await readStatus(session)
+
+  if (
+    options.expectedServerRevision !==
+      undefined &&
+    status.serverRevision !==
+      options.expectedServerRevision
+  ) {
+    throw new MAProfessorCloudBackupRevisionConflictError()
+  }
+
+  const forwardedOptions = {
+    ...options,
+    expectedServerRevision:
+      status.serverRevision
+  }
+
+  if (
+    status.cryptoVersion === null
+  ) {
+    return initializeAndVerifyMAProfessorCloudBackupV3(
+      session,
+      backup,
+      forwardedOptions
+    )
+  }
+
+  return uploadAndVerifyMAProfessorCloudBackupV3(
+    session,
+    backup,
+    forwardedOptions
   )
 }
 
 export async function downloadMAProfessorCloudBackupV3(
   session: MAProfessorAccessSession
 ): Promise<MAProfessorDownloadedCloudBackup | null> {
-  const [status, remote] =
-    await Promise.all([
-      readStatus(session),
-      getEncryptedBackup(session)
-    ])
+  const status =
+    await readStatus(session)
 
-  if (remote.found === false) {
+  if (
+    status.cryptoVersion === null
+  ) {
     return null
   }
 
   if (
-    status.cryptoVersion !== 3 ||
-    remote.cryptoVersion !== 3 ||
     !status.protection
   ) {
     throw new Error(
@@ -1587,9 +1068,18 @@ export async function downloadMAProfessorCloudBackupV3(
     )
   }
 
+  const remote =
+    await getEncryptedBackup(session)
+
+  if (remote.found === false) {
+    return null
+  }
+
   if (
-    status.serverRevision !== remote.serverRevision ||
-    status.backup.recordRevision !== remote.recordRevision
+    status.serverRevision !==
+      remote.serverRevision ||
+    status.backup.recordRevision !==
+      remote.recordRevision
   ) {
     throw new MAProfessorCloudBackupRevisionConflictError(
       'A cópia online mudou durante a leitura. Atualize o estado antes de voltar a abrir.'
@@ -1602,7 +1092,11 @@ export async function downloadMAProfessorCloudBackupV3(
     )
 
   if (!exportKey) {
-    throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email, undefined, session)
+    throw new MAProfessorCloudBackupAuthenticationRequiredError(
+      session.email,
+      undefined,
+      session
+    )
   }
 
   const masterKey =
@@ -1613,14 +1107,15 @@ export async function downloadMAProfessorCloudBackupV3(
   const decrypted =
     await decryptMAProfessorBackupV3Data(
       masterKey,
-      remote.encrypted as MAProfessorBackupV3EncryptedData,
+      remote.encrypted,
       RECORD_ID
     )
 
   let plaintext: Uint8Array
 
   try {
-    plaintext = unzlibSync(decrypted)
+    plaintext =
+      unzlibSync(decrypted)
   } catch {
     throw new Error(
       'A cópia v3 decifrada não contém dados comprimidos válidos.'
@@ -1630,9 +1125,12 @@ export async function downloadMAProfessorCloudBackupV3(
   let backup: MAProfessorBackup
 
   try {
-    backup = JSON.parse(
-      textDecoder.decode(plaintext)
-    ) as MAProfessorBackup
+    backup =
+      JSON.parse(
+        textDecoder.decode(
+          plaintext
+        )
+      ) as MAProfessorBackup
   } catch {
     throw new Error(
       'A cópia v3 decifrada não contém JSON válido.'
@@ -1640,7 +1138,9 @@ export async function downloadMAProfessorCloudBackupV3(
   }
 
   const validation =
-    validateMAProfessorBackup(backup)
+    validateMAProfessorBackup(
+      backup
+    )
 
   if (!validation.valid) {
     throw new Error(
@@ -1651,52 +1151,6 @@ export async function downloadMAProfessorCloudBackupV3(
   return {
     backup,
     validation,
-    serverRevision: remote.serverRevision,
-    recordRevision: remote.recordRevision,
-    updatedAt: remote.updatedAt,
-    ciphertextHash: remote.encrypted.ciphertextHash,
-    plaintextHash: await sha256Base64(plaintext)
-  }
-}
-
-export async function downloadMAProfessorCloudBackup(
-  session:
-    MAProfessorAccessSession
-): Promise<MAProfessorDownloadedCloudBackup | null> {
-  const remote =
-    await getEncryptedBackup(session)
-
-  if (remote.found === false) {
-    return null
-  }
-
-  if (
-    remote.cryptoVersion !== 2
-  ) {
-    throw new Error(
-      'Esta cópia online usa proteção v3 e não pode ser aberta pelo fluxo legado v2.'
-    )
-  }
-
-  if (remote.encrypted.encryptionVersion !== ENCRYPTION_VERSION) {
-    throw new Error(
-      'Esta cópia online não contém um envelope v2 válido.'
-    )
-  }
-
-  const key =
-    await importBackupKey(session)
-  const decrypted =
-    await decryptBackup(
-      remote.encrypted,
-      key
-    )
-
-  return {
-    backup:
-      decrypted.backup,
-    validation:
-      decrypted.validation,
     serverRevision:
       remote.serverRevision,
     recordRevision:
@@ -1706,6 +1160,16 @@ export async function downloadMAProfessorCloudBackup(
     ciphertextHash:
       remote.encrypted.ciphertextHash,
     plaintextHash:
-      decrypted.plaintextHash
+      await sha256Base64(
+        plaintext
+      )
   }
+}
+
+export async function downloadCompatibleMAProfessorCloudBackup(
+  session: MAProfessorAccessSession
+): Promise<MAProfessorDownloadedCloudBackup | null> {
+  return downloadMAProfessorCloudBackupV3(
+    session
+  )
 }
