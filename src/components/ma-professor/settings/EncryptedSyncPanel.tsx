@@ -24,7 +24,6 @@ import {
   inspectMAProfessorCloudBackup,
   MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
   MAProfessorCloudBackupAuthenticationRequiredError,
-  migrateMAProfessorCloudBackupV2ToV3,
   uploadAndVerifyCompatibleMAProfessorCloudBackup,
   type MAProfessorCloudBackupAuthenticationRequiredDetail,
   type MAProfessorCloudBackupStatus
@@ -311,14 +310,6 @@ export function EncryptedSyncPanel() {
       setBusy(true)
       setFeedback(null)
 
-      let migratedTrust:
-        {
-          serverRevision: number
-          recordRevision: number
-          updatedAt: string
-        } | null =
-          null
-
       try {
         const currentStatus =
           await inspectMAProfessorCloudBackup(
@@ -326,33 +317,10 @@ export function EncryptedSyncPanel() {
           )
 
         if (
-          currentStatus.cryptoVersion === 2 &&
-          currentStatus.backup.found &&
-          currentStatus.backup.recordRevision !== null
+          currentStatus.cryptoVersion === 2
         ) {
-          const migrated =
-            await migrateMAProfessorCloudBackupV2ToV3(
-              session
-            )
-
-          if (!migrated) {
-            throw new Error(
-              'A cópia v2 deixou de estar disponível antes da migração. Atualize o estado e tente novamente.'
-            )
-          }
-
-          migratedTrust = {
-            serverRevision:
-              migrated.serverRevision,
-            recordRevision:
-              migrated.recordRevision,
-            updatedAt:
-              migrated.updatedAt
-          }
-
-          writeMAProfessorCloudBackupTrust(
-            session,
-            migratedTrust
+          throw new Error(
+            'Esta conta ainda apresenta uma proteção de cópia antiga e não pode ser usada pelo fluxo v3 atual.'
           )
         }
 
@@ -385,13 +353,6 @@ export function EncryptedSyncPanel() {
 
         await refreshStatus()
       } catch (error) {
-        if (migratedTrust) {
-          writeMAProfessorCloudBackupTrust(
-            session,
-            migratedTrust
-          )
-        }
-
         if (
           error instanceof
             MAProfessorCloudBackupAuthenticationRequiredError
