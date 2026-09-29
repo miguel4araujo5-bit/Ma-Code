@@ -103,7 +103,7 @@ test(
     )
     assert.match(
       syncPanel,
-      /disabled=\{ busy \}/
+      /disabled=\{\s*busy\s*\}/
     )
     assert.match(
       syncPanel,
@@ -183,7 +183,7 @@ test(
     )
     assert.match(
       service,
-      /status\.serverRevision !== expectedServerRevision/
+      /status\.serverRevision !== options\.expectedServerRevision/
     )
     assert.match(
       service,
