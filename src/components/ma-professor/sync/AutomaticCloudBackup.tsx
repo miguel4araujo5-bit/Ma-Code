@@ -40,7 +40,10 @@ import {
   type MAProfessorCloudBackupTrust
 } from './cloudBackupTrust'
 
-import { MA_PROFESSOR_OPAQUE_KEY_EVENT, readMAProfessorOpaqueExportKey } from '../access/accessStorage'
+import {
+  MA_PROFESSOR_OPAQUE_KEY_EVENT,
+  readMAProfessorOpaqueExportKey
+} from '../access/accessStorage'
 
 const AUTO_BACKUP_DEBOUNCE_MS =
   90 * 1000
@@ -96,14 +99,43 @@ export default function AutomaticCloudBackup() {
   } =
     useMAProfessorAccess()
 
-  const preference = useCloudBackupPreference(session)
-  const [keyAvailable, setKeyAvailable] = useState(() => Boolean(readMAProfessorOpaqueExportKey(session.email)))
+  const preference =
+    useCloudBackupPreference(session)
+  const [
+    keyAvailable,
+    setKeyAvailable
+  ] =
+    useState(
+      () =>
+        Boolean(
+          readMAProfessorOpaqueExportKey(
+            session.email
+          )
+        )
+    )
 
   useEffect(() => {
-    const update = () => setKeyAvailable(Boolean(readMAProfessorOpaqueExportKey(session.email)))
+    const update =
+      () =>
+        setKeyAvailable(
+          Boolean(
+            readMAProfessorOpaqueExportKey(
+              session.email
+            )
+          )
+        )
+
     update()
-    window.addEventListener(MA_PROFESSOR_OPAQUE_KEY_EVENT, update)
-    return () => window.removeEventListener(MA_PROFESSOR_OPAQUE_KEY_EVENT, update)
+    window.addEventListener(
+      MA_PROFESSOR_OPAQUE_KEY_EVENT,
+      update
+    )
+
+    return () =>
+      window.removeEventListener(
+        MA_PROFESSOR_OPAQUE_KEY_EVENT,
+        update
+      )
   }, [session.email])
 
   useEffect(() => {
@@ -115,7 +147,10 @@ export default function AutomaticCloudBackup() {
       false
 
     const canRun = () =>
-      !disposed && readCloudBackupPreference(session) === 'enabled'
+      !disposed &&
+      readCloudBackupPreference(
+        session
+      ) === 'enabled'
 
     let timer:
       ReturnType<typeof setTimeout> | null =
@@ -137,7 +172,8 @@ export default function AutomaticCloudBackup() {
 
     let blockedByDivergence =
       false
-    let blockedByAuthentication = false
+    let blockedByAuthentication =
+      false
 
     let retryNotBefore =
       0
@@ -170,15 +206,6 @@ export default function AutomaticCloudBackup() {
         return trust
       }
 
-    const blockLegacyProfile =
-      () => {
-        clearMAProfessorCloudBackupTrust(
-          session
-        )
-        blockedByDivergence =
-          true
-      }
-
     async function reconcileTrust() {
       const existing =
         readMAProfessorCloudBackupTrust(
@@ -195,18 +222,13 @@ export default function AutomaticCloudBackup() {
       }
 
       if (
-        status.cryptoVersion === 2
-      ) {
-        blockLegacyProfile()
-        return null
-      }
-
-      if (
         !readMAProfessorOpaqueExportKey(
           session.email
         )
       ) {
-        throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
+        throw new MAProfessorCloudBackupAuthenticationRequiredError(
+          session.email
+        )
       }
 
       if (
@@ -413,18 +435,6 @@ export default function AutomaticCloudBackup() {
           return
         }
 
-        const currentStatus =
-          await inspectMAProfessorCloudBackup(
-            session
-          )
-
-        if (
-          currentStatus.cryptoVersion === 2
-        ) {
-          blockLegacyProfile()
-          return
-        }
-
         const previousBackupAt =
           trust.recordRevision
             ? readTimestamp(
@@ -490,8 +500,12 @@ export default function AutomaticCloudBackup() {
           return
         }
 
-        if (error instanceof MAProfessorCloudBackupAuthenticationRequiredError) {
-          blockedByAuthentication = true
+        if (
+          error instanceof
+            MAProfessorCloudBackupAuthenticationRequiredError
+        ) {
+          blockedByAuthentication =
+            true
           clearTimer()
           return
         }
@@ -600,9 +614,13 @@ export default function AutomaticCloudBackup() {
           return
         }
 
-        if (pendingSince || trust?.recordRevision === null) {
+        if (
+          pendingSince ||
+          trust?.recordRevision === null
+        ) {
           dirtySince =
-            pendingSince || Date.now()
+            pendingSince ||
+            Date.now()
           lastMutationAt =
             Date.now()
           mutationSequence += 1
@@ -611,8 +629,12 @@ export default function AutomaticCloudBackup() {
         scheduleBackup()
       })
       .catch(error => {
-        if (error instanceof MAProfessorCloudBackupAuthenticationRequiredError) {
-          blockedByAuthentication = true
+        if (
+          error instanceof
+            MAProfessorCloudBackupAuthenticationRequiredError
+        ) {
+          blockedByAuthentication =
+            true
           clearTimer()
         }
         // A cópia automática nunca bloqueia o trabalho local.
