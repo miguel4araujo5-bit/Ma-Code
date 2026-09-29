@@ -78,3 +78,7 @@ A configuração avançada mantém nove passos: ano letivo, turmas, disciplinas,
 - As APIs de acesso são simuladas nos testes de navegador. Estes testes não validam o serviço remoto, o deploy público ou uma sessão real de professor.
 
 A análise não representa uma auditoria completa de segurança, persistência ou regras pedagógicas; cobre apenas o ponto 1.
+
+## Auditoria posterior e lista de pendências
+
+Em 29/09/2026 foi acrescentada a [lista de pendências e auditoria profunda do MA-Professor](ma-professor-pendencias.md), com achados de persistência, cópias/restauro, eliminação de dados, apoio, exportações e validações operacionais. Este documento de navegação mantém o seu âmbito e histórico; os novos pontos são acompanhados nessa lista.
