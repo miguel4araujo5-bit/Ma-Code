@@ -77,6 +77,71 @@ function buildValidationResult(
   }
 }
 
+function canonicalizeBackupCollection(
+  value:
+    MAProfessorBackupData[
+      keyof MAProfessorBackupData
+    ]
+) {
+  return [
+    ...(value as Array<{
+      id: string
+    }>)
+  ].sort(
+    (
+      left,
+      right
+    ) =>
+      left.id.localeCompare(
+        right.id
+      )
+  )
+}
+
+async function verifyRestoredBackup(
+  expected:
+    MAProfessorBackup
+) {
+  const restored =
+    await createMAProfessorBackup()
+
+  for (const key of DATA_KEYS) {
+    /*
+     * Uma cópia antiga pode legitimamente não trazer settings. Nesse caso
+     * o restauro cria as definições predefinidas para a aplicação continuar
+     * utilizável; essa única diferença é intencional.
+     */
+    if (
+      key === 'settings' &&
+      expected.data.settings.length === 0
+    ) {
+      continue
+    }
+
+    const expectedCollection =
+      JSON.stringify(
+        canonicalizeBackupCollection(
+          expected.data[key]
+        )
+      )
+    const restoredCollection =
+      JSON.stringify(
+        canonicalizeBackupCollection(
+          restored.data[key]
+        )
+      )
+
+    if (
+      expectedCollection !==
+      restoredCollection
+    ) {
+      throw new Error(
+        `Os dados foram restaurados, mas a verificação local não corresponde à cópia em “${key}”.`
+      )
+    }
+  }
+}
+
 export async function createMAProfessorBackup(): Promise<MAProfessorBackup> {
   await openMAProfessorDatabase()
 
@@ -405,6 +470,10 @@ export async function restoreMAProfessorBackup(
       await putBackupData(backup.data)
       await ensureDefaultSettingsInCurrentTransaction()
     }
+  )
+
+  await verifyRestoredBackup(
+    backup
   )
 }
 
