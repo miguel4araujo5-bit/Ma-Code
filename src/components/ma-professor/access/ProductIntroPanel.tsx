@@ -108,12 +108,6 @@ export function ProductIntroPanel({
                         <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-gradient-to-b from-cyan-400/10 to-transparent" />
 
                         <div className="relative max-w-4xl">
-                            <img
-                                src="/ma-professor/logo.svg"
-                                alt="MA-Professor"
-                                className="mb-6 h-16 w-16 rounded-2xl object-contain sm:h-20 sm:w-20"
-                            />
-
                             <div className="flex flex-wrap items-center gap-3">
                                 <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
                                     MA-CODE · Fase piloto
@@ -124,7 +118,13 @@ export function ProductIntroPanel({
                                 </span>
                             </div>
 
-                            <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                            <img
+                                src="/ma-professor/logo.svg"
+                                alt="MA-Professor"
+                                className="mt-6 h-16 w-16 rounded-2xl object-contain sm:h-20 sm:w-20"
+                            />
+
+                            <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
                                 MA-Professor
                             </h1>
 
