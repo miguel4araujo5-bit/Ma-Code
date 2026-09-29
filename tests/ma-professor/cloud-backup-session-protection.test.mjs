@@ -375,10 +375,10 @@ test(
 )
 
 test(
-  'restore preview and guarded restore use the compatible v2-v3 reader',
+  'restore preview and guarded restore use only the v3 reader',
   () => {
-    assert.match(restoreService, /downloadCompatibleMAProfessorCloudBackup/)
-    assert.doesNotMatch(restoreService, /\bdownloadMAProfessorCloudBackup\b/)
+    assert.match(restoreService, /downloadMAProfessorCloudBackupV3/)
+    assert.doesNotMatch(restoreService, /downloadCompatibleMAProfessorCloudBackup/)
     assert.match(restoreService, /expectedServerRevision/)
     assert.match(restoreService, /expectedRecordRevision/)
     assert.match(restoreService, /expectedCiphertextHash/)
@@ -489,9 +489,9 @@ test(
 )
 
 test(
-  'restore re-reads the compatible v3 copy and rejects revision drift before local mutation',
+  'restore re-reads the v3 copy and rejects revision drift before local mutation',
   () => {
-    assert.match(restoreService, /downloadCompatibleMAProfessorCloudBackup\( session \)/)
+    assert.match(restoreService, /downloadMAProfessorCloudBackupV3\( session \)/)
     assert.match(restoreService, /freshRemote\.serverRevision !== options\.expectedServerRevision/)
     assert.match(restoreService, /freshRemote\.recordRevision !== options\.expectedRecordRevision/)
     const drift = restoreService.indexOf('freshRemote.serverRevision !== options.expectedServerRevision')
@@ -501,13 +501,13 @@ test(
 )
 
 test(
-  'restore and trust reconciliation use the compatible v2 v3 reader while uploads remain legacy-gated',
+  'restore is v3-only while automatic trust reconciliation still uses the compatibility dispatcher',
   async () => {
     const restore = await readFile('src/components/ma-professor/sync/cloudBackupRestoreService.ts', 'utf8')
     const automatic = await readFile('src/components/ma-professor/sync/AutomaticCloudBackup.tsx', 'utf8')
 
-    assert.match(restore, /downloadCompatibleMAProfessorCloudBackup/)
-    assert.doesNotMatch(restore, /\bdownloadMAProfessorCloudBackup\(/)
+    assert.match(restore, /downloadMAProfessorCloudBackupV3/)
+    assert.doesNotMatch(restore, /downloadCompatibleMAProfessorCloudBackup/)
     assert.match(automatic, /downloadCompatibleMAProfessorCloudBackup/)
     assert.doesNotMatch(automatic, /\bdownloadMAProfessorCloudBackup\(/)
     assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup\(/)
