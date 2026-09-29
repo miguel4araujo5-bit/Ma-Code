@@ -71,6 +71,49 @@ function formatDateTime(
   ).format(date)
 }
 
+function getRestoreStats(
+  preview: MAProfessorCloudRestorePreview
+) {
+  const data =
+    preview.backup.data
+
+  return {
+    academicYears:
+      data.academicYears.length,
+    students:
+      data.students.length,
+    lessons:
+      data.lessons.length,
+    summaries:
+      data.lessons.filter(
+        lesson =>
+          Boolean(
+            lesson.summary.trim()
+          )
+      ).length,
+    absences:
+      data.lessonAttendance.filter(
+        attendance =>
+          attendance.status === 'absent'
+      ).length,
+    planifications:
+      data.planifications.length,
+    assessments:
+      data.lessonAssessments.length,
+    assessmentResults:
+      data.assessmentResults.length,
+    finalGrades:
+      data.moduleFinalGrades.filter(
+        grade =>
+          grade.finalGrade !== null ||
+          grade.qualitativeFinalGrade != null ||
+          Boolean(
+            grade.descriptiveAssessment?.trim()
+          )
+      ).length
+  }
+}
+
 export function OnlineRestorePanel({
   onDataChanged
 }: OnlineRestorePanelProps) {
@@ -103,6 +146,13 @@ export function OnlineRestorePanel({
     useState<Feedback | null>(
       null
     )
+
+  const restoreStats =
+    preview
+      ? getRestoreStats(
+          preview
+        )
+      : null
 
   const handlePreview =
     async () => {
@@ -298,7 +348,7 @@ export function OnlineRestorePanel({
           : 'Decifrar e preparar restauro'}
       </button>
 
-      {preview ? (
+      {preview && restoreStats ? (
         <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/65 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -316,10 +366,14 @@ export function OnlineRestorePanel({
             </span>
           </div>
 
-          <div className="mt-4 grid gap-3 text-center sm:grid-cols-4">
+          <p className="mt-4 text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+            Dados encontrados nesta cópia
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-3 text-center sm:grid-cols-3 lg:grid-cols-5">
             <div className="rounded-xl bg-white/[0.03] p-3">
               <p className="text-xl font-black text-white">
-                {preview.validation.summary.academicYears}
+                {restoreStats.academicYears}
               </p>
               <p className="text-[0.68rem] text-slate-500">
                 Anos letivos
@@ -327,7 +381,7 @@ export function OnlineRestorePanel({
             </div>
             <div className="rounded-xl bg-white/[0.03] p-3">
               <p className="text-xl font-black text-white">
-                {preview.validation.summary.students}
+                {restoreStats.students}
               </p>
               <p className="text-[0.68rem] text-slate-500">
                 Alunos
@@ -335,7 +389,7 @@ export function OnlineRestorePanel({
             </div>
             <div className="rounded-xl bg-white/[0.03] p-3">
               <p className="text-xl font-black text-white">
-                {preview.validation.summary.lessons}
+                {restoreStats.lessons}
               </p>
               <p className="text-[0.68rem] text-slate-500">
                 Aulas
@@ -343,10 +397,50 @@ export function OnlineRestorePanel({
             </div>
             <div className="rounded-xl bg-white/[0.03] p-3">
               <p className="text-xl font-black text-white">
-                {preview.validation.summary.assessmentResults}
+                {restoreStats.summaries}
               </p>
               <p className="text-[0.68rem] text-slate-500">
-                Resultados
+                Sumários
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/[0.03] p-3">
+              <p className="text-xl font-black text-white">
+                {restoreStats.absences}
+              </p>
+              <p className="text-[0.68rem] text-slate-500">
+                Faltas
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/[0.03] p-3">
+              <p className="text-xl font-black text-white">
+                {restoreStats.planifications}
+              </p>
+              <p className="text-[0.68rem] text-slate-500">
+                Planificações
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/[0.03] p-3">
+              <p className="text-xl font-black text-white">
+                {restoreStats.assessments}
+              </p>
+              <p className="text-[0.68rem] text-slate-500">
+                Avaliações
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/[0.03] p-3">
+              <p className="text-xl font-black text-white">
+                {restoreStats.assessmentResults}
+              </p>
+              <p className="text-[0.68rem] text-slate-500">
+                Resultados / notas
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/[0.03] p-3">
+              <p className="text-xl font-black text-white">
+                {restoreStats.finalGrades}
+              </p>
+              <p className="text-[0.68rem] text-slate-500">
+                Notas finais
               </p>
             </div>
           </div>
