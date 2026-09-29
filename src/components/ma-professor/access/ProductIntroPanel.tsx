@@ -118,15 +118,18 @@ export function ProductIntroPanel({
                                 </span>
                             </div>
 
-                            <img
-                                src="/ma-professor/logo.svg"
-                                alt="MA-Professor"
-                                className="mt-5 h-16 w-16 rounded-2xl object-contain sm:h-20 sm:w-20"
-                            />
+                            <div className="mt-5 flex items-center gap-3 sm:gap-4">
+                                <img
+                                    src="/ma-professor/logo.svg"
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="h-14 w-14 shrink-0 rounded-2xl object-contain sm:h-16 sm:w-16"
+                                />
 
-                            <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-                                MA-Professor
-                            </h1>
+                                <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                                    MA-Professor
+                                </h1>
+                            </div>
 
                             <p className="mt-5 max-w-3xl text-xl font-bold leading-8 text-slate-200 sm:text-2xl">
                                 Menos tempo a organizar. Mais tempo para ensinar.
