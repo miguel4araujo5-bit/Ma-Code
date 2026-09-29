@@ -310,3 +310,17 @@ test(
     )
   }
 )
+
+test(
+  'cloud restore reads only v3 backups',
+  () => {
+    assert.match(
+      cloudRestoreSource,
+      /downloadMAProfessorCloudBackupV3/
+    )
+    assert.doesNotMatch(
+      cloudRestoreSource,
+      /downloadCompatibleMAProfessorCloudBackup/
+    )
+  }
+)
