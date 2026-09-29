@@ -243,7 +243,7 @@ async function readJsonBody(
         text
       )
       .byteLength >
-      MAX_BODY_BYTES
+    MAX_BODY_BYTES
   ) {
     throw new Error(
       'O pedido é demasiado grande.'
@@ -482,6 +482,59 @@ async function createAccountId(
   return `account-${value}`
 }
 
+async function assertCloudAccountDataDeleted(
+  env:
+    MaProfessorAccountAdminEnv,
+  accountIds: string[]
+) {
+  const placeholders =
+    accountIds
+      .map(
+        () => '?'
+      )
+      .join(
+        ', '
+      )
+
+  const tables = [
+    'ma_professor_encrypted_records',
+    'ma_professor_sync_devices',
+    'ma_professor_sync_profiles'
+  ] as const
+
+  const remaining =
+    await Promise.all(
+      tables.map(
+        table =>
+          env
+            .MA_PROFESSOR_DB
+            .prepare(
+              `SELECT COUNT(*) AS remaining FROM ${table} WHERE account_id IN (${placeholders})`
+            )
+            .bind(
+              ...accountIds
+            )
+            .first<{
+              remaining: number
+            }>()
+      )
+    )
+
+  if (
+    remaining.some(
+      row =>
+        !row ||
+        Number(
+          row.remaining
+        ) !== 0
+    )
+  ) {
+    throw new Error(
+      'A eliminação dos dados cloud não ficou confirmada na base de dados.'
+    )
+  }
+}
+
 async function deleteCloudAccountData(
   env:
     MaProfessorAccountAdminEnv,
@@ -548,6 +601,11 @@ async function deleteCloudAccountData(
       'Não foi possível eliminar todos os dados cloud selecionados.'
     )
   }
+
+  await assertCloudAccountDataDeleted(
+    env,
+    accountIds
+  )
 }
 
 async function handleOperationalStatus(
@@ -677,7 +735,9 @@ async function handleDeleteAccounts(
   }
 
   /*
-   * As três eliminações D1 são agrupadas num único batch.
+   * A primeira eliminação limpa os dados atuais antes de tocar no acesso.
+   * Assim, se a D1 falhar, a identidade e as sessões ficam intactas e a
+   * operação pode ser repetida sem deixar a conta num estado intermédio.
    */
   try {
     await deleteCloudAccountData(
@@ -691,15 +751,17 @@ async function handleDeleteAccounts(
           false,
 
         message:
-          'Não foi possível eliminar os dados cloud selecionados. O estado de acesso não foi apagado.'
+          'Não foi possível eliminar e confirmar os dados cloud selecionados. O estado de acesso não foi apagado.'
       },
       500
     )
   }
 
   /*
-   * Existe apenas uma chamada ao Durable Object para toda
-   * a seleção, não uma chamada por utilizador.
+   * Existe apenas uma chamada ao Durable Object para toda a seleção.
+   * Esta chamada invalida a identidade/sessões antes da verificação final,
+   * impedindo uma sessão concorrente de voltar a criar a cópia depois da
+   * limpeza inicial.
    */
   const accessResponse =
     await callInternalAccessMutation(
@@ -726,6 +788,29 @@ async function handleDeleteAccounts(
     )
   }
 
+  /*
+   * Repete a limpeza de forma idempotente depois de as sessões terem sido
+   * invalidadas. Fecha a janela em que um upload concorrente ainda podia
+   * ocorrer entre a primeira limpeza D1 e a remoção do acesso.
+   */
+  try {
+    await deleteCloudAccountData(
+      env,
+      emails
+    )
+  } catch {
+    return json(
+      {
+        success:
+          false,
+
+        message:
+          'A identidade de acesso foi removida, mas não foi possível confirmar a eliminação final dos dados cloud. Repita a eliminação administrativa para concluir a limpeza.'
+      },
+      500
+    )
+  }
+
   return json({
     success:
       true,
@@ -738,8 +823,8 @@ async function handleDeleteAccounts(
     message:
       emails.length ===
       1
-        ? 'O utilizador foi apagado do MA-Professor. A identidade de acesso e os dados cloud foram removidos.'
-        : `${emails.length} utilizadores foram apagados do MA-Professor. As identidades de acesso e os dados cloud foram removidos.`
+        ? 'O utilizador foi apagado do MA-Professor. A identidade de acesso e os dados cloud foram removidos e confirmados.'
+        : `${emails.length} utilizadores foram apagados do MA-Professor. As identidades de acesso e os dados cloud foram removidos e confirmados.`
   })
 }
 
