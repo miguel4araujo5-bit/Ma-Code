@@ -98,12 +98,29 @@ function canonicalizeBackupCollection(
   )
 }
 
+async function readRestoredBackupData() {
+  return Object.fromEntries(
+    await Promise.all(
+      DATA_KEYS.map(
+        async key => [
+          key,
+          await (
+            maProfessorDb[key] as unknown as {
+              toArray: () => Promise<unknown[]>
+            }
+          ).toArray()
+        ]
+      )
+    )
+  ) as unknown as MAProfessorBackupData
+}
+
 async function verifyRestoredBackup(
   expected:
     MAProfessorBackup
 ) {
-  const restored =
-    await createMAProfessorBackup()
+  const restoredData =
+    await readRestoredBackupData()
 
   for (const key of DATA_KEYS) {
     /*
@@ -127,7 +144,7 @@ async function verifyRestoredBackup(
     const restoredCollection =
       JSON.stringify(
         canonicalizeBackupCollection(
-          restored.data[key]
+          restoredData[key]
         )
       )
 
