@@ -327,14 +327,58 @@ export function EncryptedSyncPanel() {
       setFeedback(null)
 
       try {
+        const beforeStatus =
+          await inspectMAProfessorCloudBackup(
+            session
+          )
+        const previousServerRevision =
+          beforeStatus.serverRevision
+        const previousRecordRevision =
+          beforeStatus.backup.recordRevision ??
+          0
+
         const backup =
           await createMAProfessorBackup()
 
         const result =
           await uploadAndVerifyCompatibleMAProfessorCloudBackup(
             session,
-            backup
+            backup,
+            {
+              expectedServerRevision:
+                previousServerRevision
+            }
           )
+
+        if (
+          result.serverRevision !==
+            previousServerRevision + 1 ||
+          result.recordRevision !==
+            previousRecordRevision + 1
+        ) {
+          throw new Error(
+            'O servidor não confirmou o avanço esperado da revisão.'
+          )
+        }
+
+        const confirmedStatus =
+          await inspectMAProfessorCloudBackup(
+            session
+          )
+
+        if (
+          confirmedStatus.serverRevision !==
+            result.serverRevision ||
+          !confirmedStatus.backup.found ||
+          confirmedStatus.backup.recordRevision !==
+            result.recordRevision ||
+          confirmedStatus.backup.updatedAt !==
+            result.updatedAt
+        ) {
+          throw new Error(
+            'A nova revisão não pôde ser confirmada no servidor.'
+          )
+        }
 
         writeMAProfessorCloudBackupTrust(
           session,
@@ -348,26 +392,32 @@ export function EncryptedSyncPanel() {
           }
         )
 
+        setStatus(
+          confirmedStatus
+        )
+        setStatusError('')
         setFeedback({
           tone: 'success',
           message:
-            'Cópia de segurança cifrada, enviada e verificada com sucesso.'
+            `Cópia de segurança cifrada, enviada e confirmada no servidor como revisão ${result.recordRevision}.`
         })
-
-        await refreshStatus()
       } catch (error) {
         if (
           error instanceof
             MAProfessorCloudBackupAuthenticationRequiredError
         ) {
-          setFeedback(null)
+          setFeedback({
+            tone: 'error',
+            message:
+              'A nova cópia não foi guardada. Confirme novamente a sua password e volte a tentar.'
+          })
           return
         }
 
         setFeedback({
           tone: 'error',
           message:
-            getErrorMessage(error)
+            `Não foi possível confirmar que a nova cópia ficou guardada. Não considere a operação concluída. ${getErrorMessage(error)}`
         })
 
         await refreshStatus()
@@ -446,15 +496,24 @@ export function EncryptedSyncPanel() {
               </span>
 
               {found ? (
-                <span>
-                  <strong className="text-slate-200">
-                    Tamanho:
-                  </strong>{' '}
-                  {formatBytes(
-                    status?.backup.ciphertextBytes ??
-                      null
-                  )}
-                </span>
+                <>
+                  <span>
+                    <strong className="text-slate-200">
+                      Revisão:
+                    </strong>{' '}
+                    {status?.backup.recordRevision ??
+                      '—'}
+                  </span>
+                  <span>
+                    <strong className="text-slate-200">
+                      Tamanho:
+                    </strong>{' '}
+                    {formatBytes(
+                      status?.backup.ciphertextBytes ??
+                        null
+                    )}
+                  </span>
+                </>
               ) : null}
             </div>
 
