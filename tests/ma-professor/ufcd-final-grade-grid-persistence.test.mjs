@@ -42,6 +42,14 @@ const cloudBackupSource = await readFile(
   'utf8'
 )
 
+const cloudBackupCryptoSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/sync/cloudBackupV3Crypto.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'UFCD final-grid metadata remains non-indexed and needs no Dexie schema migration',
   () => {
@@ -91,7 +99,11 @@ test(
     )
     assert.match(
       cloudBackupSource,
-      /subtle\.encrypt\(/
+      /encryptMAProfessorBackupV3Data\(/
+    )
+    assert.match(
+      cloudBackupCryptoSource,
+      /globalThis\.crypto\.subtle\.encrypt\(/
     )
     assert.doesNotMatch(
       repositorySource,
