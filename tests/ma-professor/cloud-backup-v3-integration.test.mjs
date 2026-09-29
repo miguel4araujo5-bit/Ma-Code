@@ -90,7 +90,9 @@ test('new account: read-only empty status, first v3 backup, real Worker update a
   await assert.rejects(runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' }), runtime.MAProfessorCloudBackupAuthenticationRequiredError)
   runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
   assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' })).backup, backup)
-  assert.equal((await f.post('/key', session)).status, 409)
+  assert.equal((await f.post('/key', session)).status, 404)
+  assert.equal((await f.post('/push', session)).status, 404)
+  assert.equal((await f.post('/promote-v3', session)).status, 404)
   assert.equal(f.requests.some(r => /\/(key|push|promote-v3)$/.test(r.path)), false)
   for (const request of f.requests) {
     assert.equal(JSON.stringify(request).includes(exportKey), false)
@@ -110,7 +112,6 @@ test('first-copy failures roll back the profile; concurrent initialization canno
   assert.equal(f.db.prepare('SELECT count(*) AS n FROM ma_professor_sync_profiles').get().n, 0)
   f.failRecord(false)
   const results = await Promise.all([f.post('/initialize-v3', initialization(a)), f.post('/initialize-v3', initialization(b))])
-  // D1 serializes transactions; the adapter runs synchronous SQL between awaits.
   assert.deepEqual(results.map(r => r.status).sort(), [200, 409])
   assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup(session)).backup, backup)
 })
@@ -130,7 +131,6 @@ test('initialization validates session and envelope, and opt-out or lost export 
 test('v3 concurrent updates return a typed 409 and preserve the winning ciphertext', async t => {
   const f = await fixture(t)
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
-  // The revision changes after the client's status read, at the Worker batch boundary.
   f.beforeBatch(() => {
     f.db.exec('UPDATE ma_professor_encrypted_records SET server_revision = 2, record_revision = 2; UPDATE ma_professor_sync_profiles SET server_revision = 2;')
   })
@@ -139,22 +139,27 @@ test('v3 concurrent updates return a typed 409 and preserve the winning cipherte
   assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup(session)).backup, backup)
 })
 
-test('existing v2 stays readable and writable until explicit migration; the old server key is removed', async t => {
+test('legacy v2 profiles are rejected and cannot be read, overwritten or promoted', async t => {
   const f = await fixture(t)
   const accountId = 'account-' + Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ma-professor-account-v1:${session.email}`))).toString('hex')
   const legacyKey = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64')
   f.db.prepare(`INSERT INTO ma_professor_sync_profiles VALUES (?,0,2,'SESSION-AUTH-V1','','{}','RAW-AES-256-GCM-SESSION-V1',?,'',1,1,NULL)`).run(accountId, legacyKey)
-  const first = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
-  assert.equal(first.serverRevision, 1)
-  assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, 2)
-  assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup(session)).backup, backup)
-  assert.equal((await f.post('/initialize-v3', initialization(await runtime.prepareMAProfessorCloudBackupV3Promotion(session, backup)))).status, 409)
-  const migrated = await runtime.migrateMAProfessorCloudBackupV2ToV3(session)
-  assert.deepEqual(migrated.backup, backup)
-  assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, 3)
-  assert.equal(JSON.stringify(f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()).includes(legacyKey), false)
-  assert.equal((await f.post('/key', session)).status, 409)
-  assert.equal((await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)).serverRevision, 3)
+
+  await assert.rejects(runtime.inspectMAProfessorCloudBackup(session), /v3 atual/)
+  await assert.rejects(runtime.downloadCompatibleMAProfessorCloudBackup(session), /v3 atual/)
+  await assert.rejects(runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup), /v3 atual/)
+
+  const prepared = await runtime.prepareMAProfessorCloudBackupV3Promotion(session, backup)
+  assert.equal((await f.post('/initialize-v3', initialization(prepared))).status, 409)
+  assert.equal((await f.post('/key', session)).status, 404)
+  assert.equal((await f.post('/push', session)).status, 404)
+  assert.equal((await f.post('/promote-v3', session)).status, 404)
+
+  const profile = f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()
+  assert.equal(profile.crypto_version, 2)
+  assert.equal(profile.recovery_wrapped_master_key, legacyKey)
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM ma_professor_encrypted_records').get().n, 0)
+  assert.equal(f.requests.some(r => /\/(key|push|promote-v3)$/.test(r.path)), false)
 })
 
 test('cloud authentication failures identify the originating session and preserve renewed credentials', async t => {
