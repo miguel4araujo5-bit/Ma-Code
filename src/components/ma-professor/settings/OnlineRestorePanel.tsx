@@ -26,7 +26,7 @@ import {
 } from './csvExport'
 
 interface OnlineRestorePanelProps {
-  onDataChanged?: () => void
+  onDataChanged?: () => void | Promise<void>
 }
 
 type FeedbackTone =
@@ -248,6 +248,13 @@ export function OnlineRestorePanel({
           }
         )
 
+        try {
+          await onDataChanged?.()
+        } catch {
+          // O restauro já está verificado e persistido. Uma falha apenas na
+          // atualização visual não deve ser apresentada como falha do restauro.
+        }
+
         setPreview(null)
         setConfirmation('')
         setFeedback({
@@ -255,7 +262,6 @@ export function OnlineRestorePanel({
           message:
             'Cópia online restaurada com sucesso. Este dispositivo ficou alinhado para futuras cópias automáticas.'
         })
-        onDataChanged?.()
       } catch (error) {
         setFeedback({
           tone: 'error',
