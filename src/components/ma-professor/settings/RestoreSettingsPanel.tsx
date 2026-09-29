@@ -27,7 +27,7 @@ import {
 } from './OnlineRestorePanel'
 
 interface RestoreSettingsPanelProps {
-  onDataChanged?: () => void
+  onDataChanged?: () => void | Promise<void>
 }
 
 function getErrorMessage(
@@ -163,6 +163,13 @@ export function RestoreSettingsPanel({
           session
         )
 
+        try {
+          await onDataChanged?.()
+        } catch {
+          // O restauro já está verificado e persistido. Uma falha apenas na
+          // atualização visual não deve ser apresentada como falha do restauro.
+        }
+
         setPendingBackup(null)
         setValidation(null)
         setConfirmation('')
@@ -171,7 +178,6 @@ export function RestoreSettingsPanel({
           message:
             'Cópia deste dispositivo restaurada com sucesso.'
         })
-        onDataChanged?.()
       } catch (error) {
         setFeedback({
           tone: 'error',
