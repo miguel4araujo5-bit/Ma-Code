@@ -41,12 +41,54 @@ export interface MAProfessorCloudRestoreOptions {
     string
 }
 
+function sortSnapshotRecordsById(
+  records:
+    Array<{
+      id: string
+    }>
+) {
+  return [
+    ...records
+  ].sort(
+    (
+      left,
+      right
+    ) =>
+      left.id.localeCompare(
+        right.id
+      )
+  )
+}
+
 function backupToDatabaseSnapshot(
   backup:
     MAProfessorDownloadedCloudBackup['backup']
 ): MAProfessorDatabaseSnapshot {
+  /*
+   * createMAProfessorDatabaseSnapshot() normaliza cada tabela por id.
+   * A cópia JSON não garante a mesma ordem física dos registos, por isso
+   * normalizamos também o lado remoto antes do restauro/verificação.
+   * Sem isto, dois conjuntos de dados iguais podiam falhar apenas porque
+   * vinham numa ordem diferente.
+   */
   const tables =
-    backup.data as
+    Object.fromEntries(
+      Object.entries(
+        backup.data
+      ).map(
+        ([
+          tableName,
+          records
+        ]) => [
+          tableName,
+          sortSnapshotRecordsById(
+            records as Array<{
+              id: string
+            }>
+          )
+        ]
+      )
+    ) as unknown as
       MAProfessorDatabaseSnapshot['tables']
 
   const recordCounts =
