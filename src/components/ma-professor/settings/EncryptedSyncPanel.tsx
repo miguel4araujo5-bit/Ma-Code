@@ -114,7 +114,10 @@ export function EncryptedSyncPanel() {
   } =
     useMAProfessorAccess()
 
-  const preference = useCloudBackupPreference(session)
+  const preference =
+    useCloudBackupPreference(
+      session
+    )
 
   const [
     keyAvailable,
@@ -162,11 +165,18 @@ export function EncryptedSyncPanel() {
           (event as CustomEvent<MAProfessorCloudBackupAuthenticationRequiredDetail>).detail
 
         if (
-          detail.email === session.email &&
-          (detail.token === undefined || (
-            detail.token === session.token &&
-            detail.deviceId === session.deviceId
-          ))
+          detail.email ===
+            session.email &&
+          (
+            detail.token ===
+              undefined ||
+            (
+              detail.token ===
+                session.token &&
+              detail.deviceId ===
+                session.deviceId
+            )
+          )
         ) {
           setReauthenticationRequired(
             true
@@ -195,13 +205,19 @@ export function EncryptedSyncPanel() {
         requireReauthentication
       )
     }
-  }, [session.deviceId, session.email, session.token])
+  }, [
+    session.deviceId,
+    session.email,
+    session.token
+  ])
 
   const [
     status,
     setStatus
   ] =
-    useState<MAProfessorCloudBackupStatus | null>(null)
+    useState<MAProfessorCloudBackupStatus | null>(
+      null
+    )
 
   const [
     checking,
@@ -219,7 +235,9 @@ export function EncryptedSyncPanel() {
     feedback,
     setFeedback
   ] =
-    useState<Feedback | null>(null)
+    useState<Feedback | null>(
+      null
+    )
 
   const [
     statusError,
@@ -255,9 +273,7 @@ export function EncryptedSyncPanel() {
             return
           }
 
-          setStatus(
-            nextStatus
-          )
+          setStatus(nextStatus)
           setStatusError('')
         } catch (error) {
           if (
@@ -311,19 +327,6 @@ export function EncryptedSyncPanel() {
       setFeedback(null)
 
       try {
-        const currentStatus =
-          await inspectMAProfessorCloudBackup(
-            session
-          )
-
-        if (
-          currentStatus.cryptoVersion === 2
-        ) {
-          throw new Error(
-            'Esta conta ainda apresenta uma proteção de cópia antiga e não pode ser usada pelo fluxo v3 atual.'
-          )
-        }
-
         const backup =
           await createMAProfessorBackup()
 
@@ -405,9 +408,7 @@ export function EncryptedSyncPanel() {
 
           <button
             type="button"
-            disabled={
-              busy
-            }
+            disabled={busy}
             onClick={() =>
               void handleUpload()
             }
@@ -440,7 +441,7 @@ export function EncryptedSyncPanel() {
                 {checking || !status
                   ? '—'
                   : formatDateTime(
-                      status?.backup.updatedAt ?? null
+                      status.backup.updatedAt
                     )}
               </span>
 
@@ -450,7 +451,8 @@ export function EncryptedSyncPanel() {
                     Tamanho:
                   </strong>{' '}
                   {formatBytes(
-                    status?.backup.ciphertextBytes ?? null
+                    status?.backup.ciphertextBytes ??
+                      null
                   )}
                 </span>
               ) : null}
