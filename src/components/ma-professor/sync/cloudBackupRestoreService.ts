@@ -8,7 +8,7 @@ import {
 } from '../db'
 
 import {
-  downloadCompatibleMAProfessorCloudBackup,
+  downloadMAProfessorCloudBackupV3,
   type MAProfessorDownloadedCloudBackup
 } from './cloudBackupService'
 
@@ -128,7 +128,7 @@ export async function previewMAProfessorCloudRestore(
   ] =
     await Promise.all([
       createMAProfessorDatabaseSnapshot(),
-      downloadCompatibleMAProfessorCloudBackup(
+      downloadMAProfessorCloudBackupV3(
         session
       )
     ])
@@ -153,7 +153,7 @@ export async function restoreMAProfessorCloudRestore(
     MAProfessorCloudRestoreOptions
 ) {
   const freshRemote =
-    await downloadCompatibleMAProfessorCloudBackup(
+    await downloadMAProfessorCloudBackupV3(
       session
     )
 
