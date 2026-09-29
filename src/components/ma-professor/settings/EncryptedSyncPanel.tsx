@@ -33,6 +33,10 @@ import {
   writeMAProfessorCloudBackupTrust
 } from '../sync/cloudBackupTrust'
 
+import type {
+  MAProfessorBackup
+} from '../types'
+
 import {
   createMAProfessorBackup
 } from './backupRepository'
@@ -106,6 +110,95 @@ function formatBytes(
     bytes /
     (1024 * 1024)
   ).toFixed(1)} MB`
+}
+
+function getPreparedBackupStats(
+  backup: MAProfessorBackup
+) {
+  const data =
+    backup.data
+
+  return [
+    {
+      label: 'Anos letivos',
+      value: data.academicYears.length
+    },
+    {
+      label: 'Turmas',
+      value: data.groups.length
+    },
+    {
+      label: 'Disciplinas',
+      value: data.subjects.length
+    },
+    {
+      label: 'UFCD / módulos',
+      value: data.modules.length
+    },
+    {
+      label: 'Alunos',
+      value: data.students.length
+    },
+    {
+      label: 'Tempos de horário',
+      value: data.weeklyScheduleSlots.length
+    },
+    {
+      label: 'Planificações',
+      value: data.planifications.length
+    },
+    {
+      label: 'Itens de planificação',
+      value: data.planificationItems.length
+    },
+    {
+      label: 'Critérios',
+      value: data.assessmentCriteria.length
+    },
+    {
+      label: 'Aulas',
+      value: data.lessons.length
+    },
+    {
+      label: 'Sumários',
+      value: data.lessons.filter(
+        lesson =>
+          Boolean(
+            lesson.summary.trim()
+          )
+      ).length
+    },
+    {
+      label: 'Faltas',
+      value: data.lessonAttendance.filter(
+        attendance =>
+          attendance.status === 'absent'
+      ).length
+    },
+    {
+      label: 'Avaliações',
+      value: data.lessonAssessments.length
+    },
+    {
+      label: 'Resultados / notas',
+      value: data.assessmentResults.length
+    },
+    {
+      label: 'Notas finais',
+      value: data.moduleFinalGrades.filter(
+        grade =>
+          grade.finalGrade !== null ||
+          grade.qualitativeFinalGrade != null ||
+          Boolean(
+            grade.descriptiveAssessment?.trim()
+          )
+      ).length
+    },
+    {
+      label: 'Recuperações',
+      value: data.learningRecoveries.length
+    }
+  ]
 }
 
 export function EncryptedSyncPanel() {
@@ -232,6 +325,14 @@ export function EncryptedSyncPanel() {
     useState(false)
 
   const [
+    preparedBackup,
+    setPreparedBackup
+  ] =
+    useState<MAProfessorBackup | null>(
+      null
+    )
+
+  const [
     feedback,
     setFeedback
   ] =
@@ -251,6 +352,13 @@ export function EncryptedSyncPanel() {
   const needsReauthentication =
     !keyAvailable ||
     reauthenticationRequired
+
+  const preparedStats =
+    preparedBackup
+      ? getPreparedBackupStats(
+          preparedBackup
+        )
+      : null
 
   const refreshStatus =
     useCallback(
@@ -314,11 +422,43 @@ export function EncryptedSyncPanel() {
     void refreshStatus()
   }, [refreshStatus])
 
-  const handleUpload =
+  const handlePrepareBackup =
     async () => {
       if (
         busy ||
         needsReauthentication
+      ) {
+        return
+      }
+
+      setBusy(true)
+      setFeedback(null)
+
+      try {
+        const backup =
+          await createMAProfessorBackup()
+
+        setPreparedBackup(
+          backup
+        )
+      } catch (error) {
+        setPreparedBackup(null)
+        setFeedback({
+          tone: 'error',
+          message:
+            `Não foi possível preparar a cópia. ${getErrorMessage(error)}`
+        })
+      } finally {
+        setBusy(false)
+      }
+    }
+
+  const handleUpload =
+    async () => {
+      if (
+        busy ||
+        needsReauthentication ||
+        !preparedBackup
       ) {
         return
       }
@@ -337,13 +477,10 @@ export function EncryptedSyncPanel() {
           beforeStatus.backup.recordRevision ??
           0
 
-        const backup =
-          await createMAProfessorBackup()
-
         const result =
           await uploadAndVerifyCompatibleMAProfessorCloudBackup(
             session,
-            backup,
+            preparedBackup,
             {
               expectedServerRevision:
                 previousServerRevision
@@ -396,6 +533,7 @@ export function EncryptedSyncPanel() {
           confirmedStatus
         )
         setStatusError('')
+        setPreparedBackup(null)
         setFeedback({
           tone: 'success',
           message:
@@ -440,7 +578,7 @@ export function EncryptedSyncPanel() {
       </h3>
 
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        Cria uma cópia dos dados atuais, cifra-a neste dispositivo e só depois a envia para a nuvem. No final, o MA-Professor confirma que a cópia ficou guardada corretamente.
+        Primeiro prepara uma cópia dos dados atuais para poder confirmar o que vai ser enviado. Só depois da sua confirmação é que a cópia é cifrada neste dispositivo e enviada para a nuvem.
       </p>
 
       {needsReauthentication ? (
@@ -456,18 +594,95 @@ export function EncryptedSyncPanel() {
             <CloudBackupPreferencePanel />
           </div>
 
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              void handleUpload()
-            }
-            className="mt-5 w-full rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
-          >
-            {busy
-              ? 'A cifrar, enviar e verificar…'
-              : 'Fazer cópia de segurança para a nuvem'}
-          </button>
+          {!preparedBackup ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void handlePrepareBackup()
+              }
+              className="mt-5 w-full rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
+            >
+              {busy
+                ? 'A preparar cópia…'
+                : 'Preparar cópia para a nuvem'}
+            </button>
+          ) : null}
+
+          {preparedBackup && preparedStats ? (
+            <div className="mt-5 rounded-2xl border border-violet-300/20 bg-slate-950/60 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-200">
+                    Dados que vão ser enviados
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Cópia preparada em {formatDateTime(preparedBackup.exportedAt)}. Os números abaixo pertencem exatamente à cópia que será enviada.
+                  </p>
+                </div>
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-200">
+                  Ainda não enviada
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-3 lg:grid-cols-4">
+                {preparedStats.map(
+                  item => (
+                    <div
+                      key={item.label}
+                      className="rounded-xl bg-white/[0.03] p-3"
+                    >
+                      <p className="text-xl font-black text-white">
+                        {item.value}
+                      </p>
+                      <p className="text-[0.68rem] leading-4 text-slate-500">
+                        {item.label}
+                      </p>
+                    </div>
+                  )
+                )}
+              </div>
+
+              <p className="mt-4 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.05] px-3 py-2 text-xs leading-5 text-cyan-100">
+                Se algum destes números não corresponder aos dados atuais do MA-Professor, não envie a cópia: o problema está na preparação local e não no envio para a nuvem.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void handleUpload()
+                  }
+                  className="rounded-xl bg-violet-300 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {busy
+                    ? 'A cifrar, enviar e verificar…'
+                    : 'Enviar esta cópia para a nuvem'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void handlePrepareBackup()
+                  }
+                  className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-slate-200 transition hover:bg-white/5 disabled:cursor-wait disabled:opacity-60"
+                >
+                  Atualizar pré-visualização
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    setPreparedBackup(null)
+                  }
+                  className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-400 transition hover:text-white disabled:cursor-wait disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-5 border-t border-white/10 pt-4">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
@@ -520,7 +735,7 @@ export function EncryptedSyncPanel() {
             <p className="mt-3 text-xs leading-5 text-slate-500">
               {preference === 'enabled'
                 ? 'A cópia automática continua ativa em segundo plano quando este dispositivo está alinhado com a última revisão online.'
-                : 'A cópia automática está desativada neste dispositivo. O botão acima envia apenas uma cópia manual.'}
+                : 'A cópia automática está desativada neste dispositivo. A preparação acima não envia dados até carregar em “Enviar esta cópia para a nuvem”.'}
             </p>
           </div>
 
