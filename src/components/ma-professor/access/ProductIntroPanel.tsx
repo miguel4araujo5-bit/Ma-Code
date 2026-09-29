@@ -121,7 +121,7 @@ export function ProductIntroPanel({
                             <img
                                 src="/ma-professor/logo.svg"
                                 alt="MA-Professor"
-                                className="mt-6 h-16 w-16 rounded-2xl object-contain sm:h-20 sm:w-20"
+                                className="mt-5 h-16 w-16 rounded-2xl object-contain sm:h-20 sm:w-20"
                             />
 
                             <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
