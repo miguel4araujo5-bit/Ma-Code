@@ -23,7 +23,7 @@ import {
 } from '../settings/backupRepository'
 
 import {
-  downloadCompatibleMAProfessorCloudBackup,
+  downloadMAProfessorCloudBackupV3,
   inspectMAProfessorCloudBackup,
   MAProfessorCloudBackupRevisionConflictError,
   MAProfessorCloudBackupAuthenticationRequiredError,
@@ -170,6 +170,15 @@ export default function AutomaticCloudBackup() {
         return trust
       }
 
+    const blockLegacyProfile =
+      () => {
+        clearMAProfessorCloudBackupTrust(
+          session
+        )
+        blockedByDivergence =
+          true
+      }
+
     async function reconcileTrust() {
       const existing =
         readMAProfessorCloudBackupTrust(
@@ -185,7 +194,18 @@ export default function AutomaticCloudBackup() {
         return null
       }
 
-      if (status.cryptoVersion !== 2 && !readMAProfessorOpaqueExportKey(session.email)) {
+      if (
+        status.cryptoVersion === 2
+      ) {
+        blockLegacyProfile()
+        return null
+      }
+
+      if (
+        !readMAProfessorOpaqueExportKey(
+          session.email
+        )
+      ) {
         throw new MAProfessorCloudBackupAuthenticationRequiredError(session.email)
       }
 
@@ -219,7 +239,7 @@ export default function AutomaticCloudBackup() {
         local
       ] =
         await Promise.all([
-          downloadCompatibleMAProfessorCloudBackup(
+          downloadMAProfessorCloudBackupV3(
             session
           ),
           createMAProfessorBackup()
@@ -390,6 +410,18 @@ export default function AutomaticCloudBackup() {
           !trust ||
           blockedByDivergence
         ) {
+          return
+        }
+
+        const currentStatus =
+          await inspectMAProfessorCloudBackup(
+            session
+          )
+
+        if (
+          currentStatus.cryptoVersion === 2
+        ) {
+          blockLegacyProfile()
           return
         }
 
