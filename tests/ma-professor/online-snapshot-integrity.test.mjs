@@ -265,3 +265,48 @@ test(
     )
   }
 )
+
+const cloudRestoreSource = await readFile(
+  new URL(
+    '../../src/components/ma-professor/sync/cloudBackupRestoreService.ts',
+    import.meta.url
+  ),
+  'utf8'
+)
+
+test(
+  'cloud restore canonicalizes table order before snapshot verification',
+  () => {
+    const conversionStart =
+      cloudRestoreSource.indexOf(
+        'function backupToDatabaseSnapshot('
+      )
+
+    const conversionEnd =
+      cloudRestoreSource.indexOf(
+        'export async function previewMAProfessorCloudRestore(',
+        conversionStart
+      )
+
+    const conversion =
+      cloudRestoreSource.slice(
+        conversionStart,
+        conversionEnd
+      )
+
+    assert.ok(
+      conversionStart >= 0
+    )
+    assert.ok(
+      conversionEnd > conversionStart
+    )
+    assert.match(
+      conversion,
+      /Object\.entries\(\s*backup\.data\s*\)/
+    )
+    assert.match(
+      conversion,
+      /sortSnapshotRecordsById\(/
+    )
+  }
+)
