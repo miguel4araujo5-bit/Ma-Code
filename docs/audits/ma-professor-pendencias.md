@@ -2,9 +2,9 @@
 
 Data: 29/09/2026. Base auditada: [`50c78098a466e6f71cbff35c99fd187e652ec616`](https://github.com/miguel4araujo5-bit/Ma-Code/commit/50c78098a466e6f71cbff35c99fd187e652ec616), na `main` remota.
 
-Esta lista regista **12 problemas confirmados e 3 validações pendentes**. Todos estão abertos. A auditoria acrescenta documentação; não implementa as correções propostas. A análise anterior de [estrutura e navegação](ma-professor-navigation.md) mantém o seu âmbito e histórico.
+Atualização: 30/09/2026. Os **12 achados têm correção integrada no código**; permanecem **3 validações operacionais pendentes**. «Corrigido no código» não significa validação de produção ou certificação de compatibilidade em todos os dispositivos. A descrição e as reproduções originais abaixo conservam o histórico da auditoria. A análise anterior de [estrutura e navegação](ma-professor-navigation.md) mantém o seu âmbito e histórico.
 
-Não foi encontrada uma lista consolidada de pendências no repositório ou nos documentos de contexto consultados. Este ficheiro passa a concentrar os novos achados, sem colocar bugs temporários no Master Prompt ou no Active Context. Antes de corrigir um ponto, voltar a verificar a `main` atual.
+Não foi encontrada uma lista consolidada de pendências no repositório ou nos documentos de contexto consultados. Este ficheiro passa a concentrar os novos achados, sem colocar bugs temporários no Master Prompt ou no Active Context. Antes de uma nova intervenção, voltar a verificar a `main` atual.
 
 ## Prioridade e ordem de trabalho
 
@@ -13,27 +13,27 @@ Não foi encontrada uma lista consolidada de pendências no repositório ou nos 
 - **P3:** alinhar documentação técnica.
 - **V:** falta evidência operacional; não equivale a um bug reproduzido.
 
-A classe A/B/C indica o risco da futura intervenção segundo o workflow do projeto: A local/documental; B funcional; C crítico, incluindo backup, autenticação, apagamento, Worker/D1 e custos. Esta entrega é documental, de classe A. Não foi confirmado um P0 nesta análise; isso não certifica a ausência de outras vulnerabilidades.
+A classe A/B/C indica o risco da intervenção segundo o workflow do projeto: A local/documental; B funcional; C crítico, incluindo backup, autenticação, apagamento, Worker/D1 e custos. A auditoria original foi documental, de classe A; a correção executada inclui classe C e o seu [gate de segurança e consumo](ma-professor-correcao-gate-cloudflare.md). Não foi confirmado um P0 nesta análise; isso não certifica a ausência de outras vulnerabilidades.
 
 | Estado | ID | Prioridade | Classe da correção | Ponto a resolver |
 | --- | --- | --- | --- | --- |
-| [ ] Aberto | AUD-01 | P1 | C | Preservar alterações pendentes quando ocorrem durante um upload automático. |
-| [ ] Aberto | AUD-02 | P1 | C | Impedir que apagar dados do browser substitua a cópia online automaticamente. |
-| [ ] Aberto | AUD-03 | P1 | C | Eliminar também os rascunhos diários no apagamento local explícito. |
-| [ ] Aberto | AUD-04 | P1 | C | Proteger o restauro JSON contra alterações guardadas após a pré-visualização. |
-| [ ] Aberto | AUD-05 | P1 | C | Abranger tickets e mensagens na política e execução de eliminação de conta. |
-| [ ] Aberto | AUD-06 | P2 | C | Tornar atómico o limite de dez pedidos de apoio abertos. |
-| [ ] Aberto | AUD-07 | P2 | C | Limitar respostas de apoio e paginar a conversa. |
-| [ ] Aberto | AUD-08 | P2 | B | Neutralizar fórmulas em campos de texto exportados para CSV. |
-| [ ] Aberto | AUD-09 | P2 | B | Distinguir médias atuais de valores históricos na exportação de notas. |
-| [ ] Aberto | AUD-10 | P2 | C | Comparar conteúdo de backups independentemente da ordem dos registos. |
-| [ ] Aberto | AUD-11 | P2 | C | Parar retries de erros permanentes e mostrar uma ação de resolução. |
-| [ ] Aberto | AUD-12 | P3 | A | Atualizar o estado técnico documentado para a baseline v3-only. |
+| [x] Corrigido no código | AUD-01 | P1 | C | Preservar alterações pendentes quando ocorrem durante um upload automático. |
+| [x] Corrigido no código | AUD-02 | P1 | C | Impedir que apagar dados do browser substitua a cópia online automaticamente. |
+| [x] Corrigido no código | AUD-03 | P1 | C | Eliminar também os rascunhos diários no apagamento local explícito. |
+| [x] Corrigido no código | AUD-04 | P1 | C | Proteger o restauro JSON contra alterações guardadas após a pré-visualização. |
+| [x] Corrigido no código | AUD-05 | P1 | C | Abranger tickets e mensagens na política e execução de eliminação de conta. |
+| [x] Corrigido no código | AUD-06 | P2 | C | Tornar atómico o limite de dez pedidos de apoio abertos. |
+| [x] Corrigido no código | AUD-07 | P2 | C | Limitar respostas de apoio e paginar a conversa. |
+| [x] Corrigido no código | AUD-08 | P2 | B | Neutralizar fórmulas em campos de texto exportados para CSV. |
+| [x] Corrigido no código | AUD-09 | P2 | B | Distinguir médias atuais de valores históricos na exportação de notas. |
+| [x] Corrigido no código | AUD-10 | P2 | C | Comparar conteúdo de backups independentemente da ordem dos registos. |
+| [x] Corrigido no código | AUD-11 | P2 | C | Parar retries de erros permanentes e mostrar uma ação de resolução. |
+| [x] Corrigido no código | AUD-12 | P3 | A | Atualizar o estado técnico documentado para a baseline v3-only. |
 | [ ] Por validar | V-01 | P1 | C | Validar OPAQUE e backup em WebKit e Safari num iPhone real. |
 | [ ] Por validar | V-02 | P1 | C | Confirmar deployment, migrations e perfis efetivos no D1 de produção. |
 | [ ] Por validar | V-03 | P2 | C | Medir CPU e consumo agregado Cloudflare Free para pelo menos 20 professores. |
 
-Ordem recomendada: AUD-01 e AUD-02; AUD-03 e AUD-04; AUD-05; restantes P2; AUD-12. V-01 e V-02 são gates de validação operacional e podem decorrer em paralelo com a preparação das correções. As correções devem preservar as funcionalidades existentes e reutilizar os pontos canónicos.
+AUD-01 a AUD-12 foram implementados nos pontos canónicos. V-01 a V-03 continuam abertos; a estimativa arquitetural Free está documentada, mas faltam as medições reais. Para AUD-08, falta ainda confirmar a importação em Excel e LibreOffice reais: a neutralização está testada no ficheiro gerado.
 
 ## Âmbito e validação efetuada
 
@@ -53,13 +53,15 @@ Foram revistos os percursos de acesso e isolamento de conta, OPAQUE e proteção
 
 Os testes de navegador simulam as APIs de acesso. As reproduções de concorrência e retries controlam eventos, relógio e respostas da rede; confirmam o comportamento do código nessas condições, não uma ocorrência observada em produção. A suite passar não elimina os casos adicionais desta lista. Esta análise não é uma certificação criptográfica nem um teste de intrusão de produção.
 
-## Problemas confirmados
+## Achados originais, corrigidos no código
+
+As evidências de código ligam à base auditada, anterior à correção. As propostas e condições de conclusão são o registo original; o resultado implementado e os limites da validação constam do fecho abaixo.
 
 ### AUD-01 — alterações durante o upload perdem o marcador persistente
 
-**P1 · C · Aberto.** A cópia automática pode deixar alterações recentes apenas no dispositivo após um reload.
+**P1 · C · Corrigido no código.** A cópia automática pode deixar alterações recentes apenas no dispositivo após um reload.
 
-**Evidência:** [AutomaticCloudBackup.tsx](../../src/components/ma-professor/sync/AutomaticCloudBackup.tsx#L454-L497) deteta uma mutação durante o envio e conserva `dirtySince` em memória. Contudo, chama sempre `markTrust`; [cloudBackupTrust.ts](../../src/components/ma-professor/sync/cloudBackupTrust.ts#L171-L188) grava `dirtyAt: null`. No próximo arranque, a revisão remota coincidente permite reutilizar essa confiança sem detetar a alteração ainda não copiada.
+**Evidência:** [AutomaticCloudBackup.tsx](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/sync/AutomaticCloudBackup.tsx#L454-L497) deteta uma mutação durante o envio e conserva `dirtySince` em memória. Contudo, chama sempre `markTrust`; [cloudBackupTrust.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/sync/cloudBackupTrust.ts#L171-L188) grava `dirtyAt: null`. No próximo arranque, a revisão remota coincidente permite reutilizar essa confiança sem detetar a alteração ainda não copiada.
 
 **Reprodução:** iniciar upload de um snapshot; emitir uma nova mutação antes da conclusão; terminar o upload; desmontar e montar o scheduler, simulando reload. Resultado: `dirtyAt = null`, zero timers após o novo arranque e apenas um upload. Sem reload, o timer em memória ainda existe. Os dados locais não foram apagados; é a cobertura da cópia online que fica incompleta até nova mutação ou cópia manual.
 
@@ -69,9 +71,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-02 — apagar o browser pode substituir a cópia online
 
-**P1 · C · Aberto.** Uma ação apresentada como eliminação local pode enviar automaticamente um snapshot sem os dados escolares que existiam na cópia online.
+**P1 · C · Corrigido no código.** Uma ação apresentada como eliminação local pode enviar automaticamente um snapshot sem os dados escolares que existiam na cópia online.
 
-**Evidência:** [BackupSettingsPanel.tsx](../../src/components/ma-professor/settings/BackupSettingsPanel.tsx#L243-L267) chama o reset sem suspender a preferência automática, invalidar a confiança ou cancelar uploads em curso. [resetMAProfessorDatabase](../../src/components/ma-professor/settings/backupRepository.ts#L497-L507) limpa as tabelas principais e repõe as definições padrão. O observador automático continua montado fora da configuração escolar, através de `OperationalReadinessReporter` em `MAProfessorProduct`.
+**Evidência:** [BackupSettingsPanel.tsx](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/settings/BackupSettingsPanel.tsx#L243-L267) chama o reset sem suspender a preferência automática, invalidar a confiança ou cancelar uploads em curso. [resetMAProfessorDatabase](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/settings/backupRepository.ts#L497-L507) limpa as tabelas principais e repõe as definições padrão. O observador automático continua montado fora da configuração escolar, através de `OperationalReadinessReporter` em `MAProfessorProduct`.
 
 **Reprodução dirigida:** com preferência ativa, chave disponível e revisão remota já confiável, executar o reset real e gerar a cópia real dessa IndexedDB. A cópia é válida, tem zero aulas e uma linha de definições padrão; a preferência continua ativa e a confiança conserva a revisão anterior. Entregar a mutação ao scheduler real faz enviar esse snapshot. O ensaio controlou os eventos, relógio e rede, sem substituir uma cópia remota real.
 
@@ -83,9 +85,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-03 — o apagamento local deixa rascunhos diários
 
-**P1 · C · Aberto.** A mensagem «Todos os dados escolares foram eliminados deste browser» excede o que o reset faz.
+**P1 · C · Corrigido no código.** A mensagem «Todos os dados escolares foram eliminados deste browser» excede o que o reset faz.
 
-**Evidência:** os rascunhos vivem na IndexedDB separada `ma-professor-daily-drafts`, gerida por [dailyDraftStorage.ts](../../src/components/ma-professor/daily/dailyDraftStorage.ts). O reset só limpa `ma-professor`; não chama a limpeza dos rascunhos.
+**Evidência:** os rascunhos vivem na IndexedDB separada `ma-professor-daily-drafts`, gerida por [dailyDraftStorage.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/daily/dailyDraftStorage.ts). O reset só limpa `ma-professor`; não chama a limpeza dos rascunhos.
 
 **Reprodução:** guardar um rascunho com sumário, executar `resetMAProfessorDatabase` e reler o rascunho. Resultado: zero aulas na base principal, mas o texto do rascunho continua legível. O mesmo rascunho pode voltar a ser recuperado se forem restaurados o ano/aula com os mesmos identificadores.
 
@@ -95,9 +97,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-04 — o restauro JSON não protege alterações posteriores
 
-**P1 · C · Aberto.** Uma alteração guardada noutro separador depois de abrir a pré-visualização pode ser substituída sem nova confirmação informada.
+**P1 · C · Corrigido no código.** Uma alteração guardada noutro separador depois de abrir a pré-visualização pode ser substituída sem nova confirmação informada.
 
-**Evidência:** [RestoreSettingsPanel.tsx](../../src/components/ma-professor/settings/RestoreSettingsPanel.tsx#L130-L160) valida o ficheiro e a palavra `RESTAURAR`, mas não captura/compara uma assinatura dos dados locais. [backupRepository.ts](../../src/components/ma-professor/settings/backupRepository.ts#L471-L494) limpa e repõe diretamente as tabelas; a verificação final é feita depois da transação. O restauro online já tem o ponto canónico [guardedSnapshotRestore.ts](../../src/components/ma-professor/sync/guardedSnapshotRestore.ts#L50-L92).
+**Evidência:** [RestoreSettingsPanel.tsx](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/settings/RestoreSettingsPanel.tsx#L130-L160) valida o ficheiro e a palavra `RESTAURAR`, mas não captura/compara uma assinatura dos dados locais. [backupRepository.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/settings/backupRepository.ts#L471-L494) limpa e repõe diretamente as tabelas; a verificação final é feita depois da transação. O restauro online já tem o ponto canónico [guardedSnapshotRestore.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/sync/guardedSnapshotRestore.ts#L50-L92).
 
 **Reprodução:** preparar a cópia/pré-visualização, guardar um novo sumário e confirmar o restauro local. O novo sumário desaparece. Como controlo, o restauro online protegido rejeita a mesma alteração concorrente com `MAProfessorLocalSnapshotChangedError`.
 
@@ -107,9 +109,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-05 — eliminar a conta deixa tickets e mensagens
 
-**P1 · C · Aberto.** A eliminação administrativa confirma apenas a limpeza de três tabelas cloud e não abrange as conversas de apoio.
+**P1 · C · Corrigido no código.** A eliminação administrativa confirma apenas a limpeza de três tabelas cloud e não abrange as conversas de apoio.
 
-**Evidência:** [maProfessorAccountAdmin.ts](../../worker/maProfessorAccountAdmin.ts#L485-L606) elimina/verifica registos cifrados, dispositivos e perfis. Em [0004_support_tickets.sql](../../migrations/ma-professor/0004_support_tickets.sql), o `account_id` do ticket não tem uma relação de eliminação em cascata com o perfil; apenas as mensagens dependem do ticket. O identificador da conta deriva do email normalizado. A página pública de privacidade anuncia remoção dos dados cloud associados, com exceção de conservação legalmente obrigatória, sem explicar uma retenção específica de tickets.
+**Evidência:** [maProfessorAccountAdmin.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/worker/maProfessorAccountAdmin.ts#L485-L606) elimina/verifica registos cifrados, dispositivos e perfis. Em [0004_support_tickets.sql](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/migrations/ma-professor/0004_support_tickets.sql), o `account_id` do ticket não tem uma relação de eliminação em cascata com o perfil; apenas as mensagens dependem do ticket. O identificador da conta deriva do email normalizado. A página pública de privacidade anuncia remoção dos dados cloud associados, com exceção de conservação legalmente obrigatória, sem explicar uma retenção específica de tickets.
 
 **Reprodução:** criar tickets/mensagens com os handlers reais e executar o helper canónico de eliminação administrativa. Permaneceram 11 tickets e 36 mensagens na SQLite de teste. Pelo identificador determinístico, voltar a criar uma conta com o mesmo email também reutiliza o âmbito desses tickets; não foi ensaiado um novo registo remoto.
 
@@ -119,9 +121,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-06 — o limite de tickets pode ser ultrapassado por concorrência
 
-**P2 · C · Aberto.** O limite de dez tickets abertos não é uma garantia atómica.
+**P2 · C · Corrigido no código.** O limite de dez tickets abertos não é uma garantia atómica.
 
-**Evidência:** [maProfessorSupportTickets.ts](../../worker/maProfessorSupportTickets.ts#L587-L619) consulta `COUNT(*)` antes e fora do batch de criação. Dois pedidos podem ler nove e ambos inserir.
+**Evidência:** [maProfessorSupportTickets.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/worker/maProfessorSupportTickets.ts#L587-L619) consulta `COUNT(*)` antes e fora do batch de criação. Dois pedidos podem ler nove e ambos inserir.
 
 **Reprodução:** nove tickets existentes; sincronizar dois pedidos de criação depois da consulta da contagem. Ambos devolveram HTTP 200 e ficaram onze tickets abertos.
 
@@ -131,9 +133,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-07 — respostas ilimitadas e leitura integral da conversa
 
-**P2 · C · Aberto.** O limite por mensagem e por tickets abertos não limita a quantidade de respostas nem o crescimento das leituras.
+**P2 · C · Corrigido no código.** O limite por mensagem e por tickets abertos não limita a quantidade de respostas nem o crescimento das leituras.
 
-**Evidência:** [handleProfessorReply](../../worker/maProfessorSupportTickets.ts#L790-L885) não aplica quota de respostas por conta/janela. Depois de inserir, devolve o detalhe completo; [getTicketMessages](../../worker/maProfessorSupportTickets.ts#L523-L543) consulta todas as mensagens, sem paginação. Repetir respostas cresce em armazenamento, leituras e tamanho da resposta.
+**Evidência:** [handleProfessorReply](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/worker/maProfessorSupportTickets.ts#L790-L885) não aplica quota de respostas por conta/janela. Depois de inserir, devolve o detalhe completo; [getTicketMessages](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/worker/maProfessorSupportTickets.ts#L523-L543) consulta todas as mensagens, sem paginação. Repetir respostas cresce em armazenamento, leituras e tamanho da resposta.
 
 **Reprodução e limite da evidência:** 25 respostas sucessivas num ticket foram aceites. A ausência de quota/paginação foi confirmada no código; não se executou um ataque de carga em produção. Uma conversa legítima longa também sofre o crescimento da leitura integral.
 
@@ -143,9 +145,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-08 — texto exportado pode ser interpretado como fórmula
 
-**P2 · B · Aberto.** Colocar campos entre aspas no CSV não garante que Excel/LibreOffice os tratem como texto.
+**P2 · B · Corrigido no código.** Colocar campos entre aspas no CSV não garante que Excel/LibreOffice os tratem como texto.
 
-**Evidência:** [csvExport.ts](../../src/components/ma-professor/settings/csvExport.ts#L3-L20) só escapa aspas e delimitadores. Campos livres, como nomes/notas/sumários, podem começar por caracteres de fórmula.
+**Evidência:** [csvExport.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/settings/csvExport.ts#L3-L20) só escapa aspas e delimitadores. Campos livres, como nomes/notas/sumários, podem começar por caracteres de fórmula.
 
 **Reprodução:** nome de aluno `=1+1` produz a célula `"=1+1"`; o prefixo não é neutralizado. A interpretação efetiva depende do programa e do modo de importação. Não foi demonstrada execução de código na aplicação nem num computador de professor. Referência técnica: [OWASP — CSV Injection](https://owasp.org/www-community/attacks/CSV_Injection).
 
@@ -155,9 +157,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-09 — CSV apresenta médias históricas como calculadas
 
-**P2 · B · Aberto.** Depois de alterar ponderações, a média atual na aplicação pode divergir da coluna «Média calculada» exportada.
+**P2 · B · Corrigido no código.** Depois de alterar ponderações, a média atual na aplicação pode divergir da coluna «Média calculada» exportada.
 
-**Evidência:** [assessmentCriteriaManagementRepository.ts](../../src/components/ma-professor/assessments/assessmentCriteriaManagementRepository.ts#L1053-L1160) guarda novos critérios/ponderações. A área de avaliação recalcula a média provisória; [exportGradesCsv](../../src/components/ma-professor/settings/csvExport.ts#L185-L240) lê `calculatedAverage` e `suggestedGrade` históricos de `moduleFinalGrades`, com rótulos sem essa distinção temporal.
+**Evidência:** [assessmentCriteriaManagementRepository.ts](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/assessments/assessmentCriteriaManagementRepository.ts#L1053-L1160) guarda novos critérios/ponderações. A área de avaliação recalcula a média provisória; [exportGradesCsv](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/settings/csvExport.ts#L185-L240) lê `calculatedAverage` e `suggestedGrade` históricos de `moduleFinalGrades`, com rótulos sem essa distinção temporal.
 
 **Reprodução:** resultados 10 e 20, ponderações 50/50 e nota final confirmada 15. Alterar para 90/10: média atual 11, média do registo exportado 15 e nota final confirmada 15. A preservação da nota final confirmada é intencional e deve continuar.
 
@@ -167,9 +169,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-10 — igualdade de backups depende da ordem
 
-**P2 · C · Aberto.** Backups com os mesmos registos podem ser tratados como divergentes pela cópia automática.
+**P2 · C · Corrigido no código.** Backups com os mesmos registos podem ser tratados como divergentes pela cópia automática.
 
-**Evidência:** [createMAProfessorBackupContentSignature](../../src/components/ma-professor/sync/cloudBackupTrust.ts#L243-L255) aplica `JSON.stringify` diretamente a `data`. Arrays com ordem diferente produzem assinaturas diferentes; essa comparação é usada na reconciliação da confiança automática. A canonicalização existente noutros percursos não corrige este comparador.
+**Evidência:** [createMAProfessorBackupContentSignature](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/sync/cloudBackupTrust.ts#L243-L255) aplica `JSON.stringify` diretamente a `data`. Arrays com ordem diferente produzem assinaturas diferentes; essa comparação é usada na reconciliação da confiança automática. A canonicalização existente noutros percursos não corrige este comparador.
 
 **Reprodução:** os mesmos dois registos de aula, com os mesmos identificadores e valores, em ordem invertida dão assinaturas diferentes. O risco aplica-se quando a ordem remota/local difere, por exemplo num snapshot válido não ordenado; não significa que todas as cópias atuais estejam bloqueadas.
 
@@ -179,9 +181,9 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-11 — erros permanentes são repetidos indefinidamente
 
-**P2 · C · Aberto.** Um problema que exige intervenção pode gerar novas tentativas automáticas de cinco em cinco minutos, sem estado acionável apresentado pelo scheduler.
+**P2 · C · Corrigido no código.** Um problema que exige intervenção pode gerar novas tentativas automáticas de cinco em cinco minutos, sem estado acionável apresentado pelo scheduler.
 
-**Evidência:** [AutomaticCloudBackup.tsx](../../src/components/ma-professor/sync/AutomaticCloudBackup.tsx#L498-L535) pausa autenticação e conflito de revisão; os restantes erros usam sempre `AUTO_BACKUP_RETRY_MS`. Uma cópia acima do limite do servidor, por exemplo, não se resolve repetindo o mesmo envio. O componente devolve `null` e não publica um diagnóstico próprio desse bloqueio.
+**Evidência:** [AutomaticCloudBackup.tsx](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/src/components/ma-professor/sync/AutomaticCloudBackup.tsx#L498-L535) pausa autenticação e conflito de revisão; os restantes erros usam sempre `AUTO_BACKUP_RETRY_MS`. Uma cópia acima do limite do servidor, por exemplo, não se resolve repetindo o mesmo envio. O componente devolve `null` e não publica um diagnóstico próprio desse bloqueio.
 
 **Reprodução dirigida:** injetar um erro permanente de «cópia demasiado grande» no envio do scheduler real; avançar os timers três vezes. Resultado: três novas tentativas e outro retry agendado. O ensaio não enviou três pedidos 413 a um servidor real.
 
@@ -191,13 +193,38 @@ Os testes de navegador simulam as APIs de acesso. As reproduções de concorrên
 
 ### AUD-12 — documentação técnica de estado ainda descreve v2 ativo
 
-**P3 · A · Aberto.** A documentação pode levar uma futura intervenção a assumir rotas e compatibilidade que já não existem na baseline.
+**P3 · A · Corrigido no código.** A documentação pode levar uma futura intervenção a assumir rotas e compatibilidade que já não existem na baseline.
 
-**Evidência:** [MA_PROFESSOR_BACKUP_PRIVACY_STATUS.md](../MA_PROFESSOR_BACKUP_PRIVACY_STATUS.md) e o início de [MA_PROFESSOR_OPAQUE_V3_PLAN.md](../MA_PROFESSOR_OPAQUE_V3_PLAN.md) anunciam compatibilidade v2, promoção manual e `/key` como estado atual. O Worker atual e `cloud-backup-v3-only-baseline.test.mjs` impõem v3-only, com `/status`, `/get`, `/initialize-v3` e `/push-v3`.
+**Evidência:** [MA_PROFESSOR_BACKUP_PRIVACY_STATUS.md](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/docs/MA_PROFESSOR_BACKUP_PRIVACY_STATUS.md) e o início de [MA_PROFESSOR_OPAQUE_V3_PLAN.md](https://github.com/miguel4araujo5-bit/Ma-Code/blob/50c78098a466e6f71cbff35c99fd187e652ec616/docs/MA_PROFESSOR_OPAQUE_V3_PLAN.md) anunciam compatibilidade v2, promoção manual e `/key` como estado atual. O Worker atual e `cloud-backup-v3-only-baseline.test.mjs` impõem v3-only, com `/status`, `/get`, `/initialize-v3` e `/push-v3`.
 
 **Correção mínima proposta:** separar claramente o histórico de migração do contrato atualmente implementado e datar o estado efetivo. A limpeza documental não autoriza eliminar colunas `recovery_*`, alterar migrations ou destruir registos antigos.
 
 **Concluído quando:** os documentos de estado descrevam o código atual e remetam a confirmação de dados de produção para V-02; referências históricas estejam identificadas como tal.
+
+## Fecho das correções — 30/09/2026
+
+Commit: [`bd2c6bf71932437de2bc7295d8c93fe82549cf4a`](https://github.com/miguel4araujo5-bit/Ma-Code/commit/bd2c6bf71932437de2bc7295d8c93fe82549cf4a). Integração direta na `main`, sem alterar parâmetros OPAQUE, migrations, bindings ou dependências.
+
+| ID | Resultado implementado | Evidência dirigida |
+| --- | --- | --- |
+| AUD-01 | Mantém `dirtyAt` de alterações posteriores ao snapshot, incluindo após reload. | Mutação durante upload, conclusão, remontagem e envio seguinte; sem ciclo adicional quando não há mutação. |
+| AUD-02 | Desativa a preferência e invalida confiança antes do reset; conclusão de upload antigo não reativa o envio. A UI distingue eliminação local de cópia online. | Reset real, snapshot local vazio válido, timer/reload e conclusão em curso sem novo envio vazio nem confiança restabelecida. |
+| AUD-03 | Limpa e verifica também a IndexedDB de rascunhos antes de anunciar sucesso do reset explícito de todo o browser. | Rascunho e dados principais removidos. O âmbito anunciado é todo o browser; esta operação não é usada para limpeza automática ao trocar de conta. |
+| AUD-04 | Captura assinatura na pré-visualização e compara/escreve/verifica na mesma transação. | Edição concorrente rejeitada com o sumário recente preservado; proteção online continua funcional. |
+| AUD-05 | Limpa e verifica tickets/mensagens na eliminação. Confirma a sessão após escrita de apoio e desfaz a operação se foi revogada. Atualiza a política pública. | Sem resíduos próprios, outras contas preservadas; escrita concorrente revogada retirada; ausência completa do schema opcional suportada, schema parcial falha fechado. |
+| AUD-06 | Aplica limite de dez tickets no SQL atómico de inserção; primeira mensagem depende do ticket criado. | Nove tickets + duas criações simultâneas: uma HTTP 200 e uma 429, dez tickets, sem mensagens órfãs. |
+| AUD-07 | Páginas de 30 mensagens, cursor data/id, botão de histórico professor/admin; até 40 mensagens do professor/24h, 200/conversa e 500/conta incluindo admin. Não trunca histórico antigo. | Quotas, isolamento, cursor inválido e ausência de duplicados; interfaces React preservam ordem ao carregar páginas anteriores. Dimensionamento no gate; consumo real em V-03. |
+| AUD-08 | Neutraliza prefixos de fórmula e controlo em texto, incluindo variantes fullwidth; preserva valores numéricos. | Casos dirigidos de fórmula, tab/CR/LF, aspas e delimitador no CSV. **Excel e LibreOffice reais não ensaiados.** |
+| AUD-09 | Rotula média e sugestão como valores «na confirmação», preservando o histórico e a nota final confirmada. | Ponderações 50/50 → 90/10: média atual 11, histórico/nota confirmada 15, CSV com significado temporal explícito. |
+| AUD-10 | Canonicaliza registos por identificador e propriedades recursivamente antes da assinatura de conteúdo. | Permutações equivalentes não divergem; alterações reais continuam detetadas. |
+| AUD-11 | Suspende imediatamente erro permanente; limita falhas transitórias a três tentativas consecutivas. Persiste estado acionável em Segurança e recuperação. | Erro permanente sem timer/retry após reload; nova mutação limpa bloqueio e permite retomar; proteção de autenticação/conflito mantida pelos testes existentes. |
+| AUD-12 | Documenta contrato v3-only e identifica o plano de migração como histórico. | Documentos alinhados com rotas/testes v3-only; dados efetivos de produção continuam em V-02. |
+
+Testes novos: [segurança de dados e concorrência](../../tests/ma-professor/audit-data-safety-regression.test.mjs) e [paginação nas interfaces](../../tests/ma-professor/support-pagination-ui.test.mjs). Usam código real com IndexedDB/SQLite locais e eventos/autenticação controlados; não representam uma operação executada sobre dados de produção.
+
+Validação local: suite MA-Professor com **216 entradas e zero falhas**, suites Conquistador e MA-Quadro, build TypeScript/Worker/Vite e os três percursos Chromium passaram. Os limites de consumo, cenários de vinte professores e condições de classe C constam do [gate](ma-professor-correcao-gate-cloudflare.md). Corrigidas ainda quatro utilizações preexistentes de `.at(-1)` incompatíveis com o alvo ES2020, substituídas pelo equivalente `.slice(-1)[0]`, sem mudar configurações ou dependências.
+
+CI do commit de código: **sucesso** — [Build Check](https://github.com/miguel4araujo5-bit/Ma-Code/actions/runs/36675035845). Confirmada a execução efetiva das suites MA-Professor, Conquistador e MA-Quadro, dos três percursos Chromium e do build; não foram apenas passos ignorados num commit documental.
 
 ## Validações operacionais pendentes
 
@@ -226,13 +253,13 @@ Não se confirmou nesta auditoria que existam perfis v2 remanescentes. Fechar co
 
 ### V-03 — Cloudflare Free com 20 professores e consumo agregado
 
-**P2 · C · Por validar.** Rever CPU real e quotas consumidas por backup, autenticação, apoio e restantes produtos da mesma conta. Os problemas AUD-07 e AUD-11 criam caminhos de crescimento que precisam de ser controlados.
+**P2 · C · Por validar.** Rever CPU real e quotas consumidas por backup, autenticação, apoio e restantes produtos da mesma conta. Os caminhos sem limite de AUD-07 e AUD-11 foram controlados no código; a estimativa e o custo adicional da confirmação de sessão estão no [gate das correções](ma-professor-correcao-gate-cloudflare.md).
 
 Limites oficiais consultados em 29/09/2026: [Workers](https://developers.cloudflare.com/workers/platform/limits/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) e [Durable Objects](https://developers.cloudflare.com/durable-objects/platform/pricing/). Workers Free: 100 mil pedidos/dia e 10 ms de CPU por pedido. D1 Free: 5 milhões de linhas lidas/dia, 100 mil escritas/dia, 5 GB totais e 500 MB por base. Escritas em índices também contam. Durable Objects SQLite têm quotas próprias; não ignorar as operações de armazenamento da autenticação.
 
 O intervalo mínimo automático é dez minutos. Como cenário extremo de referência, vinte professores a alterar dados durante 24 horas permitem até 2 880 ciclos/dia. Este número não mede CPU, operações D1/DO nem o consumo restante da conta. O armazenamento deve incluir a cópia atual **e as duas gerações anteriores**, além de base64, índices e tickets.
 
-Fechar com tempos de CPU/erros por rota, linhas D1 lidas/escritas, operações DO, armazenamento, picos e margem para pelo menos vinte professores simultâneos. Preferir medições de operações isoladas e extrapolação conservadora antes de qualquer carga de produção. Esta entrega documental não adiciona recursos nem consumo recorrente.
+Fechar com tempos de CPU/erros por rota, linhas D1 lidas/escritas, operações DO, armazenamento, picos e margem para pelo menos vinte professores simultâneos. Preferir medições de operações isoladas e extrapolação conservadora antes de qualquer carga de produção. A correção não adiciona recursos, jobs ou polling; acrescenta confirmação de sessão após escritas de apoio, contabilizada no gate. Falta a medição agregada real.
 
 ## Regra para atualizar esta lista
 
