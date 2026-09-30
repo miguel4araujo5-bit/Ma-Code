@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import './components/ma-professor/daily/dailyWorkspaceLayout.css'
 import './components/ma-professor/setup/scheduleImportReview.css'
+import './pages/maCodeHomeProductLogo.css'
 
 import {
   MAProfessorErrorBoundary
