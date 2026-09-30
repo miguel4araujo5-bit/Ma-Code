@@ -56,13 +56,13 @@ export default function CloudBackupPreferencePanel({
   if (onOpenSettings) {
     return (
       <aside
-        aria-label="Preferência de cópia automática"
+        aria-label="Preferência de lembretes de cópia online"
         className="mx-3 mt-3 rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 sm:mx-5"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-300">
-            <span className="font-semibold text-slate-200">Cópia automática desativada.</span>{' '}
-            Pode ativá-la em Segurança e recuperação.
+            <span className="font-semibold text-slate-200">Lembretes de cópia online desativados.</span>{' '}
+            Pode ativá-los em Segurança e recuperação.
           </p>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
             <button
@@ -77,7 +77,7 @@ export default function CloudBackupPreferencePanel({
               onClick={() => choose(false)}
               className="rounded-lg px-2 py-2 text-xs text-slate-400 transition hover:text-white"
             >
-              Manter desativada
+              Manter desativados
             </button>
           </div>
         </div>
@@ -88,17 +88,17 @@ export default function CloudBackupPreferencePanel({
 
   return (
     <section
-      aria-label="Preferência de cópia automática"
+      aria-label="Preferência de lembretes de cópia online"
       className="rounded-2xl border border-violet-300/20 bg-slate-900 p-4 text-sm text-slate-200"
     >
       <p className="font-black text-white">
-        Cópia automática: {preference === 'enabled' ? 'ativa' : 'desativada'}
+        Lembretes de cópia online: {preference === 'enabled' ? 'ativos' : 'desativados'}
       </p>
       <p className="mt-2 text-xs leading-6 text-slate-300">
         {CLOUD_BACKUP_PRIVACY_NOTICE}
       </p>
       <p className="mt-2 text-xs leading-6 text-slate-400">
-        Pode ativar ou desativar a cópia automática a qualquer momento. Desativar não apaga as cópias já guardadas nem impede o restauro ou uma cópia manual.
+        Quando tiver alterações por guardar, mostramos um aviso. A cópia só é enviada se escolher «Sim» e substitui a única cópia online anterior. Pode desativar os lembretes a qualquer momento, mantendo a cópia manual e o restauro.
       </p>
       <a
         href="/privacidade/ma-professor"
@@ -113,7 +113,7 @@ export default function CloudBackupPreferencePanel({
             onClick={() => choose(true)}
             className="rounded-xl border border-violet-300/30 bg-violet-300/10 px-4 py-2 text-xs font-bold text-violet-100 transition hover:bg-violet-300/20"
           >
-            Ativar cópia automática
+            Ativar lembretes de cópia
           </button>
         ) : null}
         {preference !== 'disabled' ? (
@@ -122,7 +122,7 @@ export default function CloudBackupPreferencePanel({
             onClick={() => choose(false)}
             className="rounded-xl border border-white/15 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/5"
           >
-            {preference === 'enabled' ? 'Desativar cópia automática' : 'Manter desativada'}
+            {preference === 'enabled' ? 'Desativar lembretes de cópia' : 'Manter desativados'}
           </button>
         ) : null}
       </div>

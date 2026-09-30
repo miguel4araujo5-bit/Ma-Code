@@ -122,7 +122,7 @@ test('initialization validates session and envelope, and opt-out or lost export 
   assert.equal((await f.post('/initialize-v3', { ...initialization(prepared), token: 'wrong-token' })).status, 401)
   assert.equal((await f.post('/initialize-v3', { ...initialization(prepared), profile: { ...prepared.profile, recoveryWrappedMasterKey: 'bad' } })).status, 400)
   let checks = 0
-  await assert.rejects(runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { canUpload: () => ++checks === 1 }), /desativada/)
+  await assert.rejects(runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { canUpload: () => ++checks === 1 }), /cancelada/)
   runtime.clearMAProfessorOpaqueExportKey()
   await assert.rejects(runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup), runtime.MAProfessorCloudBackupAuthenticationRequiredError)
   assert.equal(f.db.prepare('SELECT count(*) AS n FROM ma_professor_sync_profiles').get().n, 0)

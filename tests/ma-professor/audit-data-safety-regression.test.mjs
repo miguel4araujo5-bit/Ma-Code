@@ -25,6 +25,7 @@ const bundle = async (contents, name, plugins = []) => {
 };
 const base = './src/components/ma-professor/';
 const dom = new JSDOM('',{url:'https://audit.example.test'});
+Object.defineProperty(dom.window.document,'hasFocus',{value:()=>true});
 for(const key of ['window','document','Element','HTMLElement','Node','CustomEvent','Event']) globalThis[key] = key === 'window' ? dom.window : dom.window[key];
 Object.defineProperty(globalThis,'navigator',{configurable:true,value:dom.window.navigator});
 Object.defineProperty(window,'indexedDB',{value:globalThis.indexedDB});
@@ -101,31 +102,32 @@ let timers = new Map(); let timerId=0; let effects=[]; let cleanups=[]; let list
 let finishUpload; let uploadError=null; let uploadCalls=0;
 let remoteRevision=1;
 let preference='enabled';
-globalThis.__audit={canonicalize:r.canonicalizeMAProfessorBackupData,session:{email:'audit@example.test',deviceId:'d',token:'t'},state:()=>{},preference:()=>preference,effect:(fn)=>effects.push(fn),on:(name, fn)=>{if(fn){listener=fn;return;} return {unsubscribe:()=>{listener=null;}};},status:()=>({serverRevision:remoteRevision,backup:{found:true}}),upload:async()=>{uploadCalls++;if(uploadError)throw uploadError;await new Promise(resolve=>finishUpload=resolve);remoteRevision++;return {serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now).toISOString()};},backup:()=>backup};
+globalThis.__audit={refs:[],canonicalize:r.canonicalizeMAProfessorBackupData,session:{email:'audit@example.test',deviceId:'d',token:'t'},state:()=>{},preference:()=>preference,effect:(fn)=>effects.push(fn),on:(name, fn)=>{if(fn){listener=fn;return;} return {unsubscribe:()=>{listener=null;}};},status:()=>({serverRevision:remoteRevision,backup:{found:true}}),upload:async()=>{uploadCalls++;if(uploadError)throw uploadError;await new Promise(resolve=>finishUpload=resolve);remoteRevision++;return {serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now).toISOString()};},backup:()=>backup};
 const plugin={name:'audit-control',setup(b){b.onResolve({filter:/.*/},args=>{
  if(args.path==='react'||args.path==='dexie'||/\/(db|AccessGate|cloudBackupPreference|cloudBackupService|accessStorage|backupRepository)$/.test(args.path))return {path:/cloudBackupService$/.test(args.path)?'/cloudBackupService':args.path,namespace:'audit'};
  });b.onLoad({filter:/.*/,namespace:'audit'},args=>{let contents;
- if(args.path==='react')contents='export const useState=(f)=>[typeof f==="function"?f():f,()=>{}]; export const useEffect=(f)=>globalThis.__audit.effect(f); export const useSyncExternalStore=()=>null;';
+ if(args.path==='react')contents='export const useRef=(value)=>{const ref={current:value};globalThis.__audit.refs.push(ref);return ref;};export const useState=(f)=>[typeof f==="function"?f():f,()=>{}]; export const useEffect=(f)=>globalThis.__audit.effect(f); export const useSyncExternalStore=()=>null;';
  else if(args.path==='dexie')contents='export default {on:(...args)=>globalThis.__audit.on(...args)};';
  else if(args.path.endsWith('/db'))contents='export const MA_PROFESSOR_DATABASE_NAME="ma-professor";';
  else if(args.path.endsWith('AccessGate'))contents='export const useMAProfessorAccess=()=>({session:globalThis.__audit.session});';
- else if(args.path.endsWith('cloudBackupPreference'))contents='export const readCloudBackupPreference=()=>globalThis.__audit.preference();export const useCloudBackupPreference=()=>globalThis.__audit.preference();';
+ else if(args.path.endsWith('cloudBackupPreference'))contents='export const readCloudBackupPreference=()=>globalThis.__audit.preference();export const useCloudBackupPreference=()=>globalThis.__audit.preference();export const writeCloudBackupPreference=()=>false;export const markCloudBackupReminderShown=()=>globalThis.__audit.reminder();export const readCloudBackupReminderTimestamp=()=>globalThis.__audit.reminderTimestamp();';
  else if(args.path.endsWith('accessStorage'))contents='export const readMAProfessorOpaqueExportKey=()=>"key"; export const MA_PROFESSOR_OPAQUE_KEY_EVENT="key-event";';
  else if(args.path.endsWith('backupRepository'))contents='export const canonicalizeMAProfessorBackupData=(data)=>globalThis.__audit.canonicalize(data); export const createMAProfessorBackup=async()=>globalThis.__audit.backup();';
  else contents='export class MAProfessorCloudBackupPermanentError extends Error{}; export class MAProfessorCloudBackupRevisionConflictError extends Error{};export class MAProfessorCloudBackupAuthenticationRequiredError extends Error{};export const inspectMAProfessorCloudBackup=async()=>globalThis.__audit.status();export const downloadMAProfessorCloudBackupV3=async()=>null;export const uploadAndVerifyCompatibleMAProfessorCloudBackup=(...args)=>globalThis.__audit.upload(...args);';
  return {contents,loader:'js'};
  });}};
 const auto=await bundle(`export {default as Component} from '${base}sync/AutomaticCloudBackup';export * from '${base}sync/cloudBackupTrust'; export {MAProfessorCloudBackupPermanentError} from '${base}sync/cloudBackupService';`,'audit-scheduler',[plugin]);
+let reminderTimestamp=0;__audit.reminder=()=>reminderTimestamp=now;__audit.reminderTimestamp=()=>reminderTimestamp;
 const originalSet=globalThis.setTimeout,originalClear=globalThis.clearTimeout;
 globalThis.setTimeout=(fn,ms,...args)=>{if(ms<1000 || ms===undefined)return originalSet(fn,ms,...args);const id=++timerId;timers.set(id,{fn,due:now+ms});return id;};
 globalThis.clearTimeout=id=>{if(!timers.delete(id))originalClear(id);};
 const settle=async()=>{for(let i=0;i<35;i++)await Promise.resolve();};
-const mount=async()=>{effects=[];auto.Component();for(const f of effects){const c=f();if(c)cleanups.push(c);}await settle();};
+const mount=async()=>{effects=[];__audit.refs=[];auto.Component();for(const f of effects){const c=f();if(c)cleanups.push(c);}await settle();};
 const unmount=()=>{for(const f of cleanups)f();cleanups=[];timers.clear();};
 const mutate=async()=>{listener({'idb://ma-professor/lessons/':{}});await settle();};
 const fire=async()=>{const [id,t]=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];now=Math.max(now,t.due);timers.delete(id);t.fn();await settle();};
 auto.writeMAProfessorCloudBackupTrust(__audit.session,{serverRevision:1,recordRevision:1,updatedAt:new Date(now-3600000).toISOString()});
-await mount();await mutate();await fire();assert.equal(uploadCalls,1);
+await mount();await mutate();await fire();assert.equal(uploadCalls,0);__audit.refs[0].current('save');await settle();assert.equal(uploadCalls,1);
 await mutate();assert.ok(auto.readMAProfessorCloudBackupTrust(__audit.session).dirtyAt);
 finishUpload();await settle();
 const trustAfter=auto.readMAProfessorCloudBackupTrust(__audit.session);
@@ -135,7 +137,7 @@ assert.ok(timers.size>0);
 record('AUTO_DIRTY_PRESERVED',{dirtyAfterConcurrentMutation:trustAfter.dirtyAt,timersAfterReload:timers.size,uploadCalls});
 
 // A pending second upload may finish after the local reset. It must not re-arm trust.
-await fire();assert.equal(uploadCalls,2);
+await fire();assert.equal(uploadCalls,1);__audit.refs[0].current('save');await settle();assert.equal(uploadCalls,2);
 assert.equal(r.writeCloudBackupPreference(__audit.session,'disabled'),true);
 preference='disabled';
 auto.clearMAProfessorCloudBackupTrust(__audit.session);
@@ -155,12 +157,15 @@ preference='enabled';
 
 unmount();uploadError=new auto.MAProfessorCloudBackupPermanentError('A cópia cifrada é demasiado grande.');auto.writeMAProfessorCloudBackupTrust(__audit.session,{serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now-3600000).toISOString()});
 await mount();await mutate();const before=uploadCalls;await fire();
+assert.equal(uploadCalls,before);
+__audit.refs[0].current('save');await settle();
 assert.equal(uploadCalls-before,1);assert.equal(timers.size,0);
 assert.ok(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError);
-unmount();await mount();assert.equal(timers.size,0);
-record('AUTO_PERMANENT_RETRY',{attemptsForPermanentError:1,retryScheduled:timers.size>0});
-await mutate();assert.equal(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError,null);assert.ok(timers.size>0);
-await fire();assert.equal(timers.size,0);
+unmount();await mount();assert.ok(timers.size>0);
+await fire();assert.equal(uploadCalls-before,1);assert.equal(timers.size,0);
+record('REMINDER_ERROR_REQUIRES_CONFIRMATION',{attemptsForPermanentError:1,silentRetry:false});
+await mutate();assert.equal(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError,null);
+__audit.refs[0].current('save');await settle();assert.equal(uploadCalls-before,2);assert.equal(timers.size,0);
 unmount();globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;Date.now=originalNow;
 
 // Production D1 SQL and handlers; export-only instrumentation to exercise the canonical deletion helper.

@@ -131,7 +131,7 @@ export class MAProfessorCloudBackupRevisionConflictError
   extends Error {
   constructor(
     message =
-      'Existe uma cópia online mais recente. Por segurança, a cópia automática foi interrompida.'
+      'A cópia online mudou durante a gravação. Volte a tentar guardar.'
   ) {
     super(message)
     this.name =
@@ -813,7 +813,7 @@ function assertUploadAllowed(
     !options.canUpload()
   ) {
     throw new Error(
-      'A cópia automática foi desativada. Não foram enviados novos dados.'
+      'A gravação desta cópia foi cancelada. Não foram enviados novos dados.'
     )
   }
 }

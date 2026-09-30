@@ -90,10 +90,6 @@ test(
       /CloudBackupReauthentication/
     )
     assert.match(
-      automatic,
-      /return null/
-    )
-    assert.match(
       service,
       /response\.status === 401 && authSession/
     )
@@ -153,11 +149,11 @@ test(
 )
 
 test(
-  'automatic backup observes IndexedDB mutations without polling',
+  'backup reminders observe IndexedDB mutations without polling',
   () => {
     assert.match(
       automatic,
-      /Dexie\.on\( 'storagemutated', handleStorageMutation \)/
+      /Dexie\.on\('storagemutated', handleStorageMutation\)/
     )
     assert.match(
       automatic,
@@ -175,12 +171,10 @@ test(
 )
 
 test(
-  'automatic backup never overwrites an unknown remote revision',
+  'confirmed reminder saves use the existing verified v3 uploader without a cached revision veto',
   () => {
-    assert.match(
-      automatic,
-      /expectedServerRevision: trust\.serverRevision/
-    )
+    assert.match(automatic, /uploadAndVerifyCompatibleMAProfessorCloudBackup\(session, backup, \{ canUpload: canRun \}\)/)
+    assert.doesNotMatch(automatic, /expectedServerRevision|blockedByDivergence|reconcileTrust/)
     assert.match(
       service,
       /status\.serverRevision !== options\.expectedServerRevision/
@@ -189,20 +183,13 @@ test(
       service,
       /throw new MAProfessorCloudBackupRevisionConflictError\(\)/
     )
-    assert.match(
-      automatic,
-      /blockedByDivergence = true/
-    )
   }
 )
 
 test(
-  'a device can only arm automatic backup when local and remote content are aligned',
+  'showing a reminder does not inspect or download remote content',
   () => {
-    assert.match(
-      automatic,
-      /createMAProfessorBackupContentSignature\( remote\.backup \) === createMAProfessorBackupContentSignature\( local \)/
-    )
+    assert.doesNotMatch(automatic, /inspectMAProfessorCloudBackup|downloadMAProfessorCloudBackupV3|createMAProfessorBackupContentSignature/)
     assert.match(
       trust,
       /product: backup\.product, schemaVersion: backup\.schemaVersion, data: canonicalizeMAProfessorBackupData\(backup\.data\)/

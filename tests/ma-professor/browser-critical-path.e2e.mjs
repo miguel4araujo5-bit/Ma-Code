@@ -983,12 +983,12 @@ try {
   assert.equal(await unlock.getByLabel('Password pessoal').getAttribute('autocomplete'), 'current-password')
   assert.equal(await unlock.locator('input[name=username]').getAttribute('autocomplete'), 'username')
   assert.equal(
-    await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).count(),
+    await cloudPanel.getByRole('button', { name: 'Desativar lembretes de cópia', exact: true }).count(),
     0,
     'Os controlos online não devem aparecer antes da confirmação da password.'
   )
   assert.equal(
-    await cloudPanel.getByRole('button', { name: 'Ativar cópia automática', exact: true }).count(),
+    await cloudPanel.getByRole('button', { name: 'Ativar lembretes de cópia', exact: true }).count(),
     0,
     'A ativação automática só fica disponível depois da confirmação da password.'
   )
@@ -1033,7 +1033,7 @@ try {
   assert.equal((await readCloudSession()).preference, 'enabled', 'A confirmação da password não pode alterar a escolha anterior.')
   await prepareBackupButton.waitFor({ state: 'visible' })
   assert.equal(await prepareBackupButton.isEnabled(), true)
-  await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).click()
+  await cloudPanel.getByRole('button', { name: 'Desativar lembretes de cópia', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'disabled')
   releaseOldStatus()
   assert.equal(await page.evaluate(() => window.__lateCloudStatus), 'MAProfessorCloudBackupAuthenticationRequiredError')
@@ -1081,10 +1081,85 @@ try {
   assert.equal(afterReload.lesson?.summary, SUMMARY)
   assert.equal(afterReload.lesson?.status, 'taught')
 
-  await cloudPanel.getByRole('button', { name: 'Ativar cópia automática', exact: true }).click()
+  await cloudPanel.getByRole('button', { name: 'Ativar lembretes de cópia', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'enabled')
-  await cloudPanel.getByRole('button', { name: 'Desativar cópia automática', exact: true }).click()
+  await cloudPanel.getByRole('button', { name: 'Desativar lembretes de cópia', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'disabled')
+
+  // A reminder never accesses the cloud until the professor explicitly chooses Sim.
+  await page.clock.install({ time: new Date(FIXED_NOW) })
+  await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const preference = await import('/src/components/ma-professor/sync/cloudBackupPreference.ts')
+    const trust = await import('/src/components/ma-professor/sync/cloudBackupTrust.ts')
+    const session = storage.readMAProfessorAccessSession()
+    trust.writeMAProfessorCloudBackupTrust(session, {
+      ...trust.readMAProfessorCloudBackupTrust(session),
+      updatedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      dirtyAt: new Date().toISOString()
+    })
+    preference.writeCloudBackupPreference(session, 'enabled')
+  })
+  const countCloudRequests = () => apiRequests.filter(item => item.path.startsWith('/api/ma-professor/cloud-backup/')).length
+  const beforeReminder = countCloudRequests()
+  await page.clock.fastForward(91_000)
+  const reminder = page.getByRole('dialog', {
+    name: 'Tem alterações significativas por guardar. Deseja guardar o seu progresso?', exact: true
+  })
+  await reminder.waitFor({state:'visible'})
+  assert.equal(countCloudRequests(), beforeReminder)
+  assert.deepEqual(await reminder.getByRole('button').allTextContents(), ['Sim', 'Não', 'Não voltar a perguntar'])
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({width,height:900})
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+    assert.equal(await reminder.getByRole('button', {name:'Não voltar a perguntar',exact:true}).isVisible(), true)
+    if (process.env.MA_PROFESSOR_REMINDER_SCREENSHOTS) {
+      await page.screenshot({path:join(process.env.MA_PROFESSOR_REMINDER_SCREENSHOTS, `ma-professor-reminder-${width}.png`)})
+    }
+  }
+  await page.setViewportSize({width:1366,height:900})
+  await reminder.getByRole('button', {name:'Não',exact:true}).click()
+  await page.clock.fastForward(9 * 60 * 1000)
+  assert.equal(await reminder.count(),0)
+  assert.equal(countCloudRequests(),beforeReminder)
+  await page.clock.fastForward(60 * 1000)
+  await reminder.waitFor({state:'visible'})
+  await reminder.getByRole('button', {name:'Sim',exact:true}).click()
+  await page.getByRole('status').filter({hasText:'Cópia online guardada e verificada.'}).waitFor({state:'visible'})
+  assert.equal(await reminder.count(),0)
+  assert.ok(countCloudRequests() > beforeReminder)
+
+  await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const trust = await import('/src/components/ma-professor/sync/cloudBackupTrust.ts')
+    const session = storage.readMAProfessorAccessSession()
+    trust.writeMAProfessorCloudBackupTrust(session, {
+      ...trust.readMAProfessorCloudBackupTrust(session),
+      updatedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      dirtyAt: new Date().toISOString()
+    })
+  })
+  // Simulate an actual new edit after the verified copy, using the canonical database.
+  await page.evaluate(async () => {
+    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
+    const saved = await maProfessorDb.lessons.toArray()
+    const lesson = saved.find(item => item.summary)
+    await maProfessorDb.lessons.update(lesson.id, {notes:'Alteração para testar o próximo lembrete.'})
+  })
+  await page.clock.fastForward(10 * 60 * 1000)
+  await reminder.waitFor({state:'visible'})
+  const beforeDisable = countCloudRequests()
+  await reminder.getByRole('button', {name:'Não voltar a perguntar',exact:true}).click()
+  assert.equal((await readCloudSession()).preference,'disabled')
+  await page.clock.fastForward(60 * 60 * 1000)
+  assert.equal(await reminder.count(),0)
+  assert.equal(countCloudRequests(),beforeDisable)
+  // Restore the fixture note so later persistence assertions keep their original scope.
+  await page.evaluate(async () => {
+    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
+    const lesson = (await maProfessorDb.lessons.toArray()).find(item => item.summary)
+    await maProfessorDb.lessons.update(lesson.id, {notes:''})
+  })
 
   // Reopening must lose only the memory key and preserve the explicit choice.
   await page.reload({ waitUntil: 'domcontentloaded' })

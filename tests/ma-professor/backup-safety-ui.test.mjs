@@ -232,7 +232,7 @@ test(
 
     assert.match(
       cloudPreferenceSource,
-      /Cópia automática/
+      /Lembretes de cópia online/
     )
     assert.match(
       backupSource,

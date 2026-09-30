@@ -595,7 +595,7 @@ export function EncryptedSyncPanel() {
         <>
           {automaticError ? (
             <p role="alert" className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100">
-              A cópia automática está suspensa: {automaticError} Os dados continuam neste dispositivo. Descarregue uma cópia local e prepare uma nova cópia online depois de resolver o problema. Uma nova alteração aos dados também permite voltar a tentar.
+              A última cópia online não foi concluída: {automaticError} Os dados continuam neste dispositivo. Pode voltar a tentar pelo aviso ou preparar uma cópia manual.
             </p>
           ) : null}
           <div className="mt-4">
@@ -742,8 +742,8 @@ export function EncryptedSyncPanel() {
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
               {preference === 'enabled'
-                ? 'A cópia automática continua ativa em segundo plano quando este dispositivo está alinhado com a última revisão online.'
-                : 'A cópia automática está desativada neste dispositivo. A preparação acima não envia dados até carregar em “Enviar esta cópia para a nuvem”.'}
+                ? 'Os lembretes estão ativos. A cópia online só é enviada quando escolhe «Sim» no aviso ou confirma uma cópia manual.'
+                : 'Os lembretes estão desativados neste dispositivo. A preparação acima não envia dados até carregar em “Enviar esta cópia para a nuvem”.'}
             </p>
           </div>
 
