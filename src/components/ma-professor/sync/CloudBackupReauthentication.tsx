@@ -1,16 +1,19 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { useMAProfessorAccess } from '../access/AccessGate'
 import { MA_PROFESSOR_OPAQUE_KEY_EVENT, readMAProfessorOpaqueExportKey } from '../access/accessStorage'
+import { MAProfessorOpaqueTimeoutError } from '../access/opaqueClient'
 import { MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, type MAProfessorCloudBackupAuthenticationRequiredDetail } from './cloudBackupService'
 
 interface CloudBackupReauthenticationProps {
   forceRequired?: boolean
   embedded?: boolean
+  onConfirmed?: () => void
 }
 
 export default function CloudBackupReauthentication({
   forceRequired = false,
-  embedded = false
+  embedded = false,
+  onConfirmed
 }: CloudBackupReauthenticationProps = {}) {
   const { session, reauthenticate } = useMAProfessorAccess()
   const [required, setRequired] = useState(false)
@@ -41,18 +44,22 @@ export default function CloudBackupReauthentication({
     }
   }, [session.deviceId, session.email, session.token])
 
-  async function unlock(event: FormEvent) {
+  async function unlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (busy) return
+    // Read the submitted field, including password-manager fills without onChange.
+    const suppliedPassword = String(new FormData(event.currentTarget).get('password') ?? '')
     setBusy(true)
     setError('')
-    const suppliedPassword = password
     setPassword('')
     try {
       await reauthenticate(suppliedPassword)
       setRequired(false)
-    } catch {
-      setError('Não foi possível confirmar a password. Verifique a password e a ligação à Internet e tente novamente.')
+      onConfirmed?.()
+    } catch (error) {
+      setError(error instanceof MAProfessorOpaqueTimeoutError
+        ? error.message
+        : 'Não foi possível confirmar a password. Verifique a password e a ligação à Internet e tente novamente.')
     } finally {
       setBusy(false)
     }
@@ -69,12 +76,12 @@ export default function CloudBackupReauthentication({
           : 'mx-3 my-3 rounded-xl border border-amber-300/30 bg-slate-900 px-4 py-3 text-sm text-slate-200 sm:mx-5'
       }
     >
-      <p role="status" className="font-bold text-amber-100">Confirme a sua password</p>
-      <p className="mt-1">Para criar ou retomar cópias online neste dispositivo, confirme a password da sua conta. A password é processada apenas neste dispositivo.</p>
+      <p role="status" className="font-bold text-amber-100">{busy ? 'A confirmar a password…' : 'Confirme a sua password'}</p>
+      <p className="mt-1">Confirme a password da sua conta para desbloquear a cópia online. Depois, prepare a cópia e confirme o envio. A password é processada apenas neste dispositivo.</p>
       <form
         onSubmit={unlock}
         autoComplete="on"
-        className="mt-3 flex flex-wrap items-end gap-3"
+        className="mt-3 flex flex-col gap-3"
       >
         <input
           type="email"
@@ -86,7 +93,7 @@ export default function CloudBackupReauthentication({
           aria-hidden="true"
           className="sr-only"
         />
-        <label htmlFor={passwordId} className="min-w-0 flex-1">
+        <label htmlFor={passwordId} className="min-w-0">
           <span className="block text-xs">Password pessoal</span>
           <input
             id={passwordId}
@@ -100,7 +107,7 @@ export default function CloudBackupReauthentication({
             className="mt-1 w-full rounded-lg border border-white/20 bg-slate-950 px-3 py-2 text-white"
           />
         </label>
-        <button type="submit" disabled={busy} className="rounded-lg bg-amber-200 px-4 py-2 font-bold text-slate-950 disabled:opacity-60">
+        <button type="submit" disabled={busy} className="w-full rounded-lg bg-amber-200 px-4 py-2 font-bold text-slate-950 disabled:opacity-60">
           {busy ? 'A confirmar…' : 'Confirmar password'}
         </button>
       </form>

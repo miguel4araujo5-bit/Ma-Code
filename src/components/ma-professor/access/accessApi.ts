@@ -79,7 +79,8 @@ function getApiMessage(
 async function postJson<T>(
   path: string,
   body:
-    Record<string, unknown>
+    Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<T> {
   const response =
     await fetch(
@@ -96,7 +97,8 @@ async function postJson<T>(
             body
           ),
         cache:
-          'no-store'
+          'no-store',
+        signal
       }
     )
 
@@ -311,7 +313,8 @@ export async function startMAProfessorOpaqueAccountEnrollment(
 export async function startMAProfessorOpaqueLogin(
   email: string,
   deviceId: string,
-  startLoginRequest: string
+  startLoginRequest: string,
+  signal?: AbortSignal
 ) {
   return postJson<MAProfessorOpaqueLoginStartResponse>(
     '/opaque/login/start',
@@ -319,7 +322,8 @@ export async function startMAProfessorOpaqueLogin(
       email,
       deviceId,
       startLoginRequest
-    }
+    },
+    signal
   )
 }
 
@@ -327,7 +331,8 @@ export async function finishMAProfessorOpaqueLogin(
   email: string,
   deviceId: string,
   loginId: string,
-  finishLoginRequest: string
+  finishLoginRequest: string,
+  signal?: AbortSignal
 ) {
   return postJson<MAProfessorAccessResponse>(
     '/opaque/login/finish',
@@ -336,7 +341,8 @@ export async function finishMAProfessorOpaqueLogin(
       deviceId,
       loginId,
       finishLoginRequest
-    }
+    },
+    signal
   )
 }
 

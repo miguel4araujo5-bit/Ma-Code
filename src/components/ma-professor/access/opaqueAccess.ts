@@ -12,6 +12,8 @@ import {
 } from './accessApi'
 
 import {
+  MA_PROFESSOR_OPAQUE_TIMEOUT_MS,
+  MAProfessorOpaqueTimeoutError,
   finishMAProfessorOpaqueClientLogin,
   finishMAProfessorOpaqueClientRegistration,
   startMAProfessorOpaqueClientLogin,
@@ -93,18 +95,50 @@ export async function loginMAProfessorOpaque(
   password: string,
   deviceId: string
 ): Promise<MAProfessorOpaqueLoginResult | null> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new MAProfessorOpaqueTimeoutError())
+      controller.abort()
+    }, MA_PROFESSOR_OPAQUE_TIMEOUT_MS)
+  })
+
+  try {
+    return await Promise.race([
+      performOpaqueLogin(email, password, deviceId, controller.signal),
+      timeout
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function requireActiveLogin(signal: AbortSignal) {
+  if (signal.aborted) throw new MAProfessorOpaqueTimeoutError()
+}
+
+async function performOpaqueLogin(
+  email: string,
+  password: string,
+  deviceId: string,
+  signal: AbortSignal
+): Promise<MAProfessorOpaqueLoginResult | null> {
   const clientStart =
     await startMAProfessorOpaqueClientLogin(
       password
     )
 
+  requireActiveLogin(signal)
   const serverStart =
     await startMAProfessorOpaqueLogin(
       email,
       deviceId,
-      clientStart.startLoginRequest
+      clientStart.startLoginRequest,
+      signal
     )
 
+  requireActiveLogin(signal)
   const clientFinish =
     await finishMAProfessorOpaqueClientLogin(
       password,
@@ -112,6 +146,7 @@ export async function loginMAProfessorOpaque(
       serverStart.loginResponse
     )
 
+  requireActiveLogin(signal)
   if (!clientFinish) {
     return null
   }
@@ -121,9 +156,11 @@ export async function loginMAProfessorOpaque(
       email,
       deviceId,
       serverStart.loginId,
-      clientFinish.finishLoginRequest
+      clientFinish.finishLoginRequest,
+      signal
     )
 
+  requireActiveLogin(signal)
   return {
     response,
     exportKey:

@@ -241,3 +241,22 @@
 .ma-professor-product[data-theme='light'] ::-webkit-scrollbar-track {
   background: #f8fafc;
 }
+
+.ma-professor-product[data-theme='light'] .ma-professor-cloud-backup-panel {
+  background: linear-gradient(135deg, #ffffff, #f5f3ff);
+}
+
+.ma-professor-product[data-theme='light']
+  .ma-professor-cloud-backup-panel [class~='text-amber-100'] {
+  color: #92400e;
+}
+
+.ma-professor-product[data-theme='light']
+  .ma-professor-cloud-backup-panel [class~='text-rose-200'] {
+  color: #9f1239;
+}
+
+.ma-professor-product[data-theme='light']
+  .ma-professor-cloud-backup-panel [class~='text-emerald-200'] {
+  color: #047857;
+}

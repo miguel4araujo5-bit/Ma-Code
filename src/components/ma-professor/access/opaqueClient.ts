@@ -10,17 +10,51 @@ import init, {
 const KEY_STRETCHING =
   'rfc-recommended' as const
 
+export const MA_PROFESSOR_OPAQUE_TIMEOUT_MS = 30_000
+
+export class MAProfessorOpaqueTimeoutError extends Error {
+  constructor() {
+    super('A confirmação da password demorou demasiado. Verifique a ligação à Internet e tente novamente.')
+    this.name = 'MAProfessorOpaqueTimeoutError'
+  }
+}
+
 let opaqueReady:
   Promise<unknown> |
   null =
   null
 
+async function initializeOpaque() {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new MAProfessorOpaqueTimeoutError())
+      controller.abort()
+    }, MA_PROFESSOR_OPAQUE_TIMEOUT_MS)
+  })
+
+  try {
+    return await Promise.race([
+      init({
+        module_or_path: typeof opaqueWasmUrl === 'string'
+          ? new Request(opaqueWasmUrl, { signal: controller.signal })
+          : opaqueWasmUrl
+      }),
+      timeout
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 function ensureOpaqueReady() {
   if (!opaqueReady) {
     opaqueReady =
-      init({
-        module_or_path:
-          opaqueWasmUrl
+      initializeOpaque().catch(error => {
+        // A connection failure must not poison every later manual attempt.
+        opaqueReady = null
+        throw error
       })
   }
 

@@ -571,7 +571,7 @@ export function EncryptedSyncPanel() {
     status?.backup.found === true
 
   return (
-    <section className="h-full rounded-3xl border border-violet-300/20 bg-gradient-to-br from-slate-900 via-slate-900 to-violet-950/20 p-5 sm:p-6">
+    <section className="ma-professor-cloud-backup-panel h-full rounded-3xl border border-violet-300/20 bg-gradient-to-br from-slate-900 via-slate-900 to-violet-950/20 p-5 sm:p-6">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
         Nuvem
       </p>
@@ -589,6 +589,12 @@ export function EncryptedSyncPanel() {
           <CloudBackupReauthentication
             forceRequired
             embedded
+            onConfirmed={() => setFeedback({
+              tone: 'success',
+              message: preparedBackup
+                ? 'Password confirmada. Pode agora confirmar o envio da cópia preparada.'
+                : 'Password confirmada. Carregue em «Preparar cópia para a nuvem» e confirme o envio da cópia preparada.'
+            })}
           />
         </div>
       ) : (
@@ -760,6 +766,7 @@ export function EncryptedSyncPanel() {
 
       {feedback ? (
         <p
+          role={feedback.tone === 'success' ? 'status' : undefined}
           className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
             feedback.tone === 'success'
               ? 'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200'

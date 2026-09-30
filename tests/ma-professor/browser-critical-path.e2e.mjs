@@ -993,6 +993,40 @@ try {
     'A ativação automática só fica disponível depois da confirmação da password.'
   )
 
+  // Both stages of password confirmation must recover from a silent connection.
+  await page.clock.install({ time: new Date(FIXED_NOW) })
+  for (const stage of ['start', 'finish']) {
+    const routePattern = `**/api/ma-professor/access/opaque/login/${stage}`
+    let releaseRequest
+    let signalStarted
+    const requestStarted = new Promise(resolve => { signalStarted = resolve })
+    const stalledRequest = async route => {
+      await new Promise(resolve => { releaseRequest = resolve; signalStarted() })
+      await route.abort('timedout').catch(() => {})
+    }
+    await page.route(routePattern, stalledRequest)
+    await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
+    await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
+    await requestStarted
+    assert.equal(await unlock.getByRole('button', { name: 'A confirmar…', exact: true }).isEnabled(), false)
+    await page.clock.fastForward(30_000)
+    await unlock.getByRole('alert').filter({ hasText: 'demorou demasiado' }).waitFor({ state: 'visible' })
+    assert.equal(await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).isEnabled(), true)
+    assert.equal((await readCloudSession()).token, beforeUnlock.token)
+    assert.equal((await readCloudSession()).keyAvailable, false)
+    assert.deepEqual(await persistedLesson(page), first)
+    if (stage === 'start' && process.env.MA_PROFESSOR_PASSWORD_SCREENSHOTS) {
+      for (const width of [1366, 390]) {
+        await page.setViewportSize({ width, height: 900 })
+        await cloudPanel.screenshot({ path: join(process.env.MA_PROFESSOR_PASSWORD_SCREENSHOTS, `ma-professor-password-${width}.png`) })
+      }
+      await page.setViewportSize({ width: 1366, height: 900 })
+    }
+    releaseRequest()
+    await page.unroute(routePattern, stalledRequest)
+    await page.clock.resume()
+  }
+
   await unlock.getByLabel('Password pessoal').fill('Wrong-password-123!')
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.getByRole('alert').waitFor({ state: 'visible' })
@@ -1021,7 +1055,10 @@ try {
     oldStatusStarted,
     delay(20_000, null, { ref: false }).then(() => { throw new Error('The old-session status request did not start.') })
   ])
-  await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
+  // A password manager may fill the native field without updating React state.
+  await unlock.getByLabel('Password pessoal').evaluate((input, password) => {
+    input.value = password
+  }, PERSONAL_PASSWORD)
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.waitFor({ state: 'hidden' })
 
@@ -1033,6 +1070,7 @@ try {
   assert.equal((await readCloudSession()).preference, 'enabled', 'A confirmação da password não pode alterar a escolha anterior.')
   await prepareBackupButton.waitFor({ state: 'visible' })
   assert.equal(await prepareBackupButton.isEnabled(), true)
+  await cloudPanel.getByRole('status').filter({ hasText: 'Password confirmada.' }).waitFor({ state: 'visible' })
   await cloudPanel.getByRole('button', { name: 'Desativar lembretes de cópia', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'disabled')
   releaseOldStatus()
@@ -1087,7 +1125,7 @@ try {
   assert.equal((await readCloudSession()).preference, 'disabled')
 
   // A reminder never accesses the cloud until the professor explicitly chooses Sim.
-  await page.clock.install({ time: new Date(FIXED_NOW) })
+  await page.clock.setSystemTime(new Date(FIXED_NOW))
   await page.evaluate(async () => {
     const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
     const preference = await import('/src/components/ma-professor/sync/cloudBackupPreference.ts')
@@ -1196,6 +1234,7 @@ try {
   await unlock.waitFor({ state: 'hidden' })
   assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
   assert.equal((await readCloudSession()).preference, 'disabled')
+  await cloudPanel.getByRole('status').filter({ hasText: 'Pode agora confirmar o envio da cópia preparada.' }).waitFor({ state: 'visible' })
   assert.deepEqual(await persistedLesson(page), afterReload)
 
   await page.evaluate(async () => {
