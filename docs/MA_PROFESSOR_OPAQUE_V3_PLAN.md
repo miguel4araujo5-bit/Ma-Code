@@ -1,6 +1,10 @@
 # MA-Professor — OPAQUE / Backup v3
 
-Estado atualizado em 22/09/2026: primeira cópia diretamente v3, reautenticação após reload e privacidade v2 explícita. Passo 13 implementado na `main`.  O gate final exige uma execução integral do workflow (não apenas um run documental com passos condicionais ignorados). A autenticação OPAQUE e o corte 12B estão integrados; cópias v2 existentes são promovidas para v3 apenas quando o professor inicia explicitamente uma cópia manual. Leitura, restauro e escrita suportam v2/v3; após promoção, a escrita usa exclusivamente o caminho v3 sem `/key`.
+Estado do código em 29/09/2026: a baseline atual é **v3-only**. O Worker permite `/status`, `/get`, `/initialize-v3` e `/push-v3`; `/key` e a promoção pública v2 já não fazem parte do contrato. A primeira cópia é criada em v3 e o acesso às chaves após reload exige reautenticação OPAQUE. Não alterar parâmetros OPAQUE nem remover colunas históricas sem análise de compatibilidade.
+
+O restante documento conserva o **histórico do plano de migração de 22/09/2026**. As referências a v2, endpoints legados e passos futuros abaixo descrevem esse plano histórico, não o comportamento operacional atual. Para o contrato atual, consultar [o estado de privacidade](MA_PROFESSOR_BACKUP_PRIVACY_STATUS.md). A confirmação de deployment, migrations e versões dos perfis no D1 de produção continua no ponto V-02 da [lista de auditoria](audits/ma-professor-pendencias.md); código v3-only não prova, por si só, a limpeza de dados legados em produção.
+
+## Plano histórico de migração — 22/09/2026
 
 ## Objetivo
 

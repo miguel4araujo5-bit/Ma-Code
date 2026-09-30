@@ -249,6 +249,9 @@ const dbStubUrl = transpile(`
   }
 `)
 
+const draftsStubUrl = transpile('export async function clearMAProfessorDailyDrafts() {}')
+const changedErrorStubUrl = transpile('export class MAProfessorLocalSnapshotChangedError extends Error {}')
+
 const repositoryRuntimeSource =
   repositorySource
     .replaceAll(
@@ -259,6 +262,8 @@ const repositoryRuntimeSource =
       "'./backupValidation'",
       `'${validationUrl}'`
     )
+    .replaceAll("'../daily/dailyDraftStorage'", `'${draftsStubUrl}'`)
+    .replaceAll("'../sync/guardedSnapshotRestore'", `'${changedErrorStubUrl}'`)
 
 const repository = await import(
   transpile(repositoryRuntimeSource)

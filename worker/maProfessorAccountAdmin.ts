@@ -485,7 +485,8 @@ async function createAccountId(
 async function assertCloudAccountDataDeleted(
   env:
     MaProfessorAccountAdminEnv,
-  accountIds: string[]
+  accountIds: string[],
+  hasSupportSchema: boolean
 ) {
   const placeholders =
     accountIds
@@ -497,6 +498,7 @@ async function assertCloudAccountDataDeleted(
       )
 
   const tables = [
+    ...(hasSupportSchema ? ['ma_professor_support_tickets'] : []),
     'ma_professor_encrypted_records',
     'ma_professor_sync_devices',
     'ma_professor_sync_profiles'
@@ -540,6 +542,13 @@ async function deleteCloudAccountData(
     MaProfessorAccountAdminEnv,
   emails: string[]
 ) {
+  const supportSchema = await env.MA_PROFESSOR_DB.prepare(
+    "SELECT COUNT(*) AS support_tables FROM sqlite_master WHERE type = 'table' AND name IN ('ma_professor_support_tickets', 'ma_professor_support_messages')"
+  ).first<{ support_tables: number }>()
+  if (!supportSchema || ![0, 2].includes(Number(supportSchema.support_tables))) {
+    throw new Error('Não foi possível confirmar o esquema dos pedidos de apoio antes da eliminação.')
+  }
+  const hasSupportSchema = Number(supportSchema.support_tables) === 2
   const accountIds =
     await Promise.all(
       emails.map(
@@ -560,6 +569,12 @@ async function deleteCloudAccountData(
     await env
       .MA_PROFESSOR_DB
       .batch([
+        ...(hasSupportSchema ? [env.MA_PROFESSOR_DB.prepare(
+          `DELETE FROM ma_professor_support_messages WHERE ticket_id IN (SELECT id FROM ma_professor_support_tickets WHERE account_id IN (${placeholders}))`
+        ).bind(...accountIds),
+        env.MA_PROFESSOR_DB.prepare(
+          `DELETE FROM ma_professor_support_tickets WHERE account_id IN (${placeholders})`
+        ).bind(...accountIds)] : []),
         env
           .MA_PROFESSOR_DB
           .prepare(
@@ -590,7 +605,7 @@ async function deleteCloudAccountData(
 
   if (
     results.length !==
-      3 ||
+      (hasSupportSchema ? 5 : 3) ||
     results.some(
       result =>
         result.success !==
@@ -604,7 +619,8 @@ async function deleteCloudAccountData(
 
   await assertCloudAccountDataDeleted(
     env,
-    accountIds
+    accountIds,
+    hasSupportSchema
   )
 }
 

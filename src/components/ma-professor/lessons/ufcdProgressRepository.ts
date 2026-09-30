@@ -167,7 +167,7 @@ function getLastCountedLessonDate(
           )
       )
       .sort(compareLessonsChronologically)
-      .at(-1)?.date ?? null
+      .slice(-1)[0]?.date ?? null
   )
 }
 

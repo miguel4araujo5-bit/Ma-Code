@@ -294,6 +294,13 @@ async function sha256Base64(
   )
 }
 
+export class MAProfessorCloudBackupPermanentError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'MAProfessorCloudBackupPermanentError'
+  }
+}
+
 async function postJson(
   path: string,
   body: Record<string, unknown>,
@@ -308,7 +315,7 @@ async function postJson(
       .byteLength >
     MAX_REQUEST_BYTES
   ) {
-    throw new Error(
+    throw new MAProfessorCloudBackupPermanentError(
       'A cópia cifrada ultrapassa o limite permitido para o envio online.'
     )
   }
@@ -378,6 +385,9 @@ async function postJson(
       )
     }
 
+    if (response.status >= 400 && response.status < 500 && ![408, 429].includes(response.status)) {
+      throw new MAProfessorCloudBackupPermanentError(message)
+    }
     throw new Error(message)
   }
 

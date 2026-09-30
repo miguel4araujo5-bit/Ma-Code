@@ -14,6 +14,29 @@ const MAX_BODY_BYTES = 16_000
 const MAX_SUBJECT_LENGTH = 160
 const MAX_MESSAGE_LENGTH = 5_000
 const MAX_OPEN_TICKETS = 10
+const MESSAGE_PAGE_SIZE = 30
+const MAX_PROFESSOR_MESSAGES_PER_DAY = 40
+const MAX_MESSAGES_PER_TICKET = 200
+const MAX_MESSAGES_PER_ACCOUNT = 500
+
+// Conta apenas a janela necessária e reutiliza os índices já existentes.
+const PROFESSOR_MESSAGE_QUOTA_SQL = `
+  SELECT COUNT(*) FROM (
+    SELECT m.id FROM ma_professor_support_tickets t
+    JOIN ma_professor_support_messages m ON m.ticket_id = t.id
+    WHERE t.account_id = ? AND m.author_role = 'professor' AND m.created_at >= ?
+    LIMIT ${MAX_PROFESSOR_MESSAGES_PER_DAY}
+  )
+`
+
+const ACCOUNT_MESSAGE_QUOTA_SQL = `
+  SELECT COUNT(*) FROM (
+    SELECT m.id FROM ma_professor_support_tickets t
+    JOIN ma_professor_support_messages m ON m.ticket_id = t.id
+    WHERE t.account_id = ?
+    LIMIT ${MAX_MESSAGES_PER_ACCOUNT}
+  )
+`
 
 const TICKET_CATEGORIES = new Set([
   'getting-started',
@@ -522,7 +545,8 @@ async function getTicketById(
 
 async function getTicketMessages(
   env: MaProfessorSupportTicketEnv,
-  ticketId: string
+  ticketId: string,
+  before?: { createdAt: number; id: string }
 ) {
   const result =
     await env.MA_PROFESSOR_DB
@@ -536,13 +560,66 @@ async function getTicketMessages(
             created_at
           FROM ma_professor_support_messages
           WHERE ticket_id = ?
-          ORDER BY created_at ASC, id ASC
+            AND (created_at < ? OR (created_at = ? AND id < ?))
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${MESSAGE_PAGE_SIZE + 1}
         `
       )
-      .bind(ticketId)
+      .bind(ticketId, before?.createdAt ?? Number.MAX_SAFE_INTEGER, before?.createdAt ?? Number.MAX_SAFE_INTEGER, before?.id ?? '')
       .all<SupportMessageRow>()
 
-  return result.results || []
+  const rows = result.results || []
+  const page = rows.slice(0, MESSAGE_PAGE_SIZE)
+  const oldest = page[page.length - 1]
+  return {
+    messages: page.reverse(),
+    nextCursor: rows.length > MESSAGE_PAGE_SIZE && oldest
+      ? { createdAt: oldest.created_at, id: oldest.id }
+      : null
+  }
+}
+
+async function confirmSupportWriteSession(
+  body: JsonObject,
+  env: MaProfessorSupportTicketEnv,
+  accountId: string,
+  undo: () => Promise<D1RunResultLike | D1RunResultLike[]>
+) {
+  // Uma criação já autenticada pode chegar ao D1 depois da limpeza de conta.
+  // Verificar após a escrita fecha essa janela; se a sessão foi revogada,
+  // retirar apenas os novos registos desta operação antes de responder.
+  try {
+    const current = await verifyAccessSession(body, env)
+    if (current.accountId !== accountId) {
+      throw new SupportTicketApiError('A sessão do pedido já não é válida.', 401)
+    }
+  } catch (error) {
+    const cleanup = await undo()
+    const results = Array.isArray(cleanup) ? cleanup : [cleanup]
+    if (results.some(result => !result || result.success !== true)) {
+      throw new SupportTicketApiError('A sessão foi revogada, mas não foi possível confirmar a limpeza do pedido interrompido. Repita a eliminação administrativa da conta.', 500)
+    }
+    throw error
+  }
+}
+
+function readMessageCursor(value: unknown) {
+  if (value === undefined || value === null) return undefined
+  const cursor = value as { createdAt?: unknown; id?: unknown }
+  if (!cursor || typeof cursor !== 'object' || !Number.isSafeInteger(cursor.createdAt) || Number(cursor.createdAt) < 0 || typeof cursor.id !== 'string' || !cursor.id || cursor.id.length > 120) {
+    throw new SupportTicketApiError('A página de mensagens pedida não é válida.', 400)
+  }
+  return { createdAt: Number(cursor.createdAt), id: cursor.id }
+}
+
+function readAdminMessageCursor(request: Request) {
+  const value = new URL(request.url).searchParams.get('before')
+  if (value === null) return undefined
+  try {
+    return readMessageCursor(JSON.parse(value))
+  } catch {
+    throw new SupportTicketApiError('A página de mensagens pedida não é válida.', 400)
+  }
 }
 
 async function handleCreateTicket(
@@ -633,7 +710,10 @@ async function handleCreateTicket(
               created_at,
               updated_at,
               closed_at
-            ) VALUES (?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, NULL)
+            ) SELECT ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, NULL
+              WHERE (SELECT COUNT(*) FROM ma_professor_support_tickets WHERE account_id = ? AND status != 'closed') < ${MAX_OPEN_TICKETS}
+                AND (${PROFESSOR_MESSAGE_QUOTA_SQL}) < ${MAX_PROFESSOR_MESSAGES_PER_DAY}
+                AND (${ACCOUNT_MESSAGE_QUOTA_SQL}) < ${MAX_MESSAGES_PER_ACCOUNT}
           `
         )
         .bind(
@@ -658,7 +738,11 @@ async function handleCreateTicket(
             120
           ),
           now,
-          now
+          now,
+          accountId,
+          accountId,
+          now - 24 * 60 * 60 * 1000,
+          accountId
         ),
       env.MA_PROFESSOR_DB
         .prepare(
@@ -669,14 +753,17 @@ async function handleCreateTicket(
               author_role,
               body,
               created_at
-            ) VALUES (?, ?, 'professor', ?, ?)
+            ) SELECT ?, ?, 'professor', ?, ?
+              WHERE EXISTS (SELECT 1 FROM ma_professor_support_tickets WHERE id = ? AND account_id = ?)
           `
         )
         .bind(
           messageId,
           ticketId,
           message,
-          now
+          now,
+          ticketId,
+          accountId
         )
     ])
 
@@ -691,6 +778,15 @@ async function handleCreateTicket(
       500
     )
   }
+
+  if (result[0].meta?.changes !== 1 || result[1].meta?.changes !== 1) {
+    throw new SupportTicketApiError('Foi atingido o limite de dez pedidos abertos, de 40 envios nas últimas 24 horas ou de 500 mensagens no histórico da conta. Continue num pedido existente ou contacte o apoio por email se o histórico estiver completo.', 429)
+  }
+
+  await confirmSupportWriteSession(body, env, accountId, () => env.MA_PROFESSOR_DB.batch([
+    env.MA_PROFESSOR_DB.prepare('DELETE FROM ma_professor_support_messages WHERE ticket_id = ?').bind(ticketId),
+    env.MA_PROFESSOR_DB.prepare('DELETE FROM ma_professor_support_tickets WHERE id = ? AND account_id = ?').bind(ticketId, accountId)
+  ]))
 
   const created =
     await getOwnedTicket(
@@ -775,7 +871,8 @@ async function handleTicketDetail(
   const messages =
     await getTicketMessages(
       env,
-      ticketId
+      ticketId,
+      readMessageCursor(body.before)
     )
 
   return {
@@ -783,7 +880,8 @@ async function handleTicketDetail(
     ticket:
       publicTicket(ticket),
     messages:
-      messages.map(publicMessage)
+      messages.messages.map(publicMessage),
+    nextCursor: messages.nextCursor
   }
 }
 
@@ -842,14 +940,24 @@ async function handleProfessorReply(
               author_role,
               body,
               created_at
-            ) VALUES (?, ?, 'professor', ?, ?)
+            ) SELECT ?, ?, 'professor', ?, ?
+              WHERE EXISTS (SELECT 1 FROM ma_professor_support_tickets WHERE id = ? AND account_id = ? AND status != 'closed')
+                AND (${PROFESSOR_MESSAGE_QUOTA_SQL}) < ${MAX_PROFESSOR_MESSAGES_PER_DAY}
+                AND (SELECT COUNT(*) FROM (SELECT id FROM ma_professor_support_messages WHERE ticket_id = ? LIMIT ${MAX_MESSAGES_PER_TICKET})) < ${MAX_MESSAGES_PER_TICKET}
+                AND (${ACCOUNT_MESSAGE_QUOTA_SQL}) < ${MAX_MESSAGES_PER_ACCOUNT}
           `
         )
         .bind(
           messageId,
           ticketId,
           message,
-          now
+          now,
+          ticketId,
+          accountId,
+          accountId,
+          now - 24 * 60 * 60 * 1000,
+          ticketId,
+          accountId
         ),
       env.MA_PROFESSOR_DB
         .prepare(
@@ -861,12 +969,15 @@ async function handleProfessorReply(
             WHERE id = ?
               AND account_id = ?
               AND status != 'closed'
+              AND EXISTS (SELECT 1 FROM ma_professor_support_messages WHERE id = ? AND ticket_id = ?)
           `
         )
         .bind(
           now,
           ticketId,
-          accountId
+          accountId,
+          messageId,
+          ticketId
         )
     ])
 
@@ -881,6 +992,14 @@ async function handleProfessorReply(
       500
     )
   }
+
+  if (result[0].meta?.changes !== 1 || result[1].meta?.changes !== 1) {
+    throw new SupportTicketApiError('A mensagem não foi enviada. Atualize o pedido: pode ter sido fechado ou atingido o limite de 200 mensagens na conversa, 40 envios nas últimas 24 horas ou 500 mensagens na conta. Se o histórico da conta estiver completo, contacte o apoio por email.', 429)
+  }
+
+  await confirmSupportWriteSession(body, env, accountId, () =>
+    env.MA_PROFESSOR_DB.prepare('DELETE FROM ma_professor_support_messages WHERE id = ? AND ticket_id = ?').bind(messageId, ticketId).run()
+  )
 
   return handleTicketDetail(
     {
@@ -1141,7 +1260,8 @@ export async function handleMAProfessorSupportTicketAdminRequest(
       const messages =
         await getTicketMessages(
           env,
-          ticketId
+          ticketId,
+          readAdminMessageCursor(request)
         )
 
       return json({
@@ -1151,7 +1271,8 @@ export async function handleMAProfessorSupportTicketAdminRequest(
           accountId: ticket.account_id
         },
         messages:
-          messages.map(publicMessage)
+          messages.messages.map(publicMessage),
+        nextCursor: messages.nextCursor
       })
     }
 
@@ -1304,14 +1425,20 @@ export async function handleMAProfessorSupportTicketAdminRequest(
                 author_role,
                 body,
                 created_at
-              ) VALUES (?, ?, 'admin', ?, ?)
+              ) SELECT ?, ?, 'admin', ?, ?
+                WHERE EXISTS (SELECT 1 FROM ma_professor_support_tickets WHERE id = ? AND status != 'closed')
+                  AND (${ACCOUNT_MESSAGE_QUOTA_SQL}) < ${MAX_MESSAGES_PER_ACCOUNT}
+                  AND (SELECT COUNT(*) FROM (SELECT id FROM ma_professor_support_messages WHERE ticket_id = ? LIMIT ${MAX_MESSAGES_PER_TICKET})) < ${MAX_MESSAGES_PER_TICKET}
             `
           )
           .bind(
             messageId,
             ticketId,
             message,
-            now
+            now,
+            ticketId,
+            ticket.account_id,
+            ticketId
           ),
         env.MA_PROFESSOR_DB
           .prepare(
@@ -1321,10 +1448,14 @@ export async function handleMAProfessorSupportTicketAdminRequest(
                   updated_at = ?,
                   closed_at = NULL
               WHERE id = ?
+                AND status != 'closed'
+                AND EXISTS (SELECT 1 FROM ma_professor_support_messages WHERE id = ? AND ticket_id = ?)
             `
           )
           .bind(
             now,
+            ticketId,
+            messageId,
             ticketId
           )
       ])
@@ -1339,6 +1470,10 @@ export async function handleMAProfessorSupportTicketAdminRequest(
         'Não foi possível guardar a resposta.',
         500
       )
+    }
+
+    if (result[0].meta?.changes !== 1 || result[1].meta?.changes !== 1) {
+      throw new SupportTicketApiError('Este pedido foi fechado ou atingiu o limite de mensagens da conversa ou da conta. A resposta não foi enviada.', 429)
     }
 
     const messages =
@@ -1362,7 +1497,8 @@ export async function handleMAProfessorSupportTicketAdminRequest(
           }
         : null,
       messages:
-        messages.map(publicMessage)
+        messages.messages.map(publicMessage),
+      nextCursor: messages.nextCursor
     })
   } catch (error) {
     if (

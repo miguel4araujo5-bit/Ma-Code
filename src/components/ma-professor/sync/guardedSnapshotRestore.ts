@@ -36,9 +36,11 @@ export function createMAProfessorSnapshotContentSignature(
 
 export class MAProfessorLocalSnapshotChangedError
   extends Error {
-  constructor() {
+  constructor(source: 'online' | 'local' = 'online') {
     super(
-      'Os dados deste dispositivo foram alterados depois da comparação. Por segurança, nada foi substituído. Compare novamente com a cópia online antes de restaurar.'
+      source === 'local'
+        ? 'Os dados deste dispositivo foram alterados depois da pré-visualização. Nada foi substituído. Escolha novamente o ficheiro e reveja os dados antes de restaurar.'
+        : 'Os dados deste dispositivo foram alterados depois da comparação. Por segurança, nada foi substituído. Compare novamente com a cópia online antes de restaurar.'
     )
 
     this.name =

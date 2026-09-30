@@ -63,7 +63,7 @@ function getCompletionDate(snapshot: AssessmentWorkspaceSnapshot) {
     )
     .sort()
 
-  const latest = dates.at(-1)
+  const latest = dates.slice(-1)[0]
   if (!latest) return ''
 
   const date = new Date(latest)

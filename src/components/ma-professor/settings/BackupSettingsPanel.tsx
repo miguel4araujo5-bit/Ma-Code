@@ -3,6 +3,10 @@ import {
   useState
 } from 'react'
 
+import { useMAProfessorAccess } from '../access/AccessGate'
+import { writeCloudBackupPreference } from '../sync/cloudBackupPreference'
+import { clearMAProfessorCloudBackupTrust } from '../sync/cloudBackupTrust'
+
 import {
   createMAProfessorBackup,
   getBackupFileName,
@@ -60,6 +64,7 @@ export function BackupSettingsPanel({
   onDataChanged,
   initialSection = 'protection'
 }: BackupSettingsPanelProps) {
+  const { session } = useMAProfessorAccess()
   const [
     busy,
     setBusy
@@ -259,6 +264,10 @@ export function BackupSettingsPanel({
       void run(
         'reset',
         async () => {
+          if (!writeCloudBackupPreference(session, 'disabled')) {
+            throw new Error('Não foi possível suspender a cópia automática. Por segurança, os dados locais não foram apagados.')
+          }
+          clearMAProfessorCloudBackupTrust(session)
           await resetMAProfessorDatabase()
           setResetConfirmation('')
           onDataChanged?.()
@@ -455,7 +464,7 @@ export function BackupSettingsPanel({
 
             <div className="mt-4 border-t border-rose-400/10 pt-4">
               <p className="text-sm leading-6 text-slate-400">
-                Esta operação não pode ser anulada. Confirme que tem uma cópia de segurança antes de continuar.
+                Esta operação elimina os dados escolares e os rascunhos deste browser e desativa a cópia automática neste dispositivo. A cópia online é conservada. Confirme que tem uma cópia de segurança antes de continuar.
               </p>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">

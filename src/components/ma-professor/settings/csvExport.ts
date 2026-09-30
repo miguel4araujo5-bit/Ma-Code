@@ -1,9 +1,14 @@
 import type { MAProfessorBackupData } from '../types'
 
 function escapeCsv(value: unknown) {
-  const text = value === null || value === undefined
+  let text = value === null || value === undefined
     ? ''
     : String(value)
+
+  // Aspas CSV não impedem que uma folha de cálculo interprete fórmulas.
+  if (typeof value === 'string' && (/^\s*[=+@\-＝＋＠－]/u.test(text) || /^[\t\r\n]/.test(text))) {
+    text = `'${text}`
+  }
 
   return `"${text.replace(/"/g, '""')}"`
 }
@@ -203,8 +208,8 @@ export function exportGradesCsv(
       'Aluno',
       'Número',
       'UFCD/Módulo',
-      'Média calculada',
-      'Nota sugerida',
+      'Média calculada na confirmação',
+      'Nota sugerida na confirmação',
       'ACS',
       'Autoavaliação',
       'Nota final',

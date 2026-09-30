@@ -15,6 +15,9 @@ import {
   validateMAProfessorBackupDataIntegrity
 } from './backupValidation'
 
+import { clearMAProfessorDailyDrafts } from '../daily/dailyDraftStorage'
+import { MAProfessorLocalSnapshotChangedError } from '../sync/guardedSnapshotRestore'
+
 const DATA_KEYS: Array<keyof MAProfessorBackupData> = [
   'teacherProfiles',
   'academicYears',
@@ -95,7 +98,23 @@ function canonicalizeBackupCollection(
       left.id.localeCompare(
         right.id
       )
-  )
+  ).map(canonicalizeBackupValue)
+}
+
+function canonicalizeBackupValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalizeBackupValue)
+  if (isRecord(value)) {
+    return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalizeBackupValue(value[key])]))
+  }
+  return value
+}
+
+export function canonicalizeMAProfessorBackupData(data: MAProfessorBackupData) {
+  return Object.fromEntries(DATA_KEYS.map(key => [key, canonicalizeBackupCollection(data[key])]))
+}
+
+export function createMAProfessorLocalBackupSignature(backup: MAProfessorBackup) {
+  return JSON.stringify(canonicalizeMAProfessorBackupData(backup.data))
 }
 
 async function readRestoredBackupData() {
@@ -467,7 +486,8 @@ async function ensureDefaultSettingsInCurrentTransaction() {
 }
 
 export async function restoreMAProfessorBackup(
-  backup: MAProfessorBackup
+  backup: MAProfessorBackup,
+  expectedLocalContentSignature?: string
 ) {
   const validation = validateMAProfessorBackup(backup)
 
@@ -483,19 +503,23 @@ export async function restoreMAProfessorBackup(
     'rw',
     maProfessorDb.tables,
     async () => {
+      if (expectedLocalContentSignature !== undefined) {
+        const current = await createMAProfessorBackup()
+        if (createMAProfessorLocalBackupSignature(current) !== expectedLocalContentSignature) {
+          throw new MAProfessorLocalSnapshotChangedError('local')
+        }
+      }
       await clearAllTables()
       await putBackupData(backup.data)
       await ensureDefaultSettingsInCurrentTransaction()
+      await verifyRestoredBackup(backup)
     }
-  )
-
-  await verifyRestoredBackup(
-    backup
   )
 }
 
 export async function resetMAProfessorDatabase() {
   await openMAProfessorDatabase()
+  await clearMAProfessorDailyDrafts()
 
   await maProfessorDb.transaction(
     'rw',

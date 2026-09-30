@@ -80,7 +80,7 @@ export function summarizeLearningRecoveryAttempts(
     null
 
   const latestAttempt =
-    attempts.at(-1) ?? null
+    attempts.slice(-1)[0] ?? null
 
   const latestAllowsAnotherAttempt =
     latestAttempt !== null &&

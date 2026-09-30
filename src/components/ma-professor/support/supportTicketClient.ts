@@ -51,6 +51,11 @@ export interface SupportTicketMessage {
   createdAt: string
 }
 
+export interface SupportMessageCursor {
+  createdAt: number
+  id: string
+}
+
 interface ApiErrorBody {
   success?: boolean
   message?: unknown
@@ -227,15 +232,18 @@ export async function listSupportTickets() {
 }
 
 export async function getSupportTicket(
-  ticketId: string
+  ticketId: string,
+  before?: SupportMessageCursor
 ) {
   return postSupport<{
     success: true
     ticket: SupportTicket
     messages: SupportTicketMessage[]
+    nextCursor: SupportMessageCursor | null
   }>(
     'detail',
     {
+      before,
       ticketId:
         normalizeText(
           ticketId,
@@ -253,6 +261,7 @@ export async function replySupportTicket(
     success: true
     ticket: SupportTicket
     messages: SupportTicketMessage[]
+    nextCursor: SupportMessageCursor | null
   }>(
     'reply',
     {

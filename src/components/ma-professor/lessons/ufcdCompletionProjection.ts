@@ -212,7 +212,7 @@ export function projectSequentialUfcdCompletionDates(
   return {
     modules,
     disciplineCompletionDate:
-      modules.at(-1)
+      modules.slice(-1)[0]
         ?.estimatedCompletionDate ??
       null
   }

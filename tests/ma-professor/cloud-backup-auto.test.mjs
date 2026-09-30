@@ -205,7 +205,7 @@ test(
     )
     assert.match(
       trust,
-      /product: backup\.product, schemaVersion: backup\.schemaVersion, data: backup\.data/
+      /product: backup\.product, schemaVersion: backup\.schemaVersion, data: canonicalizeMAProfessorBackupData\(backup\.data\)/
     )
     assert.doesNotMatch(
       trust,

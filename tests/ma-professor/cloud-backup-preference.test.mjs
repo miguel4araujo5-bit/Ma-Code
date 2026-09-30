@@ -27,6 +27,8 @@ async function stage(
       )
     )
 
+  await writeFile(join(directory, 'backup.mjs'), 'export const canonicalizeMAProfessorBackupData = data => data')
+
   t.after(() =>
     rm(
       directory,
@@ -50,6 +52,8 @@ async function stage(
         ),
         'utf8'
       )
+
+    source = source.replaceAll("'../settings/backupRepository'", "'./backup.mjs'")
 
     for (
       const [from, to]
@@ -397,7 +401,7 @@ async function automaticHarness(
 
   await files.write(
     'backup.mjs',
-    "export async function createMAProfessorBackup() { return { product: 'ma-professor', schemaVersion: 1, data: { students: [{ name: 'Test' }] } } }"
+    "export const canonicalizeMAProfessorBackupData = data => data; export async function createMAProfessorBackup() { return { product: 'ma-professor', schemaVersion: 1, data: { students: [{ name: 'Test' }] } } }"
   )
 
   await files.write(
@@ -437,6 +441,7 @@ async function automaticHarness(
           window.dispatchEvent(new window.CustomEvent(MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, { detail: email }))
         }
       }
+      export class MAProfessorCloudBackupPermanentError extends Error {}
       export class MAProfessorCloudBackupRevisionConflictError extends Error {}
       export async function inspectMAProfessorCloudBackup() {
         calls.inspect++

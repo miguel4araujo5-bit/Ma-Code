@@ -1,0 +1,237 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile, readdir, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { DatabaseSync } from 'node:sqlite';
+import { build } from 'esbuild';
+import { JSDOM } from 'jsdom';
+import 'fake-indexeddb/auto';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+
+const root = fileURLToPath(new URL('../../', import.meta.url));
+await mkdir(join(root, 'node_modules/.cache'), {recursive:true});
+const savedClock = Date.now, savedSetTimeout = globalThis.setTimeout, savedClearTimeout = globalThis.clearTimeout;
+const out = await mkdtemp(join(root, 'node_modules/.cache/audit-regression-'));
+const restoreGlobals = {};
+for (const key of ['window','document','Element','HTMLElement','Node','CustomEvent','Event','navigator','__audit']) restoreGlobals[key] = Object.getOwnPropertyDescriptor(globalThis,key);
+try {
+const report = [];
+const record = (id, evidence) => { report.push({id, evidence}); console.log(id, JSON.stringify(evidence)); };
+const bundle = async (contents, name, plugins = []) => {
+  const b = await build({stdin:{contents,resolveDir:root,loader:'ts'},bundle:true,write:false,platform:'node',format:'cjs',packages:'external',plugins});
+  const path = join(out, `${name}.cjs`);
+  await writeFile(path,b.outputFiles[0].text);
+  return createRequire(import.meta.url)(path);
+};
+const base = './src/components/ma-professor/';
+const dom = new JSDOM('',{url:'https://audit.example.test'});
+for(const key of ['window','document','Element','HTMLElement','Node','CustomEvent','Event']) globalThis[key] = key === 'window' ? dom.window : dom.window[key];
+Object.defineProperty(globalThis,'navigator',{configurable:true,value:dom.window.navigator});
+Object.defineProperty(window,'indexedDB',{value:globalThis.indexedDB});
+const r = await bundle(`export * from '${base}settings/backupRepository'; export * from '${base}sync/cloudBackupTrust'; export * from '${base}sync/cloudBackupPreference'; export * from '${base}sync/guardedSnapshotRestore'; export * from '${base}sync/databaseSnapshotService'; export * from '${base}settings/csvExport'; export * from '${base}db'; export * from '${base}daily/dailyDraftStorage'; export * from '${base}assessments/assessmentWorkspaceRepository'; export * from '${base}assessments/assessmentCriteriaManagementRepository';`,'audit-real');
+const db = r.maProfessorDb;
+await db.open();
+const stamp = {createdAt:'2026-09-28T10:00:00.000Z',updatedAt:'2026-09-28T10:00:00.000Z'};
+await db.academicYears.add({id:'year',name:'2026/2027',startDate:'2026-09-01',endDate:'2027-08-31',active:true,setupCompletedAt:null,...stamp});
+await db.groups.add({id:'group',academicYearId:'year',name:'10.º D',educationType:'professional',grade:10,courseName:'TAP',active:true,...stamp});
+await db.subjects.add({id:'subject',academicYearId:'year',name:'Expressões',shortName:'AE',code:'AE',active:true,...stamp});
+await db.teachingAssignments.add({id:'assignment',academicYearId:'year',groupId:'group',subjectId:'subject',displayName:'AE',active:true,...stamp});
+await db.modules.add({id:'module',academicYearId:'year',teachingAssignmentId:'assignment',code:'10385',name:'Expressão',plannedPeriods:50,order:1,plannedStartDate:null,plannedEndDate:null,active:true,...stamp});
+const lesson = {id:'lesson',academicYearId:'year',teachingAssignmentId:'assignment',moduleId:'module',scheduleSlotId:null,origin:'extra',status:'taught',date:'2026-09-28',startTime:'09:00',endTime:'09:50',periodCount:1,countTowardProgress:true,plannedActivity:'',summary:'Sumário da cópia',summarySource:'manual',planificationItemIds:[],giaeStatus:'pending',giaeSubmittedAt:null,notes:'',...stamp};
+await db.lessons.add(lesson);
+const backup = await r.createMAProfessorBackup();
+assert.equal(r.validateMAProfessorBackup(backup).valid,true,JSON.stringify(r.validateMAProfessorBackup(backup)));
+const preview = await r.createMAProfessorDatabaseSnapshot();
+const localSignature = r.createMAProfessorLocalBackupSignature(backup);
+await db.lessons.update('lesson',{summary:'Sumário novo guardado depois da pré-visualização'});
+await assert.rejects(r.restoreMAProfessorBackup(backup,localSignature), {name:'MAProfessorLocalSnapshotChangedError'});
+assert.equal((await db.lessons.get('lesson')).summary,'Sumário novo guardado depois da pré-visualização');
+record('LOCAL_RESTORE_GUARDED',{newSummaryPreserved:true});
+await r.restoreMAProfessorBackup(backup);
+await db.lessons.update('lesson',{summary:'Novo novamente'});
+let prevented = false;
+try {await r.restoreMAProfessorDatabaseSnapshotIfLocalUnchanged(preview,r.createMAProfessorSnapshotContentSignature(preview));} catch(e) {prevented=e.name==='MAProfessorLocalSnapshotChangedError';}
+assert.equal(prevented,true);
+record('ONLINE_GUARD_CONTROL',{sameConcurrentEditRejected:true});
+
+const draft = {accountEmail:'audit@example.test',academicYearId:'year',lessonId:'lesson',date:'2026-09-28',baseSavedSignature:'base',draftSignature:'edited',assessmentIdToDelete:null,lesson:{status:'taught',startTime:'09:00',endTime:'09:50',periodCount:'1',countTowardProgress:true,plannedActivity:'',summary:'Rascunho sensível',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending'},assessment:{choice:'none',criterionId:'',title:'',activityType:'other',description:''},students:[]};
+await r.saveMAProfessorDailyDraft(draft);
+await r.resetMAProfessorDatabase();
+const retained = await r.readMAProfessorDailyDraft('audit@example.test','year','lesson');
+assert.equal(retained,null);
+record('RESET_RETAINS_DRAFTS',{mainLessons:await db.lessons.count(),draftRemoved:true});
+
+const csv = r.exportStudentsCsv({...backup.data,students:[{id:'s',academicYearId:'year',groupId:'group',number:'1',name:'=1+1',notes:'+1+1',active:true}]});
+assert.equal(csv.includes('"=1+1"'),false);
+assert.equal(csv.includes('"\'=1+1"'),true);
+assert.equal(csv.includes('"\'+1+1"'),true);
+record('CSV_FORMULA',{formulaNeutralized:true});
+const reordered = structuredClone(backup);
+reordered.data.lessons=[lesson,{...lesson,id:'lesson-2'}];
+const reordered2 = structuredClone(reordered);
+reordered2.data.lessons.reverse();
+assert.equal(r.createMAProfessorBackupContentSignature(reordered),r.createMAProfessorBackupContentSignature(reordered2));
+reordered2.data.lessons[0].summary="Alteração real";
+assert.notEqual(r.createMAProfessorBackupContentSignature(reordered),r.createMAProfessorBackupContentSignature(reordered2));
+record('BACKUP_SIGNATURE_ORDER',{sameContentRecognized:true});
+
+await r.restoreMAProfessorBackup(backup);
+await db.students.add({id:'student',academicYearId:'year',groupId:'group',name:'Aluno de teste',number:'1',active:true,notes:'',...stamp});
+await db.assessmentSchemes.add({id:'scheme',academicYearId:'year',teachingAssignmentId:'assignment',moduleId:'module',scope:'module',name:'Critérios',active:true,...stamp});
+await db.assessmentCriteria.bulkAdd([10,20].map((score,i)=>({id:`c${i}`,schemeId:'scheme',name:`Critério ${i}`,description:'',weightPercent:50,order:i+1,active:true,...stamp})));
+await db.lessonAssessments.bulkAdd([10,20].map((score,i)=>({id:`a${i}`,academicYearId:'year',lessonId:'lesson',teachingAssignmentId:'assignment',moduleId:'module',criterionId:`c${i}`,title:`Avaliação ${i}`,activityType:'practical_work',description:'',absentScore:0,exemptScore:0,...stamp})));
+await db.assessmentResults.bulkAdd([10,20].map((score,i)=>({id:`r${i}`,assessmentId:`a${i}`,studentId:'student',status:'evaluated',score,note:'',...stamp})));
+const beforeWeights=await r.assessmentWorkspaceRepository.getWorkspace('year',{teachingAssignmentId:'assignment',moduleId:'module'});
+assert.equal(beforeWeights.studentRows[0].gradeSummary.provisionalAverage,15);
+await r.assessmentWorkspaceRepository.saveModuleFinalGrade({moduleId:'module',studentId:'student',finalGrade:15});
+await r.assessmentCriteriaManagementRepository.updateScheme({schemeId:'scheme',name:'Critérios',criteria:[{id:'c0',name:'Critério 0',description:'',weightPercent:90},{id:'c1',name:'Critério 1',description:'',weightPercent:10}]});
+const afterWeights=await r.assessmentWorkspaceRepository.getWorkspace('year',{teachingAssignmentId:'assignment',moduleId:'module'});
+const gradeCsv=r.exportGradesCsv((await r.createMAProfessorBackup()).data);
+assert.equal(gradeCsv.split('\r\n')[1].split(';')[3],'"15"');
+assert.ok(gradeCsv.includes('Média calculada na confirmação'));
+assert.equal(afterWeights.studentRows[0].gradeSummary.provisionalAverage,11);
+assert.equal(afterWeights.studentRows[0].finalGradeRecord.calculatedAverage,15);
+record('CSV_STALE_AVERAGE_AFTER_WEIGHTS',{currentAverage:11,exportedCalculatedAverage:15,confirmedFinalGradePreserved:15});
+
+// Real scheduler + real trust store; only React effects, timers, API and Dexie event source are controlled.
+let now = Date.parse('2026-09-29T12:00:00Z');
+const originalNow = Date.now;
+Date.now=()=>now;
+let timers = new Map(); let timerId=0; let effects=[]; let cleanups=[]; let listener;
+let finishUpload; let uploadError=null; let uploadCalls=0;
+let remoteRevision=1;
+let preference='enabled';
+globalThis.__audit={canonicalize:r.canonicalizeMAProfessorBackupData,session:{email:'audit@example.test',deviceId:'d',token:'t'},state:()=>{},preference:()=>preference,effect:(fn)=>effects.push(fn),on:(name, fn)=>{if(fn){listener=fn;return;} return {unsubscribe:()=>{listener=null;}};},status:()=>({serverRevision:remoteRevision,backup:{found:true}}),upload:async()=>{uploadCalls++;if(uploadError)throw uploadError;await new Promise(resolve=>finishUpload=resolve);remoteRevision++;return {serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now).toISOString()};},backup:()=>backup};
+const plugin={name:'audit-control',setup(b){b.onResolve({filter:/.*/},args=>{
+ if(args.path==='react'||args.path==='dexie'||/\/(db|AccessGate|cloudBackupPreference|cloudBackupService|accessStorage|backupRepository)$/.test(args.path))return {path:/cloudBackupService$/.test(args.path)?'/cloudBackupService':args.path,namespace:'audit'};
+ });b.onLoad({filter:/.*/,namespace:'audit'},args=>{let contents;
+ if(args.path==='react')contents='export const useState=(f)=>[typeof f==="function"?f():f,()=>{}]; export const useEffect=(f)=>globalThis.__audit.effect(f); export const useSyncExternalStore=()=>null;';
+ else if(args.path==='dexie')contents='export default {on:(...args)=>globalThis.__audit.on(...args)};';
+ else if(args.path.endsWith('/db'))contents='export const MA_PROFESSOR_DATABASE_NAME="ma-professor";';
+ else if(args.path.endsWith('AccessGate'))contents='export const useMAProfessorAccess=()=>({session:globalThis.__audit.session});';
+ else if(args.path.endsWith('cloudBackupPreference'))contents='export const readCloudBackupPreference=()=>globalThis.__audit.preference();export const useCloudBackupPreference=()=>globalThis.__audit.preference();';
+ else if(args.path.endsWith('accessStorage'))contents='export const readMAProfessorOpaqueExportKey=()=>"key"; export const MA_PROFESSOR_OPAQUE_KEY_EVENT="key-event";';
+ else if(args.path.endsWith('backupRepository'))contents='export const canonicalizeMAProfessorBackupData=(data)=>globalThis.__audit.canonicalize(data); export const createMAProfessorBackup=async()=>globalThis.__audit.backup();';
+ else contents='export class MAProfessorCloudBackupPermanentError extends Error{}; export class MAProfessorCloudBackupRevisionConflictError extends Error{};export class MAProfessorCloudBackupAuthenticationRequiredError extends Error{};export const inspectMAProfessorCloudBackup=async()=>globalThis.__audit.status();export const downloadMAProfessorCloudBackupV3=async()=>null;export const uploadAndVerifyCompatibleMAProfessorCloudBackup=(...args)=>globalThis.__audit.upload(...args);';
+ return {contents,loader:'js'};
+ });}};
+const auto=await bundle(`export {default as Component} from '${base}sync/AutomaticCloudBackup';export * from '${base}sync/cloudBackupTrust'; export {MAProfessorCloudBackupPermanentError} from '${base}sync/cloudBackupService';`,'audit-scheduler',[plugin]);
+const originalSet=globalThis.setTimeout,originalClear=globalThis.clearTimeout;
+globalThis.setTimeout=(fn,ms,...args)=>{if(ms<1000 || ms===undefined)return originalSet(fn,ms,...args);const id=++timerId;timers.set(id,{fn,due:now+ms});return id;};
+globalThis.clearTimeout=id=>{if(!timers.delete(id))originalClear(id);};
+const settle=async()=>{for(let i=0;i<35;i++)await Promise.resolve();};
+const mount=async()=>{effects=[];auto.Component();for(const f of effects){const c=f();if(c)cleanups.push(c);}await settle();};
+const unmount=()=>{for(const f of cleanups)f();cleanups=[];timers.clear();};
+const mutate=async()=>{listener({'idb://ma-professor/lessons/':{}});await settle();};
+const fire=async()=>{const [id,t]=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];now=Math.max(now,t.due);timers.delete(id);t.fn();await settle();};
+auto.writeMAProfessorCloudBackupTrust(__audit.session,{serverRevision:1,recordRevision:1,updatedAt:new Date(now-3600000).toISOString()});
+await mount();await mutate();await fire();assert.equal(uploadCalls,1);
+await mutate();assert.ok(auto.readMAProfessorCloudBackupTrust(__audit.session).dirtyAt);
+finishUpload();await settle();
+const trustAfter=auto.readMAProfessorCloudBackupTrust(__audit.session);
+assert.ok(trustAfter.dirtyAt);assert.ok(timers.size>0);
+unmount();await mount();
+assert.ok(timers.size>0);
+record('AUTO_DIRTY_PRESERVED',{dirtyAfterConcurrentMutation:trustAfter.dirtyAt,timersAfterReload:timers.size,uploadCalls});
+
+// A pending second upload may finish after the local reset. It must not re-arm trust.
+await fire();assert.equal(uploadCalls,2);
+assert.equal(r.writeCloudBackupPreference(__audit.session,'disabled'),true);
+preference='disabled';
+auto.clearMAProfessorCloudBackupTrust(__audit.session);
+await r.resetMAProfessorDatabase();
+assert.equal(r.readCloudBackupPreference(__audit.session),'disabled');
+const resetBackup=await r.createMAProfessorBackup();
+assert.equal(r.validateMAProfessorBackup(resetBackup).valid,true);
+assert.equal(resetBackup.data.lessons.length,0);
+assert.equal(resetBackup.data.settings.length,1);
+__audit.backup=()=>resetBackup;
+await mutate();finishUpload();await settle();
+assert.equal(auto.readMAProfessorCloudBackupTrust(__audit.session),null);
+assert.equal(timers.size,0);assert.equal(uploadCalls,2);
+unmount();await mount();assert.equal(timers.size,0);
+record('RESET_AUTOMATIC_DISABLED',{noUploadAfterReset:true,inFlightCannotRestoreTrust:true});
+preference='enabled';
+
+unmount();uploadError=new auto.MAProfessorCloudBackupPermanentError('A cópia cifrada é demasiado grande.');auto.writeMAProfessorCloudBackupTrust(__audit.session,{serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now-3600000).toISOString()});
+await mount();await mutate();const before=uploadCalls;await fire();
+assert.equal(uploadCalls-before,1);assert.equal(timers.size,0);
+assert.ok(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError);
+unmount();await mount();assert.equal(timers.size,0);
+record('AUTO_PERMANENT_RETRY',{attemptsForPermanentError:1,retryScheduled:timers.size>0});
+await mutate();assert.equal(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError,null);assert.ok(timers.size>0);
+await fire();assert.equal(timers.size,0);
+unmount();globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;Date.now=originalNow;
+
+// Production D1 SQL and handlers; export-only instrumentation to exercise the canonical deletion helper.
+let sdb=new DatabaseSync(':memory:');
+for(const name of (await readdir(`${root}/migrations/ma-professor`)).filter(n=>n.endsWith('.sql')).sort())sdb.exec(await readFile(`${root}/migrations/ma-professor/${name}`,'utf8'));
+let queue=Promise.resolve();let barrier=null;
+const binding={prepare(sql){let values=[];return {bind(...args){values=args;return this;},async first(){const v=sdb.prepare(sql).get(...values)??null;if(barrier&&sql.includes('COUNT(*) AS total'))await barrier();return v;},async all(){return {success:true,results:sdb.prepare(sql).all(...values)};},async run(){return {success:true,meta:{changes:Number(sdb.prepare(sql).run(...values).changes)}};}};},batch(ss){const p=queue.then(async()=>{sdb.exec('BEGIN');try{const a=[];for(const s of ss)a.push(await s.run());sdb.exec('COMMIT');return a;}catch(e){sdb.exec('ROLLBACK');throw e;}});queue=p.catch(()=>{});return p;}};
+const support=await bundle("export * from './worker/maProfessorSupportTickets';",'audit-support');
+const asource=await readFile(`${root}/worker/maProfessorAccountAdmin.ts`,'utf8');
+const admin=await bundle(`${asource}\nexport {deleteCloudAccountData,createAccountId};`,'audit-admin', [{name:'admin-resolve',setup(b){b.onResolve({filter:/^\.\/maCodeAdmin$/},()=>({path:`${root}/worker/maCodeAdmin.ts`}));}}]);
+let revokeAfterFirstVerification=false, verificationCount=0;
+const env={MA_PROFESSOR_DB:binding,MA_PROFESSOR_ACCESS:{idFromName:n=>n,get:()=>({fetch:async()=>revokeAfterFirstVerification && verificationCount++ > 0 ? Response.json({success:false},{status:401}) : Response.json({success:true,license:{email:'audit@example.test',status:'active'}})})}};
+const post=async(action,body)=>support.handleMAProfessorSupportTicketsApiRequest(new Request(`https://ma-code.pt/api/ma-professor/support-tickets/${action}`,{method:'POST',headers:{'content-type':'application/json',origin:'https://ma-code.pt'},body:JSON.stringify({token:'t',deviceId:'d',...body})}),env);
+let ticketId;
+for(let i=0;i<9;i++){const res=await post('create',{category:'technical',subject:`Teste ${i}`,message:'Texto de apoio para auditoria'});assert.equal(res.status,200);ticketId=(await res.json()).ticket.id;}
+let waiting=0,release;const bp=new Promise(r=>release=r);barrier=async()=>{waiting++;if(waiting===2)release();await bp;};
+const concurrent=await Promise.all([post('create',{category:'technical',subject:'Concorrente 1',message:'Texto de auditoria'}),post('create',{category:'technical',subject:'Concorrente 2',message:'Texto de auditoria'})]);
+barrier=null;
+assert.deepEqual(concurrent.map(x=>x.status).sort(),[200,429]);
+assert.equal(sdb.prepare('select count(*) as total from ma_professor_support_tickets').get().total,10);
+assert.equal(sdb.prepare('select count(*) as total from ma_professor_support_messages').get().total,10);
+record('SUPPORT_QUOTA_RACE',{responses:[200,429],openTickets:10,limit:10});
+for(let i=0;i<25;i++){const resp=await post('reply',{ticketId,message:`Mensagem ${i}`});assert.equal(resp.status,200);}
+for(let i=0;i<5;i++)assert.equal((await post('reply',{ticketId,message:'Mais uma mensagem'})).status,200);
+const detail=await (await post('detail',{ticketId})).json();
+assert.equal(detail.messages.length,30);assert.ok(detail.nextCursor);
+const older=await (await post('detail',{ticketId,before:detail.nextCursor})).json();
+assert.equal(older.messages.length,1);assert.equal(older.nextCursor,null);
+assert.equal(new Set([...older.messages,...detail.messages].map(x=>x.id)).size,31);
+assert.equal((await post('reply',{ticketId,message:'Excesso de mensagens'})).status,429);
+assert.equal((await post('detail',{ticketId,before:{createdAt:'invalid',id:'x'}})).status,400);
+const foreign='ticket-other-account';
+sdb.prepare(`INSERT INTO ma_professor_support_tickets (id,account_id,category,subject,status,created_at,updated_at) VALUES (?, 'other', 'technical', 'Outra conta', 'new', 1, 1)`).run(foreign);
+sdb.prepare(`INSERT INTO ma_professor_support_messages (id,ticket_id,author_role,body,created_at) VALUES ('other-message',?, 'professor', 'Texto da outra conta', 1)`).run(foreign);
+assert.equal((await post('detail',{ticketId:foreign})).status,404);
+record('SUPPORT_QUOTA_PAGINATION',{acceptedReplies:30,quotaEnforced:true});
+// The rolling-day and lifetime caps remain atomic even when a conversation is old.
+Date.now=()=>originalNow()+2*24*60*60*1000;
+const auditAccount=await admin.createAccountId('audit@example.test');
+sdb.prepare("UPDATE ma_professor_support_tickets SET status='closed' WHERE id != ? AND account_id = ?").run(ticketId,auditAccount);
+const insertHistory=sdb.prepare("INSERT INTO ma_professor_support_messages (id,ticket_id,author_role,body,created_at) VALUES (?, ?, 'professor', 'Histórico fictício', 1)");
+let ownMessages=sdb.prepare("SELECT COUNT(*) AS n FROM ma_professor_support_messages WHERE ticket_id = ?").get(ticketId).n;
+for(let i=ownMessages;i<200;i++)insertHistory.run(`history-${i}`,ticketId);
+assert.equal((await post('reply',{ticketId,message:'Excesso por conversa'})).status,429);
+const archived='archive-test';
+sdb.prepare("INSERT INTO ma_professor_support_tickets (id,account_id,category,subject,status,created_at,updated_at) VALUES (?, ?, 'technical', 'Histórico fictício', 'closed', 1, 1)").run(archived,auditAccount);
+ownMessages=sdb.prepare("SELECT COUNT(*) AS n FROM ma_professor_support_messages m JOIN ma_professor_support_tickets t ON t.id=m.ticket_id WHERE t.account_id = ?").get(auditAccount).n;
+for(let i=ownMessages;i<500;i++)insertHistory.run(`account-history-${i}`,archived);
+assert.equal((await post('create',{category:'technical',subject:'Excesso na conta',message:'Novo pedido depois do limite'})).status,429);
+assert.equal((await post('reply',{ticketId,message:'Excesso na conta'})).status,429);
+Date.now=originalNow;
+
+await admin.deleteCloudAccountData(env,['audit@example.test']);
+const leftTickets=sdb.prepare('select count(*) as n from ma_professor_support_tickets where account_id != \'other\'').get().n;
+const leftMessages=sdb.prepare('select count(*) as n from ma_professor_support_messages where ticket_id != \'ticket-other-account\'').get().n;
+assert.equal(leftTickets,0);assert.equal(leftMessages,0);
+assert.equal(sdb.prepare('select count(*) as n from ma_professor_support_tickets').get().n,1);
+assert.equal(sdb.prepare('select count(*) as n from ma_professor_support_messages').get().n,1);
+record('ACCOUNT_DELETE_RETAINS_SUPPORT',{tickets:leftTickets,messages:leftMessages});
+revokeAfterFirstVerification=true; verificationCount=0;
+assert.equal((await post('create',{category:'technical',subject:'Sessão revogada',message:'Pedido que chegou depois da eliminação'})).status,401);
+assert.equal(sdb.prepare('select count(*) as n from ma_professor_support_tickets').get().n,1);
+assert.equal(sdb.prepare('select count(*) as n from ma_professor_support_messages').get().n,1);
+revokeAfterFirstVerification=false;
+sdb.close();
+sdb=new DatabaseSync(':memory:');
+for(const name of (await readdir(`${root}/migrations/ma-professor`)).filter(n=>n.endsWith('.sql') && !n.startsWith('0004')).sort())sdb.exec(await readFile(`${root}/migrations/ma-professor/${name}`,'utf8'));
+await admin.deleteCloudAccountData(env,['audit@example.test']);
+sdb.close();await db.delete();dom.window.close();
+} finally {
+Date.now=savedClock;globalThis.setTimeout=savedSetTimeout;globalThis.clearTimeout=savedClearTimeout;
+await rm(out,{recursive:true,force:true});
+for(const [key,descriptor] of Object.entries(restoreGlobals)) {if(descriptor) Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}
+}

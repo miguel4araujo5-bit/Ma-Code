@@ -175,6 +175,10 @@ export default function MAProfessorPrivacyPage() {
             <p>
               <strong className="text-white">Dados escolares locais:</strong> turmas, alunos, números de aluno, sumários, faltas, avaliações, classificações, planificações e restante informação pedagógica ficam, por defeito, guardados no browser do professor.
             </p>
+
+            <p>
+              <strong className="text-white">Pedidos de apoio:</strong> quando envia um pedido, são guardados o assunto, as mensagens que escolhe escrever e o contexto técnico apresentado no formulário. Estes textos podem ser lidos pelo apoio MA-Professor e não usam a cifração das cópias escolares. Não são enviados automaticamente dados escolares, rascunhos, passwords ou chaves. Evite incluir dados pessoais de alunos nas mensagens.
+            </p>
           </Section>
 
           <Section title="3. Cópias online e cifração">
@@ -224,6 +228,10 @@ export default function MAProfessorPrivacyPage() {
 
             <p>
               A cópia online atual pode manter até duas gerações cifradas anteriores para recuperação técnica. A eliminação administrativa de uma conta remove também os dados cloud associados ao MA-Professor, salvo informação cuja conservação seja legalmente obrigatória.
+            </p>
+
+            <p>
+              Os pedidos e mensagens de apoio são conservados para acompanhar a conversa e consultar o histórico de suporte enquanto a conta existir. A eliminação administrativa da conta remove também estes pedidos e mensagens.
             </p>
           </Section>
 

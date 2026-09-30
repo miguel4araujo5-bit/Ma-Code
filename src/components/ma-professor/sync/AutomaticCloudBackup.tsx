@@ -27,6 +27,7 @@ import {
   inspectMAProfessorCloudBackup,
   MAProfessorCloudBackupRevisionConflictError,
   MAProfessorCloudBackupAuthenticationRequiredError,
+  MAProfessorCloudBackupPermanentError,
   uploadAndVerifyCompatibleMAProfessorCloudBackup
 } from './cloudBackupService'
 
@@ -174,6 +175,8 @@ export default function AutomaticCloudBackup() {
       false
     let blockedByAuthentication =
       false
+    let blockedByPermanentError = Boolean(readMAProfessorCloudBackupTrust(session)?.automaticError)
+    let failedAttempts = 0
 
     let retryNotBefore =
       0
@@ -321,6 +324,7 @@ export default function AutomaticCloudBackup() {
         running ||
         blockedByDivergence ||
         blockedByAuthentication ||
+        blockedByPermanentError ||
         dirtySince === null
       ) {
         return
@@ -393,6 +397,7 @@ export default function AutomaticCloudBackup() {
         running ||
         blockedByDivergence ||
         blockedByAuthentication ||
+        blockedByPermanentError ||
         dirtySince === null
       ) {
         return
@@ -472,6 +477,11 @@ export default function AutomaticCloudBackup() {
             }
           )
 
+        if (!canRun()) {
+          return
+        }
+
+        failedAttempts = 0
         const changedDuringUpload =
           mutationSequence !==
           sequenceAtStart
@@ -493,7 +503,10 @@ export default function AutomaticCloudBackup() {
           recordRevision:
             result.recordRevision,
           updatedAt:
-            result.updatedAt
+            result.updatedAt,
+          dirtyAt: changedDuringUpload
+            ? new Date(dirtySince!).toISOString()
+            : null
         })
       } catch (error) {
         if (!canRun()) {
@@ -523,6 +536,19 @@ export default function AutomaticCloudBackup() {
         retryNotBefore =
           Date.now() +
           AUTO_BACKUP_RETRY_MS
+
+        failedAttempts += 1
+        if (error instanceof MAProfessorCloudBackupPermanentError || failedAttempts >= 3) {
+          blockedByPermanentError = true
+          clearTimer()
+          const trust = readMAProfessorCloudBackupTrust(session)
+          if (trust) {
+            writeMAProfessorCloudBackupTrust(session, {
+              ...trust,
+              automaticError: error instanceof Error ? error.message : 'Não foi possível concluir a cópia automática.'
+            })
+          }
+        }
       } finally {
         running =
           false
@@ -575,6 +601,13 @@ export default function AutomaticCloudBackup() {
 
     const handleTrustChanged =
       () => {
+        const currentTrust = readMAProfessorCloudBackupTrust(session)
+        blockedByPermanentError = Boolean(currentTrust?.automaticError)
+        if (blockedByPermanentError) {
+          clearTimer()
+          return
+        }
+        failedAttempts = 0
         if (
           readMAProfessorCloudBackupTrust(
             session

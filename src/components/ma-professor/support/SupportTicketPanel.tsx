@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState
 } from 'react'
 
@@ -11,6 +12,7 @@ import {
   replySupportTicket,
   type SupportTicket,
   type SupportTicketCategory,
+  type SupportMessageCursor,
   type SupportTicketMessage,
   type SupportTicketStatus
 } from './supportTicketClient'
@@ -130,6 +132,8 @@ export function SupportTicketPanel({
     useState<SupportTicket | null>(null)
   const [messages, setMessages] =
     useState<SupportTicketMessage[]>([])
+  const [nextCursor, setNextCursor] = useState<SupportMessageCursor | null>(null)
+  const messageRequest = useRef(0)
   const [detailLoading, setDetailLoading] =
     useState(false)
   const [reply, setReply] =
@@ -179,6 +183,7 @@ export function SupportTicketPanel({
         }
 
         setSelectedId(ticketId)
+        const requestId = ++messageRequest.current
         setDetailLoading(true)
         setError('')
 
@@ -187,20 +192,23 @@ export function SupportTicketPanel({
             await getSupportTicket(
               ticketId
             )
+          if (requestId !== messageRequest.current) return
           setSelectedTicket(
             result.ticket
           )
           setMessages(
             result.messages
           )
+          setNextCursor(result.nextCursor)
         } catch (loadError) {
+          if (requestId !== messageRequest.current) return
           setError(
             getErrorMessage(
               loadError
             )
           )
         } finally {
-          setDetailLoading(false)
+          if (requestId === messageRequest.current) setDetailLoading(false)
         }
       },
       [available]
@@ -271,6 +279,24 @@ export function SupportTicketPanel({
       }
     }
 
+  const loadOlderMessages = async () => {
+    const ticketId = selectedId
+    if (!ticketId || !nextCursor || detailLoading || replySending) return
+    const requestId = ++messageRequest.current
+    setDetailLoading(true)
+    setError('')
+    try {
+      const result = await getSupportTicket(ticketId, nextCursor)
+      if (requestId !== messageRequest.current) return
+      setMessages(current => [...result.messages, ...current])
+      setNextCursor(result.nextCursor)
+    } catch (error) {
+      if (requestId === messageRequest.current) setError(getErrorMessage(error))
+    } finally {
+      if (requestId === messageRequest.current) setDetailLoading(false)
+    }
+  }
+
   const sendReply =
     async () => {
       if (
@@ -281,6 +307,7 @@ export function SupportTicketPanel({
         return
       }
 
+      const requestId = ++messageRequest.current
       setReplySending(true)
       setError('')
 
@@ -290,15 +317,18 @@ export function SupportTicketPanel({
             selectedId,
             reply
           )
+        if (requestId !== messageRequest.current) return
         setSelectedTicket(
           result.ticket
         )
         setMessages(
           result.messages
         )
+        setNextCursor(result.nextCursor)
         setReply('')
         await loadTickets()
       } catch (replyError) {
+        if (requestId !== messageRequest.current) return
         setError(
           getErrorMessage(
             replyError
@@ -548,6 +578,8 @@ export function SupportTicketPanel({
                 <button
                   type="button"
                   onClick={() => {
+                    ++messageRequest.current
+                    setNextCursor(null)
                     setSelectedId(null)
                     setSelectedTicket(null)
                     setMessages([])
@@ -560,6 +592,11 @@ export function SupportTicketPanel({
               </div>
 
               <div className="mt-5 space-y-3">
+                {nextCursor ? (
+                  <button type="button" disabled={detailLoading || replySending} onClick={() => void loadOlderMessages()} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-300 disabled:opacity-50">
+                    Carregar mensagens anteriores
+                  </button>
+                ) : null}
                 {messages.map(item => (
                   <div
                     key={item.id}

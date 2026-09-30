@@ -768,3 +768,23 @@ export async function deleteMAProfessorDailyDraft(
     database.close()
   }
 }
+
+/** Apagamento explícito de todos os dados escolares deste browser. */
+export async function clearMAProfessorDailyDrafts(): Promise<void> {
+  const database = await openDailyDraftDatabase()
+  try {
+    const transaction = database.transaction(DAILY_DRAFT_STORE_NAME, 'readwrite')
+    const completed = transactionToPromise(transaction)
+    const store = transaction.objectStore(DAILY_DRAFT_STORE_NAME)
+    await requestToPromise(store.clear())
+    const remaining = await requestToPromise(store.count())
+    if (remaining !== 0) {
+      transaction.abort()
+      await completed
+      throw new Error('Não foi possível confirmar a eliminação dos rascunhos locais.')
+    }
+    await completed
+  } finally {
+    database.close()
+  }
+}

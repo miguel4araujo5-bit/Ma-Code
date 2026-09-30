@@ -19,8 +19,12 @@ import {
 
 import {
   parseMAProfessorBackupFile,
-  restoreMAProfessorBackup
+  restoreMAProfessorBackup,
+  createMAProfessorBackup,
+  createMAProfessorLocalBackupSignature
 } from './backupRepository'
+
+import { MAProfessorLocalSnapshotChangedError } from '../sync/guardedSnapshotRestore'
 
 import {
   OnlineRestorePanel
@@ -49,6 +53,8 @@ export function RestoreSettingsPanel({
 
   const fileInputRef =
     useRef<HTMLInputElement | null>(null)
+
+  const previewSignature = useRef<string | null>(null)
 
   const [
     busy,
@@ -97,6 +103,7 @@ export function RestoreSettingsPanel({
       }
 
       setBusy('validate')
+      previewSignature.current = null
       setPendingBackup(null)
       setValidation(null)
       setConfirmation('')
@@ -105,6 +112,10 @@ export function RestoreSettingsPanel({
       try {
         const parsed =
           await parseMAProfessorBackupFile(file)
+
+        if (parsed.validation.valid) {
+          previewSignature.current = createMAProfessorLocalBackupSignature(await createMAProfessorBackup())
+        }
 
         setPendingBackup(parsed.backup)
         setValidation(parsed.validation)
@@ -132,6 +143,7 @@ export function RestoreSettingsPanel({
       if (
         !pendingBackup ||
         !validation?.valid ||
+        previewSignature.current === null ||
         busy
       ) {
         return
@@ -156,7 +168,8 @@ export function RestoreSettingsPanel({
 
       try {
         await restoreMAProfessorBackup(
-          pendingBackup
+          pendingBackup,
+          previewSignature.current
         )
 
         clearMAProfessorCloudBackupTrust(
@@ -171,6 +184,7 @@ export function RestoreSettingsPanel({
         }
 
         setPendingBackup(null)
+        previewSignature.current = null
         setValidation(null)
         setConfirmation('')
         setFeedback({
@@ -179,6 +193,12 @@ export function RestoreSettingsPanel({
             'Cópia deste dispositivo restaurada com sucesso.'
         })
       } catch (error) {
+        if (error instanceof MAProfessorLocalSnapshotChangedError) {
+          previewSignature.current = null
+          setPendingBackup(null)
+          setValidation(null)
+          setConfirmation('')
+        }
         setFeedback({
           tone: 'error',
           message:

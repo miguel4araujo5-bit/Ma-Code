@@ -30,7 +30,8 @@ import {
 } from '../sync/cloudBackupService'
 
 import {
-  writeMAProfessorCloudBackupTrust
+  writeMAProfessorCloudBackupTrust,
+  useMAProfessorAutomaticBackupError
 } from '../sync/cloudBackupTrust'
 
 import type {
@@ -211,6 +212,8 @@ export function EncryptedSyncPanel() {
     useCloudBackupPreference(
       session
     )
+
+  const automaticError = useMAProfessorAutomaticBackupError(session)
 
   const [
     keyAvailable,
@@ -590,6 +593,11 @@ export function EncryptedSyncPanel() {
         </div>
       ) : (
         <>
+          {automaticError ? (
+            <p role="alert" className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100">
+              A cópia automática está suspensa: {automaticError} Os dados continuam neste dispositivo. Descarregue uma cópia local e prepare uma nova cópia online depois de resolver o problema. Uma nova alteração aos dados também permite voltar a tentar.
+            </p>
+          ) : null}
           <div className="mt-4">
             <CloudBackupPreferencePanel />
           </div>

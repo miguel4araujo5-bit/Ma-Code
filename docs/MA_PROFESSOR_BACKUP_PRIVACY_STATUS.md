@@ -1,66 +1,31 @@
 # MA-Professor — estado da privacidade das cópias
 
-Referência: 22/09/2026.
+Referência do código: 29/09/2026. Baseline atual: v3-only.
 
-Este documento descreve o contrato de privacidade efetivamente implementado após o fecho técnico do backup v3. Não substitui os testes nem o plano arquitetural em `MA_PROFESSOR_OPAQUE_V3_PLAN.md`.
+## Contrato atualmente implementado
 
-## Estado atual
+- A password pessoal é usada no cliente pelo OPAQUE; não é enviada nem guardada pela MA-CODE.
+- A senha MP serve para ativação/licenciamento e não deriva chaves de backup nem substitui uma credencial OPAQUE existente.
+- A cópia automática exige escolha explícita por conta e dispositivo. A preferência é verificada durante a preparação e antes do envio; falha de leitura não autoriza upload.
+- O cliente cifra os dados escolares com AES-256-GCM. A OPAQUE export key, a master key e a wrapping key permanecem no cliente; o Worker/D1 recebem ciphertext, envelope público, hashes e metadados/revisões.
+- O contrato público de backup é v3-only: `/status`, `/get`, `/initialize-v3` e `/push-v3`. O endpoint `/key` e a promoção pública de backups v2 não estão ativos nesta baseline.
+- Uma primeira cópia é criada diretamente em v3, com perfil e ciphertext na mesma operação atómica. Os envios seguintes preservam o controlo por revisão/CAS e a rejeição de conflitos HTTP 409.
+- Password e export key não são persistidas em localStorage, sessionStorage, D1 ou Durable Objects. Depois de reload, uma sessão válida pode precisar de novo login OPAQUE para voltar a abrir/enviar uma cópia.
+- O servidor não conserva material suficiente para decifrar uma cópia v3. Esta garantia refere-se à arquitetura v3, não é uma certificação independente nem uma conclusão sobre eventuais registos históricos ainda presentes no D1 de produção.
+- A cópia online atual pode conservar duas gerações cifradas anteriores para recuperação técnica.
 
-- O pedido público enviado ao servidor contém apenas o email e os dados técnicos necessários ao serviço.
-- O professor escolhe a password pessoal no formulário de pedido; a password permanece no dispositivo e não é enviada nem guardada pela MA-CODE. O pedido inicial cria o registo OPAQUE para permitir entrar na conta pendente, consultar o pedido e selecionar Apoio Fundador. As ferramentas continuam dependentes da aprovação e ativação da licença.
-- O enrollment e o login usam OPAQUE; o servidor mantém apenas o material criptográfico necessário ao protocolo, não a password pessoal.
-- A senha MP permanece separada: autoriza a ativação/licenciamento e não substitui a password pessoal nem deriva chaves de backup.
-- As cópias automáticas começam desligadas e exigem escolha explícita por conta e dispositivo.
-- A preferência é verificada durante a preparação e novamente antes do envio; falha de leitura da preferência impede o upload automático.
-- A cópia online é cifrada no dispositivo antes do envio.
-- Nas cópias com proteção v3, a OPAQUE export key, a master key e a wrapping key permanecem no cliente; o Worker/D1 recebem apenas ciphertext, envelope público de proteção, hashes e metadados/revisões.
-- Por essa razão, para uma cópia v3 a MA-CODE não guarda no servidor material suficiente para decifrar os dados.
-- A primeira cópia de uma conta sem perfil é criada diretamente em v3, com perfil e ciphertext na mesma transação. O servidor deixou de gerar chaves v2 para novas contas.
-- A compatibilidade v2 é mantida para contas antigas: o servidor conserva material técnico que permite decifrar essas cópias até à migração explícita e atómica para v3.
-- A migração v2 -> v3 é acionada apenas pela ação manual de cópia; não ocorre por login, abertura da aplicação, restauro ou backup automático.
-- A migração preserva `serverRevision`, `recordRevision`, CAS/409 e a cópia v2 se a promoção não for concluída.
-- O endpoint legado `/key` permanece restrito a perfis v2 e não abre cópias v3.
-- Um novo login OPAQUE repõe a export key apenas em memória para permitir abrir uma cópia v3; não existe persistência dessa chave em `localStorage`, `sessionStorage`, D1 ou Durable Objects.
+A eliminação local explícita desativa a cópia automática neste dispositivo, elimina dados escolares e rascunhos locais e conserva a cópia online. A futura ativação automática continua sujeita à reconciliação da confiança. A eliminação administrativa de conta inclui as cópias cloud e os pedidos/mensagens de apoio; não é uma operação de recuperação da password pessoal.
 
-Após recarregar a página, a sessão pode continuar válida sem a export key. A cópia protegida mostra um pedido de reautenticação, suspende tentativas automáticas e retoma após login OPAQUE, sem fechar o trabalho local. Password e export key não são persistidas. A senha MP não permite substituir um registo OPAQUE existente; uma ativação interrompida retoma através da password já registada.
+## Limites e recuperação
 
-## Contrato de texto público
+Perder a password pessoal impede um novo login protegido e o acesso à export key necessária à cópia existente. Uma reposição administrativa não recupera a password nem deve prometer acesso à cópia cifrada anterior. Os dados que permaneçam localmente não são apagados por perder a password.
 
-Os textos apresentados ao professor devem distinguir claramente duas situações:
+As cópias JSON descarregadas continuam sem cifração própria. O professor deve guardá-las num local seguro. Os campos de texto de CSV são protegidos contra interpretação como fórmulas; CSV não substitui uma cópia completa de segurança.
 
-1. **Proteção v3** — a MA-CODE não recebe a password pessoal e não possui no servidor material suficiente para decifrar a cópia.
-2. **Compatibilidade v2** — o servidor conserva material técnico que permite decifrar as cópias antigas até à migração explícita. Esta limitação deve estar escrita no consentimento.
+Os tickets de apoio são uma conversa explícita com suporte humano: o texto enviado é legível pelo apoio, não usa a cifração do backup e não inclui automaticamente dados escolares, passwords ou chaves. O histórico é conservado enquanto a conta existir e removido pela eliminação administrativa de conta. A informação pública correspondente encontra-se na página de privacidade do MA-Professor.
 
-Enquanto puder existir uma cópia v2, não se deve apresentar uma promessa genérica de “zero-knowledge”, “ponta-a-ponta” ou equivalente para todas as contas.
+## Validação e histórico
 
-Também não se deve dizer que a MA-CODE “apaga a password pessoal” numa operação administrativa: a password pessoal não está guardada no servidor. A operação pode apagar o registo OPAQUE e o restante estado de autenticação associado à conta.
+A confirmação do deployment, das migrations e das versões reais dos perfis no D1 está pendente em V-02 da [lista de auditoria](audits/ma-professor-pendencias.md). WebKit/iPhone e medições efetivas de consumo estão em V-01 e V-03. Os testes de código e Chromium não substituem essas evidências.
 
-## Password pessoal e recuperação
-
-A comunicação pública deve manter estes pontos:
-
-- a password pessoal é usada pelo protocolo OPAQUE no cliente;
-- não é enviada nem armazenada pela MA-CODE;
-- a MA-CODE não a consegue recuperar;
-- um novo login OPAQUE volta a obter localmente a export key necessária à proteção v3;
-- a senha MP serve para ativação/licenciamento e não é uma password de login;
-- perder a password pessoal impede um novo login protegido até existir um fluxo administrativo de reposição/novo enrollment, não uma recuperação da password anterior.
-
-## Cópias locais
-
-As cópias JSON descarregadas para o dispositivo continuam sem cifragem própria. O aviso de segurança local deve continuar explícito: o professor deve guardar esse ficheiro apenas num local seguro.
-
-## Passo 15 — fecho de copy de privacidade
-
-Em 21/09/2026 foram revistos e alinhados os textos visíveis de:
-
-- pedido e ativação de acesso;
-- apresentação inicial;
-- Apoio Fundador/senha MP;
-- consentimento de cópia automática;
-- confirmação da configuração inicial;
-- manutenção administrativa de contas.
-
-O aviso cloud passou a descrever v3 sem esconder a compatibilidade v2. A manutenção administrativa deixou de afirmar que o servidor guarda/remove a password pessoal.
-
-O passo 15 só fica operacionalmente fechado depois de o build e a suite MA-Professor correspondentes a estas alterações passarem no CI.
+O [plano OPAQUE/v3](MA_PROFESSOR_OPAQUE_V3_PLAN.md) conserva o histórico de migração de 22/09/2026. As descrições históricas de compatibilidade v2, promoção manual e `/key` não representam o contrato atual. Esta atualização documental não autoriza remover colunas `recovery_*`, alterar parâmetros OPAQUE ou executar migrations destrutivas.

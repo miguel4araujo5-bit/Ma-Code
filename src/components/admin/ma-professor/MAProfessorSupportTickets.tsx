@@ -2,10 +2,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
 import type {
+  SupportMessageCursor,
   SupportTicketMessage,
   SupportTicketStatus
 } from '../../ma-professor/support/supportTicketClient'
@@ -85,6 +87,8 @@ export default function MAProfessorSupportTickets() {
     )
   const [messages, setMessages] =
     useState<SupportTicketMessage[]>([])
+  const [nextCursor, setNextCursor] = useState<SupportMessageCursor | null>(null)
+  const messageRequest = useRef(0)
   const [detailLoading, setDetailLoading] =
     useState(false)
   const [reply, setReply] =
@@ -129,6 +133,7 @@ export default function MAProfessorSupportTickets() {
           return
         }
 
+        const requestId = ++messageRequest.current
         setDetailLoading(true)
         setError('')
 
@@ -137,20 +142,23 @@ export default function MAProfessorSupportTickets() {
             await getAdminSupportTicket(
               ticketId
             )
+          if (requestId !== messageRequest.current) return
           setSelected(
             result.ticket
           )
           setMessages(
             result.messages
           )
+          setNextCursor(result.nextCursor)
         } catch (loadError) {
+          if (requestId !== messageRequest.current) return
           setError(
             getErrorMessage(
               loadError
             )
           )
         } finally {
-          setDetailLoading(false)
+          if (requestId === messageRequest.current) setDetailLoading(false)
         }
       },
       [available]
@@ -189,6 +197,24 @@ export default function MAProfessorSupportTickets() {
       [tickets]
     )
 
+  const loadOlderMessages = async () => {
+    const ticketId = selected?.id
+    if (!ticketId || !nextCursor || detailLoading || saving) return
+    const requestId = ++messageRequest.current
+    setDetailLoading(true)
+    setError('')
+    try {
+      const result = await getAdminSupportTicket(ticketId, nextCursor)
+      if (requestId !== messageRequest.current) return
+      setMessages(current => [...result.messages, ...current])
+      setNextCursor(result.nextCursor)
+    } catch (error) {
+      if (requestId === messageRequest.current) setError(getErrorMessage(error))
+    } finally {
+      if (requestId === messageRequest.current) setDetailLoading(false)
+    }
+  }
+
   const sendReply =
     async () => {
       if (
@@ -199,6 +225,7 @@ export default function MAProfessorSupportTickets() {
         return
       }
 
+      const requestId = ++messageRequest.current
       setSaving(true)
       setError('')
 
@@ -208,15 +235,18 @@ export default function MAProfessorSupportTickets() {
             selected.id,
             reply
           )
+        if (requestId !== messageRequest.current) return
         setSelected(
           result.ticket
         )
         setMessages(
           result.messages
         )
+        setNextCursor(result.nextCursor)
         setReply('')
         await loadTickets()
       } catch (saveError) {
+        if (requestId !== messageRequest.current) return
         setError(
           getErrorMessage(
             saveError
@@ -444,6 +474,11 @@ export default function MAProfessorSupportTickets() {
                   </div>
 
                   <div className="mt-4 space-y-3">
+                    {nextCursor ? (
+                      <button type="button" disabled={detailLoading || saving} onClick={() => void loadOlderMessages()} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-300 disabled:opacity-50">
+                        Carregar mensagens anteriores
+                      </button>
+                    ) : null}
                     {messages.map(item => (
                       <div
                         key={item.id}

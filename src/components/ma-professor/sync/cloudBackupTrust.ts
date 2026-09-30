@@ -6,6 +6,9 @@ import type {
   MAProfessorBackup
 } from '../types'
 
+import { canonicalizeMAProfessorBackupData } from '../settings/backupRepository'
+import { useSyncExternalStore } from 'react'
+
 const STORAGE_PREFIX =
   'ma-professor-cloud-backup-trust-v1'
 
@@ -17,6 +20,7 @@ export interface MAProfessorCloudBackupTrust {
   recordRevision: number | null
   updatedAt: string | null
   dirtyAt?: string | null
+  automaticError?: string | null
 }
 
 function getStorageKey(
@@ -73,7 +77,7 @@ function isTrust(
       record.updatedAt === null ||
       typeof record.updatedAt === 'string'
     ) &&
-    (
+    (record.automaticError === undefined || record.automaticError === null || typeof record.automaticError === 'string') && (
       record.dirtyAt === undefined ||
       record.dirtyAt === null ||
       typeof record.dirtyAt === 'string'
@@ -182,7 +186,7 @@ export function writeMAProfessorCloudBackupTrust(
     {
       ...trust,
       dirtyAt:
-        null
+        trust.dirtyAt ?? null
     },
     true
   )
@@ -210,9 +214,25 @@ export function markMAProfessorCloudBackupDirty(
     session,
     {
       ...trust,
-      dirtyAt
+      dirtyAt,
+      automaticError: null
     },
-    false
+    Boolean(trust.automaticError)
+  )
+}
+
+export function useMAProfessorAutomaticBackupError(session: Pick<MAProfessorAccessSession, 'email' | 'deviceId'>) {
+  return useSyncExternalStore(
+    listener => {
+      window.addEventListener(MA_PROFESSOR_CLOUD_BACKUP_TRUST_EVENT, listener)
+      window.addEventListener('storage', listener)
+      return () => {
+        window.removeEventListener(MA_PROFESSOR_CLOUD_BACKUP_TRUST_EVENT, listener)
+        window.removeEventListener('storage', listener)
+      }
+    },
+    () => readMAProfessorCloudBackupTrust(session)?.automaticError ?? null,
+    () => null
   )
 }
 
@@ -250,6 +270,6 @@ export function createMAProfessorBackupContentSignature(
     schemaVersion:
       backup.schemaVersion,
     data:
-      backup.data
+      canonicalizeMAProfessorBackupData(backup.data)
   })
 }

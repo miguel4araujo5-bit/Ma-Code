@@ -1,6 +1,7 @@
 import type {
   SupportTicket,
   SupportTicketMessage,
+  SupportMessageCursor,
   SupportTicketStatus
 } from '../../components/ma-professor/support/supportTicketClient'
 
@@ -78,7 +79,8 @@ export async function listAdminSupportTickets() {
 }
 
 export async function getAdminSupportTicket(
-  ticketId: string
+  ticketId: string,
+  before?: SupportMessageCursor
 ) {
   const url =
     new URL(
@@ -89,6 +91,7 @@ export async function getAdminSupportTicket(
     'id',
     ticketId
   )
+  if (before) url.searchParams.set('before', JSON.stringify(before))
 
   const response =
     await fetch(
@@ -106,6 +109,7 @@ export async function getAdminSupportTicket(
     success: true
     ticket: AdminSupportTicket
     messages: SupportTicketMessage[]
+    nextCursor: SupportMessageCursor | null
   }>(response)
 }
 
@@ -141,6 +145,7 @@ export function replyAdminSupportTicket(
     success: true
     ticket: AdminSupportTicket
     messages: SupportTicketMessage[]
+    nextCursor: SupportMessageCursor | null
   }>(
     'reply',
     {
