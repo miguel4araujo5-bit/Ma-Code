@@ -77,7 +77,7 @@ export default function CloudBackupReauthentication({
       }
     >
       <p role="status" className="font-bold text-amber-100">{busy ? 'A confirmar a password…' : 'Confirme a sua password'}</p>
-      <p className="mt-1">Confirme a password da sua conta para desbloquear a cópia online. Depois, prepare a cópia e confirme o envio. A password é processada apenas neste dispositivo.</p>
+      <p className="mt-1">Confirme a password da sua conta para desbloquear a cópia online. Depois, reveja o quadro com os dados e confirme o envio. A password é processada apenas neste dispositivo.</p>
       <form
         onSubmit={unlock}
         autoComplete="on"

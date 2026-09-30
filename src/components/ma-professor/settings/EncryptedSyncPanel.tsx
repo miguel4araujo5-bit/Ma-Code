@@ -39,7 +39,8 @@ import type {
 } from '../types'
 
 import {
-  createMAProfessorBackup
+  createMAProfessorBackup,
+  createMAProfessorLocalBackupSignature
 } from './backupRepository'
 
 type FeedbackTone =
@@ -121,6 +122,10 @@ function getPreparedBackupStats(
 
   return [
     {
+      label: 'Perfis do professor',
+      value: data.teacherProfiles.length
+    },
+    {
       label: 'Anos letivos',
       value: data.academicYears.length
     },
@@ -131,6 +136,10 @@ function getPreparedBackupStats(
     {
       label: 'Disciplinas',
       value: data.subjects.length
+    },
+    {
+      label: 'Atribuições letivas',
+      value: data.teachingAssignments.length
     },
     {
       label: 'UFCD / módulos',
@@ -145,6 +154,10 @@ function getPreparedBackupStats(
       value: data.weeklyScheduleSlots.length
     },
     {
+      label: 'Calendário / PAA',
+      value: data.schoolCalendarEvents.length
+    },
+    {
       label: 'Planificações',
       value: data.planifications.length
     },
@@ -155,6 +168,10 @@ function getPreparedBackupStats(
     {
       label: 'Critérios',
       value: data.assessmentCriteria.length
+    },
+    {
+      label: 'Grelhas de avaliação',
+      value: data.assessmentSchemes.length
     },
     {
       label: 'Aulas',
@@ -177,6 +194,14 @@ function getPreparedBackupStats(
       ).length
     },
     {
+      label: 'Registos de assiduidade',
+      value: data.lessonAttendance.length
+    },
+    {
+      label: 'Sugestões de sumários',
+      value: data.summarySuggestions.length
+    },
+    {
       label: 'Avaliações',
       value: data.lessonAssessments.length
     },
@@ -196,8 +221,20 @@ function getPreparedBackupStats(
       ).length
     },
     {
+      label: 'Registos de notas finais',
+      value: data.moduleFinalGrades.length
+    },
+    {
       label: 'Recuperações',
       value: data.learningRecoveries.length
+    },
+    {
+      label: 'Definições',
+      value: data.settings.length
+    },
+    {
+      label: 'Configuração inicial',
+      value: data.setupProgress.length
     }
   ]
 }
@@ -335,6 +372,8 @@ export function EncryptedSyncPanel() {
       null
     )
 
+  const [uploadConfirmed, setUploadConfirmed] = useState(false)
+
   const [
     feedback,
     setFeedback
@@ -427,15 +466,14 @@ export function EncryptedSyncPanel() {
 
   const handlePrepareBackup =
     async () => {
-      if (
-        busy ||
-        needsReauthentication
-      ) {
+      // Apenas lê os dados locais; também é chamado logo após confirmar a password.
+      if (busy) {
         return
       }
 
       setBusy(true)
       setFeedback(null)
+      setUploadConfirmed(false)
 
       try {
         const backup =
@@ -461,13 +499,15 @@ export function EncryptedSyncPanel() {
       if (
         busy ||
         needsReauthentication ||
-        !preparedBackup
+        !preparedBackup ||
+        !uploadConfirmed
       ) {
         return
       }
 
       setBusy(true)
       setFeedback(null)
+      setUploadConfirmed(false)
 
       try {
         const beforeStatus =
@@ -520,6 +560,21 @@ export function EncryptedSyncPanel() {
           )
         }
 
+        let changedSincePreview = true
+        let pendingChangesMessage = ''
+        try {
+          const currentBackup = await createMAProfessorBackup()
+          changedSincePreview =
+            createMAProfessorLocalBackupSignature(currentBackup) !==
+            createMAProfessorLocalBackupSignature(preparedBackup)
+          if (changedSincePreview) {
+            pendingChangesMessage = ' Há alterações posteriores ao quadro que ainda não estão nesta cópia.'
+          }
+        } catch {
+          // A cópia remota foi verificada; se a leitura local falhar, manter alterações pendentes.
+          pendingChangesMessage = ' Não foi possível verificar se existem alterações posteriores ao quadro. Os dados atuais continuam pendentes de cópia.'
+        }
+
         writeMAProfessorCloudBackupTrust(
           session,
           {
@@ -528,7 +583,8 @@ export function EncryptedSyncPanel() {
             recordRevision:
               result.recordRevision,
             updatedAt:
-              result.updatedAt
+              result.updatedAt,
+            dirtyAt: changedSincePreview ? new Date().toISOString() : null
           }
         )
 
@@ -540,7 +596,7 @@ export function EncryptedSyncPanel() {
         setFeedback({
           tone: 'success',
           message:
-            `Cópia de segurança cifrada, enviada e confirmada no servidor como revisão ${result.recordRevision}.`
+            `Cópia de segurança cifrada, enviada e confirmada no servidor como revisão ${result.recordRevision}.${pendingChangesMessage}`
         })
       } catch (error) {
         if (
@@ -581,7 +637,7 @@ export function EncryptedSyncPanel() {
       </h3>
 
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        Primeiro prepara uma cópia dos dados atuais para poder confirmar o que vai ser enviado. Só depois da sua confirmação é que a cópia é cifrada neste dispositivo e enviada para a nuvem.
+        Reveja o quadro com os dados guardados neste dispositivo. Só depois da sua confirmação é que esta cópia é cifrada e enviada para a nuvem.
       </p>
 
       {needsReauthentication ? (
@@ -589,12 +645,14 @@ export function EncryptedSyncPanel() {
           <CloudBackupReauthentication
             forceRequired
             embedded
-            onConfirmed={() => setFeedback({
-              tone: 'success',
-              message: preparedBackup
-                ? 'Password confirmada. Pode agora confirmar o envio da cópia preparada.'
-                : 'Password confirmada. Carregue em «Preparar cópia para a nuvem» e confirme o envio da cópia preparada.'
-            })}
+            onConfirmed={() => {
+              setUploadConfirmed(false)
+              if (!preparedBackup) void handlePrepareBackup()
+              setFeedback({
+                tone: 'success',
+                message: 'Password confirmada. Reveja o quadro e confirme o envio da cópia preparada.'
+              })
+            }}
           />
         </div>
       ) : (
@@ -604,10 +662,6 @@ export function EncryptedSyncPanel() {
               A última cópia online não foi concluída: {automaticError} Os dados continuam neste dispositivo. Pode voltar a tentar pelo aviso ou preparar uma cópia manual.
             </p>
           ) : null}
-          <div className="mt-4">
-            <CloudBackupPreferencePanel />
-          </div>
-
           {!preparedBackup ? (
             <button
               type="button"
@@ -624,7 +678,7 @@ export function EncryptedSyncPanel() {
           ) : null}
 
           {preparedBackup && preparedStats ? (
-            <div className="mt-5 rounded-2xl border border-violet-300/20 bg-slate-950/60 p-4">
+            <div role="group" aria-label="Dados que vão ser enviados" className="mt-5 rounded-2xl border border-violet-300/20 bg-slate-950/60 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-200">
@@ -639,32 +693,49 @@ export function EncryptedSyncPanel() {
                 </span>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-3 lg:grid-cols-4">
-                {preparedStats.map(
-                  item => (
-                    <div
-                      key={item.label}
-                      className="rounded-xl bg-white/[0.03] p-3"
-                    >
-                      <p className="text-xl font-black text-white">
-                        {item.value}
-                      </p>
-                      <p className="text-[0.68rem] leading-4 text-slate-500">
-                        {item.label}
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
+              <table className="mt-4 w-full text-left text-xs">
+                <caption className="sr-only">Dados incluídos na cópia preparada</caption>
+                <thead>
+                  <tr className="border-b border-white/10 text-slate-300">
+                    <th scope="col" className="pb-2 pr-3 font-bold">Dados</th>
+                    <th scope="col" className="pb-2 text-right font-bold">Quantidade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preparedStats.map(item => (
+                    <tr key={item.label} className="border-b border-white/5">
+                      <th scope="row" className="py-2 pr-3 font-normal leading-4 text-slate-300">{item.label}</th>
+                      <td className="py-2 text-right text-sm font-black text-white">{item.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
               <p className="mt-4 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.05] px-3 py-2 text-xs leading-5 text-cyan-100">
-                Se algum destes números não corresponder aos dados atuais do MA-Professor, não envie a cópia: o problema está na preparação local e não no envio para a nuvem.
+                Inclui os dados já guardados no MA-Professor. Para incluir alterações posteriores, atualize o quadro antes de confirmar.
               </p>
+
+              <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-3 text-sm">
+                <p className="font-bold text-amber-100">Confirmação do envio</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  Esta cópia substituirá a única cópia online anterior. Os dados são cifrados neste dispositivo antes de serem enviados.
+                </p>
+                <label className="mt-3 flex cursor-pointer items-start gap-3 text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={uploadConfirmed}
+                    disabled={busy}
+                    onChange={event => setUploadConfirmed(event.target.checked)}
+                    className="mt-1 h-4 w-4 shrink-0 accent-violet-500"
+                  />
+                  <span>Confirmo o envio dos dados apresentados e a substituição da cópia online anterior.</span>
+                </label>
+              </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || !uploadConfirmed}
                   onClick={() =>
                     void handleUpload()
                   }
@@ -672,7 +743,7 @@ export function EncryptedSyncPanel() {
                 >
                   {busy
                     ? 'A cifrar, enviar e verificar…'
-                    : 'Enviar esta cópia para a nuvem'}
+                    : 'Confirmar e enviar para a nuvem'}
                 </button>
                 <button
                   type="button"
@@ -687,9 +758,11 @@ export function EncryptedSyncPanel() {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() =>
+                  onClick={() => {
                     setPreparedBackup(null)
-                  }
+                    setUploadConfirmed(false)
+                    setFeedback(null)
+                  }}
                   className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-400 transition hover:text-white disabled:cursor-wait disabled:opacity-60"
                 >
                   Cancelar
@@ -749,7 +822,7 @@ export function EncryptedSyncPanel() {
             <p className="mt-3 text-xs leading-5 text-slate-500">
               {preference === 'enabled'
                 ? 'Os lembretes estão ativos. A cópia online só é enviada quando escolhe «Sim» no aviso ou confirma uma cópia manual.'
-                : 'Os lembretes estão desativados neste dispositivo. A preparação acima não envia dados até carregar em “Enviar esta cópia para a nuvem”.'}
+                : 'Os lembretes estão desativados neste dispositivo. A preparação acima não envia dados até confirmar o envio.'}
             </p>
           </div>
 
@@ -761,6 +834,10 @@ export function EncryptedSyncPanel() {
               {statusError}
             </p>
           ) : null}
+
+          <div className="mt-4">
+            <CloudBackupPreferencePanel />
+          </div>
         </>
       )}
 

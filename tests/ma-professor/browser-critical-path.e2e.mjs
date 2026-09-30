@@ -968,8 +968,16 @@ try {
     name: 'Preparar cópia para a nuvem', exact: true
   })
   const uploadPreparedBackupButton = page.getByRole('button', {
-    name: 'Enviar esta cópia para a nuvem', exact: true
+    name: 'Confirmar e enviar para a nuvem', exact: true
   })
+  const backupPreview = cloudPanel.getByRole('group', { name: 'Dados que vão ser enviados', exact: true })
+  const uploadConfirmation = backupPreview.getByRole('checkbox', {
+    name: 'Confirmo o envio dos dados apresentados e a substituição da cópia online anterior.', exact: true
+  })
+  const countCloudWrites = () => apiRequests.filter(item =>
+    item.path.startsWith('/api/ma-professor/cloud-backup/') && /\/(push-v3|initialize-v3)$/.test(item.path)
+  ).length
+  const beforeUnlockWrites = countCloudWrites()
   const readCloudSession = () => page.evaluate(async () => {
     const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
     const preference = await import('/src/components/ma-professor/sync/cloudBackupPreference.ts')
@@ -1068,8 +1076,10 @@ try {
     'OPAQUE reauthentication must rotate the account session token.'
   )
   assert.equal((await readCloudSession()).preference, 'enabled', 'A confirmação da password não pode alterar a escolha anterior.')
-  await prepareBackupButton.waitFor({ state: 'visible' })
-  assert.equal(await prepareBackupButton.isEnabled(), true)
+  await backupPreview.waitFor({ state: 'visible' })
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
+  assert.equal(await uploadConfirmation.isChecked(), false)
+  assert.equal(countCloudWrites(), beforeUnlockWrites, 'A confirmação da password e a preparação do quadro não podem enviar uma cópia.')
   await cloudPanel.getByRole('status').filter({ hasText: 'Password confirmada.' }).waitFor({ state: 'visible' })
   await cloudPanel.getByRole('button', { name: 'Desativar lembretes de cópia', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'disabled')
@@ -1077,12 +1087,86 @@ try {
   assert.equal(await page.evaluate(() => window.__lateCloudStatus), 'MAProfessorCloudBackupAuthenticationRequiredError')
   await page.unroute(statusRoute, holdOldStatus)
   assert.equal(await unlock.count(), 0, 'A late 401 must not relock the new session.')
-  assert.equal(await prepareBackupButton.isEnabled(), true)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
 
-  // The manual flow prepares one exact local snapshot before any cloud write.
+  // The password opens the complete local preview, without an extra preparation click.
+  const displayedCounts = await backupPreview.locator('tbody tr').evaluateAll(rows =>
+    Object.fromEntries(rows.map(row => [row.querySelector('th').textContent, Number(row.querySelector('td').textContent)]))
+  )
+  const expectedCounts = await page.evaluate(async () => {
+    const { createMAProfessorBackup } = await import('/src/components/ma-professor/settings/backupRepository.ts')
+    const { data } = await createMAProfessorBackup()
+    return {
+      'Perfis do professor': data.teacherProfiles.length,
+      'Anos letivos': data.academicYears.length,
+      Turmas: data.groups.length,
+      Disciplinas: data.subjects.length,
+      'Atribuições letivas': data.teachingAssignments.length,
+      'UFCD / módulos': data.modules.length,
+      Alunos: data.students.length,
+      'Tempos de horário': data.weeklyScheduleSlots.length,
+      'Calendário / PAA': data.schoolCalendarEvents.length,
+      Planificações: data.planifications.length,
+      'Itens de planificação': data.planificationItems.length,
+      Critérios: data.assessmentCriteria.length,
+      'Grelhas de avaliação': data.assessmentSchemes.length,
+      Aulas: data.lessons.length,
+      Sumários: data.lessons.filter(lesson => lesson.summary.trim()).length,
+      Faltas: data.lessonAttendance.filter(item => item.status === 'absent').length,
+      'Registos de assiduidade': data.lessonAttendance.length,
+      'Sugestões de sumários': data.summarySuggestions.length,
+      Avaliações: data.lessonAssessments.length,
+      'Resultados / notas': data.assessmentResults.length,
+      'Notas finais': data.moduleFinalGrades.filter(grade => grade.finalGrade !== null || grade.qualitativeFinalGrade != null || grade.descriptiveAssessment?.trim()).length,
+      'Registos de notas finais': data.moduleFinalGrades.length,
+      Recuperações: data.learningRecoveries.length,
+      Definições: data.settings.length,
+      'Configuração inicial': data.setupProgress.length
+    }
+  })
+  assert.deepEqual(displayedCounts, expectedCounts)
+  assert.ok(displayedCounts.Sumários > 0)
+  assert.match(await backupPreview.innerText(), /substituirá a única cópia online anterior/)
+
+  // Checking, cancelling and refreshing are local operations; each new preview needs fresh consent.
+  await uploadConfirmation.check()
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
+  await backupPreview.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  await prepareBackupButton.waitFor({ state: 'visible' })
+  assert.equal(await backupPreview.count(), 0)
+  assert.equal(countCloudWrites(), beforeUnlockWrites)
   await prepareBackupButton.click()
-  await cloudPanel.getByText('Dados que vão ser enviados', { exact: true }).waitFor({ state: 'visible' })
-  assert.match(await cloudPanel.innerText(), /Sumários/)
+  await backupPreview.waitFor({ state: 'visible' })
+  assert.equal(await uploadConfirmation.isChecked(), false)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
+  await uploadConfirmation.check()
+  await backupPreview.getByRole('button', { name: 'Atualizar pré-visualização', exact: true }).click()
+  assert.equal(await uploadConfirmation.isChecked(), false)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
+  assert.equal(countCloudWrites(), beforeUnlockWrites)
+
+  if (process.env.MA_PROFESSOR_PREVIEW_SCREENSHOTS) {
+    for (const theme of ['light', 'dark']) {
+      if (await page.locator('.ma-professor-product').getAttribute('data-theme') !== theme) {
+        await page.getByRole('button', { name: `Ativar modo ${theme === 'light' ? 'claro' : 'escuro'}`, exact: true }).click()
+      }
+      for (const width of [1366, 390]) {
+        await page.setViewportSize({ width, height: 900 })
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+        await cloudPanel.screenshot({ path: join(process.env.MA_PROFESSOR_PREVIEW_SCREENSHOTS, `ma-professor-cloud-preview-${theme}-${width}.png`) })
+      }
+    }
+    await page.setViewportSize({ width: 1366, height: 900 })
+    await page.getByRole('button', { name: 'Ativar modo claro', exact: true }).click()
+  }
+
+  // A later local edit must never silently change the snapshot the professor reviewed.
+  await page.evaluate(async () => {
+    const { maProfessorDb } = await import('/src/components/ma-professor/db.ts')
+    const lesson = (await maProfessorDb.lessons.toArray()).find(item => item.summary)
+    await maProfessorDb.lessons.update(lesson.id, { notes: 'Alteração posterior ao quadro.' })
+  })
+  await uploadConfirmation.check()
   assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
 
   // A temporary status failure must not claim the existing backup is absent or disable retry.
@@ -1092,12 +1176,16 @@ try {
   await cloudPanel.getByRole('alert').waitFor({ state: 'visible' })
   assert.match(await cloudPanel.innerText(), /por confirmar/)
   assert.doesNotMatch(await cloudPanel.innerText(), /sem cópia online/)
-  assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
+  assert.equal(await uploadConfirmation.isChecked(), false)
+  assert.equal(countCloudWrites(), beforeUnlockWrites)
   await page.unroute(statusRoute, unavailableStatus)
+  await uploadConfirmation.check()
   await uploadPreparedBackupButton.click()
   await page.getByText(
     /Cópia de segurança cifrada, enviada e confirmada no servidor como revisão \d+\./
   ).waitFor({ state: 'visible' })
+  assert.equal(countCloudWrites(), beforeUnlockWrites + 1, 'Apenas a confirmação final deve criar uma nova cópia online.')
   assert.equal(
     await page.getByText('A sessão já não é válida.', { exact: true }).count(),
     0
@@ -1106,13 +1194,25 @@ try {
   const restoredCopy = await page.evaluate(async () => {
     const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
     const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
+    const trust = await import('/src/components/ma-professor/sync/cloudBackupTrust.ts')
     const session = storage.readMAProfessorAccessSession()
     const remote = await service.downloadCompatibleMAProfessorCloudBackup(session)
     return { summary: remote.backup.data.lessons.find(lesson => lesson.summary)?.summary,
+      notes: remote.backup.data.lessons.find(lesson => lesson.summary)?.notes,
+      dirtyAt: trust.readMAProfessorCloudBackupTrust(session).dirtyAt,
       secretPersisted: JSON.stringify({ ...localStorage, ...sessionStorage }).includes(storage.readMAProfessorOpaqueExportKey(session.email)) }
   })
   assert.equal(restoredCopy.summary, SUMMARY)
+  assert.equal(restoredCopy.notes, '', 'A cópia enviada deve corresponder ao quadro preparado, preservando o snapshot apresentado.')
+  assert.ok(restoredCopy.dirtyAt, 'As alterações posteriores ao quadro têm de continuar pendentes depois do envio.')
+  assert.match(await cloudPanel.innerText(), /Há alterações posteriores ao quadro que ainda não estão nesta cópia\./)
   assert.equal(restoredCopy.secretPersisted, false)
+  await page.evaluate(async () => {
+    const { maProfessorDb } = await import('/src/components/ma-professor/db.ts')
+    const lesson = (await maProfessorDb.lessons.toArray()).find(item => item.summary)
+    if (lesson.notes !== 'Alteração posterior ao quadro.') throw new Error('O envio alterou os dados locais.')
+    await maProfessorDb.lessons.update(lesson.id, { notes: '' })
+  })
   const afterReload = await persistedLesson(page)
   assert.equal(afterReload.matchCount, 1)
   assert.equal(afterReload.duplicates, 1)
@@ -1213,7 +1313,9 @@ try {
   await unlock.waitFor({ state: 'hidden' })
   assert.notEqual((await readCloudSession()).token, beforeSecondUnlock.token)
   assert.equal((await readCloudSession()).preference, 'disabled')
-  assert.equal(await prepareBackupButton.isEnabled(), true)
+  await backupPreview.waitFor({ state: 'visible' })
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
+  await backupPreview.getByRole('button', { name: 'Cancelar', exact: true }).click()
   assert.equal(await page.getByText('A sessão já não é válida.', { exact: true }).count(), 0)
   assert.deepEqual(await persistedLesson(page), afterReload)
 
@@ -1227,14 +1329,28 @@ try {
   cloudWorker.setToken(otherTabToken)
   await prepareBackupButton.click()
   await cloudPanel.getByText('Dados que vão ser enviados', { exact: true }).waitFor({ state: 'visible' })
+  await uploadConfirmation.check()
   await uploadPreparedBackupButton.click()
   await unlock.waitFor({ state: 'visible' })
   await unlock.getByLabel('Password pessoal').fill(PERSONAL_PASSWORD)
   await unlock.getByRole('button', { name: 'Confirmar password', exact: true }).click()
   await unlock.waitFor({ state: 'hidden' })
-  assert.equal(await uploadPreparedBackupButton.isEnabled(), true)
+  assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
+  assert.equal(await uploadConfirmation.isChecked(), false)
   assert.equal((await readCloudSession()).preference, 'disabled')
-  await cloudPanel.getByRole('status').filter({ hasText: 'Pode agora confirmar o envio da cópia preparada.' }).waitFor({ state: 'visible' })
+  await cloudPanel.getByRole('status').filter({ hasText: 'Reveja o quadro e confirme o envio da cópia preparada.' }).waitFor({ state: 'visible' })
+  assert.deepEqual(await persistedLesson(page), afterReload)
+
+  // An unchanged preview, reviewed again after reauthentication, can become fully saved.
+  await uploadConfirmation.check()
+  await uploadPreparedBackupButton.click()
+  await page.getByText(/Cópia de segurança cifrada, enviada e confirmada no servidor como revisão \d+\./).waitFor({ state: 'visible' })
+  const finalTrust = await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const trust = await import('/src/components/ma-professor/sync/cloudBackupTrust.ts')
+    return trust.readMAProfessorCloudBackupTrust(storage.readMAProfessorAccessSession())
+  })
+  assert.equal(finalTrust.dirtyAt, null, 'Quando os dados atuais coincidem com o quadro enviado, a cópia fica atualizada.')
   assert.deepEqual(await persistedLesson(page), afterReload)
 
   await page.evaluate(async () => {

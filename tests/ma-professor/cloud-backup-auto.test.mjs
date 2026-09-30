@@ -206,7 +206,7 @@ test(
   () => {
     assert.match(
       syncPanel,
-      /writeMAProfessorCloudBackupTrust\( session, \{ serverRevision: result\.serverRevision, recordRevision: result\.recordRevision, updatedAt: result\.updatedAt \} \)/
+      /writeMAProfessorCloudBackupTrust\( session, \{ serverRevision: result\.serverRevision, recordRevision: result\.recordRevision, updatedAt: result\.updatedAt, dirtyAt:/
     )
     assert.match(
       restorePanel,
