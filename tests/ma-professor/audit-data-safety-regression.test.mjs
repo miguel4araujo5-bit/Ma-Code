@@ -98,11 +98,11 @@ record('CSV_STALE_AVERAGE_AFTER_WEIGHTS',{currentAverage:11,exportedCalculatedAv
 let now = Date.parse('2026-09-29T12:00:00Z');
 const originalNow = Date.now;
 Date.now=()=>now;
-let timers = new Map(); let timerId=0; let effects=[]; let cleanups=[]; let listener;
+let timers = new Map(); let timerId=0; let effects=[]; let cleanups=[]; const listeners=new Set();
 let finishUpload; let uploadError=null; let uploadCalls=0;
 let remoteRevision=1;
 let preference='enabled';
-globalThis.__audit={refs:[],canonicalize:r.canonicalizeMAProfessorBackupData,session:{email:'audit@example.test',deviceId:'d',token:'t'},state:()=>{},preference:()=>preference,effect:(fn)=>effects.push(fn),on:(name, fn)=>{if(fn){listener=fn;return;} return {unsubscribe:()=>{listener=null;}};},status:()=>({serverRevision:remoteRevision,backup:{found:true}}),upload:async()=>{uploadCalls++;if(uploadError)throw uploadError;await new Promise(resolve=>finishUpload=resolve);remoteRevision++;return {serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now).toISOString()};},backup:()=>backup};
+globalThis.__audit={refs:[],canonicalize:r.canonicalizeMAProfessorBackupData,session:{email:'audit@example.test',deviceId:'d',token:'t'},state:()=>{},preference:()=>preference,effect:(fn)=>effects.push(fn),on:(name, fn)=>{if(fn)listeners.add(fn); return {unsubscribe:(fn)=>{listeners.delete(fn);}};},status:()=>({serverRevision:remoteRevision,backup:{found:true}}),upload:async()=>{uploadCalls++;if(uploadError)throw uploadError;await new Promise(resolve=>finishUpload=resolve);remoteRevision++;return {serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now).toISOString()};},backup:()=>backup};
 const plugin={name:'audit-control',setup(b){b.onResolve({filter:/.*/},args=>{
  if(args.path==='react'||args.path==='dexie'||/\/(db|AccessGate|cloudBackupPreference|cloudBackupService|accessStorage|backupRepository)$/.test(args.path))return {path:/cloudBackupService$/.test(args.path)?'/cloudBackupService':args.path,namespace:'audit'};
  });b.onLoad({filter:/.*/,namespace:'audit'},args=>{let contents;
@@ -124,10 +124,10 @@ globalThis.clearTimeout=id=>{if(!timers.delete(id))originalClear(id);};
 const settle=async()=>{for(let i=0;i<35;i++)await Promise.resolve();};
 const mount=async()=>{effects=[];__audit.refs=[];auto.Component();for(const f of effects){const c=f();if(c)cleanups.push(c);}await settle();};
 const unmount=()=>{for(const f of cleanups)f();cleanups=[];timers.clear();};
-const mutate=async()=>{listener({'idb://ma-professor/lessons/':{}});await settle();};
+const mutate=async()=>{listeners.forEach(listener=>listener({'idb://ma-professor/lessons/':{}}));await settle();};
 const fire=async()=>{const [id,t]=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];now=Math.max(now,t.due);timers.delete(id);t.fn();await settle();};
 auto.writeMAProfessorCloudBackupTrust(__audit.session,{serverRevision:1,recordRevision:1,updatedAt:new Date(now-3600000).toISOString()});
-await mount();await mutate();await fire();assert.equal(uploadCalls,0);__audit.refs[0].current('save');await settle();assert.equal(uploadCalls,1);
+await mount();await mutate();await fire();assert.equal(uploadCalls,0);__audit.refs[0].current('save');await settle();__audit.refs[3].current=true;__audit.refs[0].current('confirm');await settle();assert.equal(uploadCalls,1);
 await mutate();assert.ok(auto.readMAProfessorCloudBackupTrust(__audit.session).dirtyAt);
 finishUpload();await settle();
 const trustAfter=auto.readMAProfessorCloudBackupTrust(__audit.session);
@@ -137,7 +137,7 @@ assert.ok(timers.size>0);
 record('AUTO_DIRTY_PRESERVED',{dirtyAfterConcurrentMutation:trustAfter.dirtyAt,timersAfterReload:timers.size,uploadCalls});
 
 // A pending second upload may finish after the local reset. It must not re-arm trust.
-await fire();assert.equal(uploadCalls,1);__audit.refs[0].current('save');await settle();assert.equal(uploadCalls,2);
+await fire();assert.equal(uploadCalls,1);__audit.refs[0].current('save');await settle();__audit.refs[3].current=true;__audit.refs[0].current('confirm');await settle();assert.equal(uploadCalls,2);
 assert.equal(r.writeCloudBackupPreference(__audit.session,'disabled'),true);
 preference='disabled';
 auto.clearMAProfessorCloudBackupTrust(__audit.session);
@@ -158,14 +158,14 @@ preference='enabled';
 unmount();uploadError=new auto.MAProfessorCloudBackupPermanentError('A cópia cifrada é demasiado grande.');auto.writeMAProfessorCloudBackupTrust(__audit.session,{serverRevision:remoteRevision,recordRevision:remoteRevision,updatedAt:new Date(now-3600000).toISOString()});
 await mount();await mutate();const before=uploadCalls;await fire();
 assert.equal(uploadCalls,before);
-__audit.refs[0].current('save');await settle();
+__audit.refs[0].current('save');await settle();__audit.refs[3].current=true;__audit.refs[0].current('confirm');await settle();
 assert.equal(uploadCalls-before,1);assert.equal(timers.size,0);
 assert.ok(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError);
 unmount();await mount();assert.ok(timers.size>0);
 await fire();assert.equal(uploadCalls-before,1);assert.equal(timers.size,0);
 record('REMINDER_ERROR_REQUIRES_CONFIRMATION',{attemptsForPermanentError:1,silentRetry:false});
 await mutate();assert.equal(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError,null);
-__audit.refs[0].current('save');await settle();assert.equal(uploadCalls-before,2);assert.equal(timers.size,0);
+__audit.refs[0].current('save');await settle();__audit.refs[3].current=true;__audit.refs[0].current('confirm');await settle();assert.equal(uploadCalls-before,2);assert.equal(timers.size,0);
 unmount();globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;Date.now=originalNow;
 
 // Production D1 SQL and handlers; export-only instrumentation to exercise the canonical deletion helper.

@@ -1126,7 +1126,7 @@ try {
   })
   assert.deepEqual(displayedCounts, expectedCounts)
   assert.ok(displayedCounts.Sumários > 0)
-  assert.match(await backupPreview.innerText(), /substituirá a única cópia online anterior/)
+  assert.match(await backupPreview.innerText(), /substituirá a cópia online atual/)
 
   // Checking, cancelling and refreshing are local operations; each new preview needs fresh consent.
   await uploadConfirmation.check()
@@ -1263,6 +1263,11 @@ try {
   await page.clock.fastForward(60 * 1000)
   await reminder.waitFor({state:'visible'})
   await reminder.getByRole('button', {name:'Sim',exact:true}).click()
+  const reminderPreview = reminder.getByRole('group', {name:'Dados que vão ser enviados',exact:true})
+  await reminderPreview.waitFor({state:'visible'})
+  assert.equal(countCloudRequests(), beforeReminder)
+  await reminderPreview.getByRole('checkbox').check()
+  await reminderPreview.getByRole('button', {name:'Confirmar e enviar para a nuvem',exact:true}).click()
   await page.getByRole('status').filter({hasText:'Cópia online guardada e verificada.'}).waitFor({state:'visible'})
   assert.equal(await reminder.count(),0)
   assert.ok(countCloudRequests() > beforeReminder)

@@ -1,7 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 
 import type { MAProfessorAccessSession } from '../access/accessTypes'
-import { markMAProfessorCloudBackupDirty } from './cloudBackupTrust'
 
 type BackupIdentity = Pick<MAProfessorAccessSession, 'email' | 'deviceId'>
 export type CloudBackupPreference = 'enabled' | 'disabled' | 'unset'
@@ -42,10 +41,6 @@ export function writeCloudBackupPreference(
   try {
     // As janelas com a versão antiga deixam de reconhecer autorização para envio automático.
     window.localStorage.setItem(storageKey(session), preference === 'enabled' ? 'reminders' : preference)
-    if (preference === 'enabled') {
-      // Inclui alterações feitas enquanto os lembretes estiveram desativados.
-      markMAProfessorCloudBackupDirty(session)
-    }
     window.dispatchEvent(new Event(PREFERENCE_EVENT))
     return true
   } catch {

@@ -206,18 +206,15 @@ export function markMAProfessorCloudBackupDirty(
       session
     )
 
-  if (!trust) {
-    return
-  }
-
   storeTrust(
     session,
     {
-      ...trust,
+      // Sem cópia anterior, registar apenas a alteração local; não inventar revisão remota.
+      ...(trust ?? { serverRevision: 0, recordRevision: null, updatedAt: null }),
       dirtyAt,
       automaticError: null
     },
-    Boolean(trust.automaticError)
+    Boolean(trust?.automaticError)
   )
 }
 
