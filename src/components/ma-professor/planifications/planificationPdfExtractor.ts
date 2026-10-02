@@ -572,6 +572,56 @@ export function extractPlanificationPdfRuleBoxes(
   return rules
 }
 
+function hasSevenColumnRuledBand(
+  rules: PdfRuleBox[]
+) {
+  const unique = (values: number[]) =>
+    values
+      .sort((left, right) => left - right)
+      .filter(
+        (value, index, sorted) =>
+          !index ||
+          value - sorted[index - 1] > 1
+      )
+
+  const vertical = rules.filter(
+    ([x1, y1, x2, y2]) =>
+      Math.abs(x2 - x1) < 1 &&
+      y2 - y1 > 25
+  )
+  const horizontal = rules.filter(
+    ([x1, y1, x2, y2]) =>
+      Math.abs(y2 - y1) < 1 &&
+      x2 - x1 > 250
+  )
+  const ys = unique(
+    horizontal.map(box => box[1])
+  ).reverse()
+
+  for (
+    let index = 0;
+    index < ys.length - 1;
+    index += 1
+  ) {
+    const middle =
+      (ys[index] + ys[index + 1]) / 2
+    const xs = unique(
+      vertical
+        .filter(box =>
+          box[1] <= middle &&
+          box[3] >= middle
+        )
+        .map(box => box[0])
+    )
+
+    if (xs.length === 7) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function buildPlanificationPdfDocumentFromExtraction(
   pages: PlanificationPdfExtractionPage[]
 ): PlanificationPdfDocument {
@@ -692,6 +742,7 @@ export async function extractPlanificationPdf(
 
   const pages:
     PlanificationPdfExtractionPage[] = []
+  let tableChainRecognized = false
 
   try {
     const pdf =
@@ -762,20 +813,25 @@ export async function extractPlanificationPdf(
           extractPlanificationPdfRuleBoxes(
             operators
           )
+        const tableLines =
+          readRuledPlanificationTable(
+            items,
+            rules,
+            tableChainRecognized
+          ) ?? undefined
+
+        if (tableLines) {
+          tableChainRecognized = true
+        } else if (
+          hasSevenColumnRuledBand(rules)
+        ) {
+          tableChainRecognized = false
+        }
 
         pages.push({
           pageNumber,
           items,
-          tableLines:
-            readRuledPlanificationTable(
-              items,
-              rules,
-              Boolean(
-                pages[
-                  pages.length - 1
-                ]?.tableLines
-              )
-            ) ?? undefined
+          tableLines
         })
       } finally {
         try {
