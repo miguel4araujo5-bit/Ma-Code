@@ -321,7 +321,7 @@ export function buildUfcdCfpModel(
     group:
       snapshot.selectedGroup.name,
     moduleLabel:
-      formatModuleLabel(snapshot),
+      formatModuleLabel(snapshot) + (snapshot.recoveryEmission ? ` · Recuperação de assiduidade · ${snapshot.recoveryEmission.date.split('-').reverse().join('/')}` : ''),
     criteria,
     rows,
     gradeBands,
@@ -343,4 +343,16 @@ export function buildUfcdCfpModel(
     fileBaseName:
       `Grelha-Avaliacao-${groupPart}-${modulePart}`
   }
+}
+
+export function getUfcdEmissionFingerprint(snapshot: AssessmentWorkspaceSnapshot): string {
+  // Exclude name/number corrections: they propagate on the next export without warnings.
+  const content = JSON.stringify({
+    criteria: snapshot.criteria.map(row => [row.id, row.weightPercent]),
+    activities: snapshot.activities.map(row => [row.assessment.id, row.assessment.updatedAt, row.lesson.id, row.lesson.date, row.lesson.giaeStatus, row.average, row.resultCount, row.absentCount, row.resultVersion]),
+    students: [...snapshot.studentRows].sort((left, right) => left.student.id.localeCompare(right.student.id)).map(row => [row.student.id, row.gradeSummary, row.finalGradeRecord, row.recoveryPending])
+  })
+  let hash = 2166136261
+  for (let index = 0; index < content.length; index += 1) hash = Math.imul(hash ^ content.charCodeAt(index), 16777619)
+  return (hash >>> 0).toString(16)
 }

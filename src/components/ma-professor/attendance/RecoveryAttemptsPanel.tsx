@@ -222,7 +222,7 @@ export default function RecoveryAttemptsPanel({
   const rows =
     snapshot.rows.filter(
       row =>
-        row.recoveryHistory.length > 0
+        row.recoveryHistory.some(recovery => !recovery.recoveryDate && recovery.status === 'completed')
     )
 
   if (

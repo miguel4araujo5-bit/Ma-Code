@@ -1,3 +1,4 @@
+import { lessonCountsTowardUfcdProgress } from '../lessons/ufcdProgress'
 import { maProfessorDb, openMAProfessorDatabase } from '../db'
 import {
   attendanceRepository,
@@ -283,7 +284,7 @@ function isTaughtProgressLesson(
   lesson: Lesson
 ) {
   return (
-    lesson.status === 'taught' &&
+    lessonCountsTowardUfcdProgress(lesson) &&
     lesson.countTowardProgress
   )
 }
@@ -696,6 +697,7 @@ function sortAttendanceAlerts(
 ) {
   const warningOrder = {
     recovery_required: 0,
+    limit_reached: 0.5,
     warning: 1,
     regular: 2
   } as const
@@ -1166,16 +1168,14 @@ export class DashboardRepository {
         pendingSummaryCount:
           assignmentLessons.filter(
             (lesson) =>
-              lesson.status ===
-                'taught' &&
+              lesson.status === 'taught' &&
               !lesson.summary.trim()
           ).length,
 
         pendingGIAECount:
           assignmentLessons.filter(
             (lesson) =>
-              lesson.status ===
-                'taught' &&
+              lesson.status === 'taught' &&
               Boolean(
                 lesson.summary.trim()
               ) &&
@@ -1233,8 +1233,7 @@ export class DashboardRepository {
       sortLessons(
         activeLessons.filter(
           (lesson) =>
-            lesson.status ===
-              'taught' &&
+            lesson.status === 'taught' &&
             (
               !lesson.summary.trim() ||
               lesson.giaeStatus ===
@@ -1325,16 +1324,14 @@ export class DashboardRepository {
     const pendingSummaryCount =
       activeLessons.filter(
         (lesson) =>
-          lesson.status ===
-            'taught' &&
+          lesson.status === 'taught' &&
           !lesson.summary.trim()
       ).length
 
     const pendingGIAECount =
       activeLessons.filter(
         (lesson) =>
-          lesson.status ===
-            'taught' &&
+          lesson.status === 'taught' &&
           Boolean(
             lesson.summary.trim()
           ) &&
@@ -1397,8 +1394,7 @@ export class DashboardRepository {
         taughtLessonCount:
           activeLessons.filter(
             (lesson) =>
-              lesson.status ===
-              'taught'
+              lessonCountsTowardUfcdProgress(lesson)
           ).length,
 
         cancelledLessonCount:

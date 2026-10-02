@@ -49,6 +49,7 @@ export interface AttendanceWorkspaceStudentRow {
   summary: StudentAbsenceSummary
   recovery: LearningRecovery | null
   recoveryHistory: LearningRecovery[]
+  absences: Awaited<ReturnType<typeof attendanceRepository.listRecoverableAbsences>>
 }
 
 export interface AttendanceWorkspaceAlertRow {
@@ -95,6 +96,9 @@ export interface AttendanceWorkspaceSnapshot {
 }
 
 export interface CreateWorkspaceRecoveryInput {
+  recoveryDate?: string | null
+  recoveryGrade?: number | null
+  selectedAbsenceIds?: EntityId[]
   academicYearId: EntityId
   teachingAssignmentId: EntityId
   moduleId: EntityId
@@ -470,7 +474,7 @@ export class AttendanceWorkspaceRepository {
       row => {
         if (
           row.summary.warningLevel ===
-          'regular'
+          'regular' && !row.summary.recoveryId
         ) {
           return
         }
@@ -583,6 +587,7 @@ export class AttendanceWorkspaceRepository {
         ) => {
           const warningOrder = {
             recovery_required: 0,
+            limit_reached: 0.5,
             warning: 1,
             regular: 2
           } as const
@@ -652,6 +657,8 @@ export class AttendanceWorkspaceRepository {
       }
     )
 
+    const absencesByStudent = new Map(await Promise.all(overview.map(async row => [row.student.id, await attendanceRepository.listRecoverableAbsences(selectedAssignment.id, row.student.id)] as const)))
+
     const rows = overview
       .map(
         row => {
@@ -687,6 +694,7 @@ export class AttendanceWorkspaceRepository {
             null
 
           return {
+            absences: absencesByStudent.get(row.student.id) ?? [],
             student: row.student,
             summary: row.summary,
             recovery:
@@ -721,7 +729,7 @@ export class AttendanceWorkspaceRepository {
     const warningCount = rows.filter(
       row =>
         row.summary.warningLevel ===
-        'warning'
+        'warning' || row.summary.warningLevel === 'limit_reached'
     ).length
 
     const recoveryRequiredCount =

@@ -89,7 +89,7 @@ test(
   () => {
     assert.match(
       repositorySource,
-      /lesson\.status ===[\s\S]*'taught'[\s\S]*attendanceByLesson\.has\([\s\S]*lesson\.id/s
+      /lessonCountsTowardUfcdProgress\(lesson\)[\s\S]*attendanceByLesson\.has\([\s\S]*lesson\.id/s
     )
 
     assert.doesNotMatch(

@@ -148,7 +148,7 @@ test(
 )
 
 test(
-  'reaching the annual 10 percent limit produces recovery required',
+  'reaching exactly ten percent reaches the limit without exceeding it',
   () => {
     const warningLevel =
       metrics.getAttendanceWarningLevel({
@@ -161,7 +161,7 @@ test(
 
     assert.equal(
       warningLevel,
-      'recovery_required'
+      'limit_reached'
     )
   }
 )
@@ -222,7 +222,7 @@ test(
     )
     assert.match(
       repositorySource,
-      /return '🚨 Recuperação necessária'/
+      /return 'Limite ultrapassado'/
     )
   }
 )

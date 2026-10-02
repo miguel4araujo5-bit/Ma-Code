@@ -5,12 +5,13 @@ import { useMAProfessorUnsavedWorkspaceProtection } from '../navigation/useUnsav
 
 interface Props {
   module: ModuleUnit
+  allowReorder?: boolean
   disabled?: boolean
   beforeOpen?: () => boolean
   onChanged: () => Promise<unknown> | void
 }
 
-export default function ModuleUnitActions({ module, disabled, beforeOpen, onChanged }: Props) {
+export default function ModuleUnitActions({ module, disabled, beforeOpen, onChanged, allowReorder = false }: Props) {
   const [action, setAction] = useState<'delete' | 'replace' | null>(null)
   const [draft, setDraft] = useState({ code: '', name: '', plannedPeriods: '' })
   const [confirmation, setConfirmation] = useState('')
@@ -65,6 +66,14 @@ export default function ModuleUnitActions({ module, disabled, beforeOpen, onChan
   const word = action === 'delete' ? 'APAGAR' : 'SUBSTITUIR'
   return <div ref={rootRef} className="mt-3">
     <div className="flex flex-wrap gap-2">
+      {allowReorder ? ([-1, 1] as const).map(direction => <button key={direction} type="button" disabled={disabled || busy} className="rounded-xl border border-white/20 px-3 py-2 text-xs font-bold text-slate-200 disabled:opacity-40" onClick={async () => {
+        if (beforeOpen && !beforeOpen()) return
+        setBusy(true); setError(''); setSuccess('')
+        try { await maProfessorRepository.moveUnstartedModule(module.id, direction, module.updatedAt); await onChanged() }
+        catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível alterar a ordem.') }
+        finally { setBusy(false) }
+      }}>{direction < 0 ? 'Antecipar UFCD' : 'Adiar UFCD'}</button>) : null}
+
       <button type="button" disabled={disabled || busy} onClick={() => open('replace')}
         className="rounded-xl border border-cyan-300/25 px-3 py-2 text-xs font-bold text-cyan-100 disabled:opacity-40">Substituir unidade</button>
       <button type="button" disabled={disabled || busy} onClick={() => open('delete')}

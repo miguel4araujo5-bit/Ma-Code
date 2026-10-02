@@ -95,7 +95,7 @@ function lesson({
   date,
   moduleId = 'module-1',
   status = 'taught',
-  giaeStatus = 'pending',
+  giaeStatus = 'submitted',
   countTowardProgress = true,
   periodCount = 1,
   startTime = '09:00'
@@ -129,7 +129,7 @@ function lesson({
 }
 
 test(
-  'today and past taught lessons count immediately, while future lessons require the GIAE check',
+  'all dates require explicit submission before counting as given',
   async () => {
     const progress = await loadProgress()
     const today = '2026-09-16'
@@ -138,28 +138,31 @@ test(
       progress.lessonCountsTowardUfcdProgress(
         lesson({
           id: 'past',
+          giaeStatus: 'pending',
           date: '2026-09-15'
         }),
         today
       ),
-      true
+      false
     )
 
     assert.equal(
       progress.lessonCountsTowardUfcdProgress(
         lesson({
           id: 'today',
+          giaeStatus: 'pending',
           date: today
         }),
         today
       ),
-      true
+      false
     )
 
     assert.equal(
       progress.lessonCountsTowardUfcdProgress(
         lesson({
           id: 'future-pending',
+          giaeStatus: 'pending',
           date: '2026-09-17'
         }),
         today
@@ -191,7 +194,8 @@ test(
       lesson({
         id: 'planned',
         date: today,
-        status: 'planned'
+        status: 'planned',
+        giaeStatus: 'pending'
       }),
       lesson({
         id: 'cancelled',
@@ -261,6 +265,7 @@ test(
           }),
           lesson({
             id: 'future-pending',
+          giaeStatus: 'pending',
             date: '2026-09-17',
             moduleId: 'module-2'
           })

@@ -24,20 +24,17 @@ export function todayISO(): ISODate {
 
 export function lessonCountsTowardUfcdProgress(
   lesson: Lesson,
-  referenceToday: ISODate = todayISO()
+  _referenceToday: ISODate = todayISO()
 ) {
   if (
-    lesson.status !== 'taught' ||
+    lesson.giaeStatus !== 'submitted' ||
+    lesson.status === 'cancelled' ||
     !lesson.countTowardProgress
   ) {
     return false
   }
 
-  if (lesson.date <= referenceToday) {
-    return true
-  }
-
-  return lesson.giaeStatus === 'submitted'
+  return true
 }
 
 export function compareLessonsChronologically(
@@ -157,24 +154,6 @@ export function selectCurrentUfcd(
         )
     )
 
-  const startedIncomplete =
-    orderedModules.find(module => {
-      const row =
-        progressByModuleId.get(
-          module.id
-        )
-
-      return Boolean(
-        row &&
-        row.periodsTaught > 0 &&
-        row.periodsRemaining > 0
-      )
-    })
-
-  if (startedIncomplete) {
-    return startedIncomplete
-  }
-
   return (
     orderedModules.find(
       module =>
@@ -185,4 +164,13 @@ export function selectCurrentUfcd(
         ) > 0
     ) ?? null
   )
+}
+
+export function getLessonNumbering(lesson: Lesson, lessons: Lesson[]) {
+  const previous = lessons.filter(candidate => candidate.teachingAssignmentId === lesson.teachingAssignmentId && lessonOccursBefore(candidate, lesson))
+  const first = previous.filter(candidate => lessonCountsTowardUfcdProgress(candidate)).reduce((sum, candidate) => sum + candidate.periodCount, 0) + 1
+  return {
+    lessonNumber: lessonCountsTowardUfcdProgress(lesson) ? (lesson.periodCount > 1 ? `${first}–${first + lesson.periodCount - 1}` : String(first)) : null,
+    hasUnsubmittedLessons: previous.some(candidate => candidate.status !== 'cancelled' && candidate.countTowardProgress && candidate.giaeStatus !== 'submitted')
+  }
 }

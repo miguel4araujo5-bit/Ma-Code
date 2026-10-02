@@ -64,6 +64,7 @@ export interface TeachingAssignment extends AuditFields {
 }
 
 export interface ModuleUnit extends AuditFields {
+  lastEmissionFingerprint?: string
   id: EntityId
   academicYearId: EntityId
   teachingAssignmentId: EntityId
@@ -223,6 +224,7 @@ export type GIAEStatus =
   | 'submitted'
 
 export interface Lesson extends AuditFields {
+  scheduleOriginalPosition?: { date: ISODate; startTime: LocalTime }
   id: EntityId
   academicYearId: EntityId
   teachingAssignmentId: EntityId
@@ -349,6 +351,10 @@ export interface LearningRecovery extends AuditFields {
   completedAt: ISODateTime | null
   origin?: LearningRecoveryOrigin
   teacherTouchedAt?: ISODateTime | null
+  recoveryDate?: ISODate | null
+  recoveryGrade?: Score | null
+  selectedAbsenceIds?: EntityId[]
+  removedAbsences?: { attendanceId: EntityId; lessonId: EntityId; date: ISODate; periods: number }[]
 }
 
 export interface MAProfessorSettings extends AuditFields {
@@ -405,6 +411,7 @@ export interface StudentAbsenceSummary {
   warningLevel:
     | 'regular'
     | 'warning'
+    | 'limit_reached'
     | 'recovery_required'
   recoveryId: EntityId | null
 }

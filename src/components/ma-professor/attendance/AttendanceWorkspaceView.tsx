@@ -1,3 +1,6 @@
+import { assessmentWorkspaceRepository } from '../assessments/assessmentWorkspaceRepository'
+import { exportUfcdCfpPdf } from '../assessments/ufcdCfpPdfExport'
+import { exportUfcdFinalGradeExcel } from '../assessments/ufcdFinalGradeExcelExport'
 import {
   type ChangeEvent,
   type FormEvent,
@@ -44,6 +47,9 @@ interface AttendanceWorkspaceViewProps {
       plannedDate?: string | null
       status?: LearningRecoveryStatus
       result?: string
+      recoveryDate?: string | null
+      recoveryGrade?: number | null
+      selectedAbsenceIds?: EntityId[]
     }
   ) => Promise<void> | void
 
@@ -59,6 +65,9 @@ interface AttendanceWorkspaceViewProps {
 }
 
 interface RecoveryDraft {
+  recoveryDate: string
+  recoveryGrade: string
+  selectedAbsenceIds: EntityId[]
   contents: string
   activity: string
   plannedDate: string
@@ -140,6 +149,9 @@ function createDraft(
   recovery: LearningRecovery | null
 ): RecoveryDraft {
   return {
+    recoveryDate: recovery?.recoveryDate ?? '',
+    recoveryGrade: recovery?.recoveryGrade == null ? '' : String(recovery.recoveryGrade),
+    selectedAbsenceIds: recovery?.selectedAbsenceIds ?? [],
     contents:
       recovery?.contents ??
       '',
@@ -237,8 +249,7 @@ function warningClass(
   }
 
   if (
-    warningLevel ===
-    'warning'
+    (warningLevel === 'warning' || warningLevel === 'limit_reached')
   ) {
     return 'border-amber-300/20 bg-amber-300/10 text-amber-100'
   }
@@ -288,6 +299,8 @@ export default function AttendanceWorkspaceView({
       )
   )
 
+  const [newRecoveryStudentId, setNewRecoveryStudentId] = useState<EntityId | null>(null)
+
   const [
     onlyProblems,
     setOnlyProblems
@@ -315,6 +328,7 @@ export default function AttendanceWorkspaceView({
   )
 
   useEffect(() => {
+    setNewRecoveryStudentId(null)
     setDrafts(
       buildDrafts(
         snapshot
@@ -435,7 +449,10 @@ export default function AttendanceWorkspaceView({
                 status:
                   draft.status,
                 result:
-                  draft.result
+                  draft.result,
+                recoveryDate: draft.recoveryDate || null,
+                recoveryGrade: draft.recoveryGrade.trim() === '' ? null : Number(draft.recoveryGrade),
+                selectedAbsenceIds: draft.selectedAbsenceIds
               }
             )
           : onCreateRecovery({
@@ -455,7 +472,10 @@ export default function AttendanceWorkspaceView({
               status:
                 draft.status,
               result:
-                draft.result
+                draft.result,
+              recoveryDate: draft.recoveryDate || null,
+              recoveryGrade: draft.recoveryGrade.trim() === '' ? null : Number(draft.recoveryGrade),
+              selectedAbsenceIds: draft.selectedAbsenceIds
             }),
       recovery
         ? `A recuperação de ${studentName} foi atualizada.`
@@ -908,7 +928,7 @@ export default function AttendanceWorkspaceView({
             />
 
             <MetricCard
-              label="Regular"
+              label="Dentro do limite"
               value={snapshot.totals.regularCount}
               detail="Abaixo do limite de aviso."
               className="border-emerald-300/15 bg-emerald-300/[0.035]"
@@ -917,10 +937,7 @@ export default function AttendanceWorkspaceView({
             <MetricCard
               label="Atenção"
               value={snapshot.totals.warningCount}
-              detail={`A uma aula do limite ou a partir de ${formatPercent(
-                snapshot.settings
-                  .absenceWarningPercent
-              )}%.`}
+              detail="A duas faltas do limite, a uma falta ou com o limite atingido."
               className="border-amber-300/15 bg-amber-300/[0.035]"
             />
 
@@ -930,7 +947,7 @@ export default function AttendanceWorkspaceView({
                 snapshot.totals
                   .recoveryRequiredCount
               }
-              detail={`A partir de ${formatPercent(
+              detail={`Acima de ${formatPercent(
                 snapshot.settings
                   .learningRecoveryThresholdPercent
               )}%.`}
@@ -996,7 +1013,7 @@ export default function AttendanceWorkspaceView({
                 {snapshot.rows.map(
                   row => {
                     const recovery =
-                      row.recovery
+                      newRecoveryStudentId === row.student.id ? null : row.recovery
 
                     const activeRecovery =
                       recovery &&
@@ -1129,27 +1146,22 @@ export default function AttendanceWorkspaceView({
                                 : 'Criar recuperação'}
                           </button>
 
-                          {recovery?.status ===
-                          'completed' ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateDraft(
-                                  row.student.id,
-                                  {
-                                    status:
-                                      'in_progress'
-                                  }
-                                )
+                          {recovery?.status === 'completed' ? (
+                            <button type="button" disabled={busy} className="rounded-xl border border-white/15 px-4 py-2.5 text-xs font-bold text-slate-200" onClick={() => {
+                              setNewRecoveryStudentId(row.student.id)
+                              updateDraft(row.student.id, createDraft(null))
+                              setExpandedStudentId(row.student.id)
+                            }}>Nova recuperação</button>
+                          ) : null}
 
-                                setExpandedStudentId(
-                                  row.student.id
-                                )
-                              }}
-                              disabled={busy}
-                              className="rounded-xl border border-violet-300/20 bg-violet-300/[0.07] px-4 py-2.5 text-xs font-black text-violet-100 transition hover:bg-violet-300/10 disabled:opacity-60"
-                            >
-                              Reabrir recuperação
+                          {recovery?.status === 'completed' && recovery.recoveryDate && recovery.recoveryGrade != null ? (
+                            <button type="button" disabled={busy} className="rounded-xl border border-cyan-300/20 px-4 py-2.5 text-xs font-bold text-cyan-100" onClick={() => void runAction(`emit-${recovery.id}`, async () => {
+                              const assessment = await assessmentWorkspaceRepository.getWorkspace(recovery.academicYearId, { teachingAssignmentId: recovery.teachingAssignmentId, moduleId: recovery.moduleId })
+                              const individual = { ...assessment, recoveryEmission: { date: recovery.recoveryDate! }, studentRows: assessment.studentRows.filter(student => student.student.id === recovery.studentId) }
+                              await exportUfcdFinalGradeExcel(individual)
+                              await exportUfcdCfpPdf(individual)
+                            }, 'Excel e PDF da recuperação emitidos.')}>
+                              Emitir
                             </button>
                           ) : null}
                         </div>
@@ -1243,6 +1255,23 @@ export default function AttendanceWorkspaceView({
                                 />
                               </label>
 
+                              <label>
+                                <FieldLabel>Data da recuperação</FieldLabel>
+                                <input type="date" className={fieldClass} value={draft.recoveryDate} disabled={busy} onChange={event => updateDraft(row.student.id, { recoveryDate: event.target.value })} />
+                              </label>
+                              <label>
+                                <FieldLabel>Nota da recuperação (0–20)</FieldLabel>
+                                <input type="number" min="0" max="20" step="0.01" className={fieldClass} value={draft.recoveryGrade} disabled={busy} onChange={event => updateDraft(row.student.id, { recoveryGrade: event.target.value })} />
+                              </label>
+                              <fieldset className="lg:col-span-2">
+                                <legend className="mb-2 text-xs font-bold text-slate-300">Faltas a remover ao concluir</legend>
+                                {row.absences.map(absence => <label key={absence.attendanceId} className="mr-4 inline-flex items-center gap-2 py-1 text-sm text-slate-300">
+                                  <input type="checkbox" checked={draft.selectedAbsenceIds.includes(absence.attendanceId)} disabled={busy || recovery?.status === 'completed'} onChange={event => updateDraft(row.student.id, { selectedAbsenceIds: event.target.checked ? [...draft.selectedAbsenceIds, absence.attendanceId] : draft.selectedAbsenceIds.filter(id => id !== absence.attendanceId) })} />
+                                  {formatDate(absence.date)} · {absence.startTime} · {absence.periods} tempo(s)
+                                </label>)}
+                                {!row.absences.length ? <p className="text-xs text-slate-500">Sem faltas por recuperar. Uma recuperação manual pode ser concluída com data e nota.</p> : null}
+                                {recovery?.removedAbsences?.length ? <p className="mt-2 text-xs text-slate-400">Faltas removidas: {recovery.removedAbsences.map(absence => `${formatDate(absence.date)} (${absence.periods})`).join(', ')}.</p> : null}
+                              </fieldset>
                               <label>
                                 <FieldLabel>
                                   Estado

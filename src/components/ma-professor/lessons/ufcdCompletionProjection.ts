@@ -130,70 +130,20 @@ export function projectSequentialUfcdCompletionDates(
     const lesson of
       futureLessons
   ) {
-    while (
-      moduleIndex <
-      orderedModules.length
-    ) {
-      const module =
-        orderedModules[
-          moduleIndex
-        ]
-
-      if (
-        (
-          remainingByModuleId.get(
-            module.id
-          ) ?? 0
-        ) >
-        0
-      ) {
-        break
+    let availablePeriods = lesson.periodCount
+    while (availablePeriods > 0 && moduleIndex < orderedModules.length) {
+      const module = orderedModules[moduleIndex]
+      const remaining = remainingByModuleId.get(module.id) ?? 0
+      if (remaining <= 0) { moduleIndex += 1; continue }
+      const allocated = Math.min(remaining, availablePeriods)
+      remainingByModuleId.set(module.id, remaining - allocated)
+      availablePeriods -= allocated
+      if (remaining === allocated) {
+        completionDateByModuleId.set(module.id, lesson.date)
+        moduleIndex += 1
       }
-
-      moduleIndex +=
-        1
     }
-
-    if (
-      moduleIndex >=
-      orderedModules.length
-    ) {
-      break
-    }
-
-    const module =
-      orderedModules[
-        moduleIndex
-      ]
-
-    const remaining =
-      (
-        remainingByModuleId.get(
-          module.id
-        ) ?? 0
-      ) -
-      lesson.periodCount
-
-    remainingByModuleId.set(
-      module.id,
-      Math.max(
-        0,
-        remaining
-      )
-    )
-
-    if (
-      remaining <=
-      0
-    ) {
-      completionDateByModuleId.set(
-        module.id,
-        lesson.date
-      )
-
-      moduleIndex +=
-        1
-    }
+    if (moduleIndex >= orderedModules.length) break
   }
 
   const modules =

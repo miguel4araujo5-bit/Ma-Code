@@ -1,3 +1,4 @@
+import { removeStudentFromMAProfessorDailyDrafts } from '../daily/dailyDraftStorage'
 import {
   maProfessorDb,
   openMAProfessorDatabase
@@ -674,6 +675,20 @@ export class GroupsWorkspaceRepository {
     )
 
     return updated
+  }
+
+  async deleteStudent(studentId: EntityId, confirmation: string) {
+    if (confirmation !== 'ELIMINAR') throw new Error('Escreva ELIMINAR para confirmar.')
+    await this.initialize()
+    await removeStudentFromMAProfessorDailyDrafts(studentId)
+    return maProfessorDb.transaction('rw', maProfessorDb.tables, async () => {
+      const student = await maProfessorDb.students.get(studentId)
+      if (!student) throw new Error('O aluno indicado não existe.')
+      for (const table of [maProfessorDb.lessonAttendance, maProfessorDb.assessmentResults, maProfessorDb.moduleFinalGrades, maProfessorDb.learningRecoveries]) {
+        await table.where('studentId').equals(studentId).delete()
+      }
+      await maProfessorDb.students.delete(studentId)
+    })
   }
 
   async setStudentActive(

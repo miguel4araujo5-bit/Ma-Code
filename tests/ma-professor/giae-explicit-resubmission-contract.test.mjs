@@ -91,7 +91,7 @@ const lessonRepositoryUrl = transpile(`
 
       if (lesson.status === 'cancelled' || !lesson.summary.trim()) {
         throw new Error(
-          'Apenas aulas com sumário podem ser marcadas como submetidas no GIAE.'
+          'Apenas aulas com sumário podem ser marcadas como submetidas no programa oficial.'
         );
       }
 

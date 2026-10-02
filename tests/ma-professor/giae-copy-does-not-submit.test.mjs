@@ -103,7 +103,7 @@ test(
     )
     assert.match(
       copyHandler,
-      /Sumário copiado e assinalado automaticamente como submetido no GIAE\./
+      /Sumário copiado e assinalado automaticamente como submetida no programa oficial\./
     )
   }
 )
@@ -221,7 +221,7 @@ test(
     )
 
     const statusMarker =
-      'aria-label="Estado de submissão no GIAE"'
+      'aria-label="Estado de submissão no programa oficial"'
     const markerIndex =
       dailySource.indexOf(statusMarker)
     const inputStart =
@@ -240,7 +240,7 @@ test(
     assert.doesNotMatch(statusControl, /\breadOnly\b/)
     assert.match(
       dailySource,
-      /Submetido no\s+GIAE/
+      /Submetida no programa oficial/
     )
   }
 )
@@ -279,11 +279,11 @@ test(
     )
     assert.match(
       copyHandler,
-      /O sumário foi copiado, mas não foi assinalado como submetido no GIAE\./
+      /O sumário foi copiado, mas não foi assinalado como submetida no programa oficial\./
     )
     assert.match(
       copyHandler,
-      /Sumário copiado e assinalado automaticamente como submetido no GIAE\./
+      /Sumário copiado e assinalado automaticamente como submetida no programa oficial\./
     )
     assert.match(
       giaeSource,
@@ -332,7 +332,7 @@ test(
     )
     assert.match(
       copyVisibleHandler,
-      /Os sumários foram copiados, mas nem todos foram assinalados como submetidos no GIAE\./
+      /Os sumários foram copiados, mas nem todos foram assinalados como submetidos no programa oficial\./
     )
   }
 )

@@ -314,6 +314,7 @@ export default function LessonEditorDialog({
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [moveCollision, setMoveCollision] = useState<Lesson | null>(null)
 
   const attendanceSectionRef =
     useRef<LessonAttendanceSectionHandle>(null)
@@ -455,7 +456,8 @@ export default function LessonEditorDialog({
   }
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
+    event: { preventDefault(): void },
+    confirmedSwap?: Lesson
   ) {
     event.preventDefault()
 
@@ -511,6 +513,15 @@ export default function LessonEditorDialog({
       return
     }
 
+    const moving = form.date !== lesson.date || form.startTime !== lesson.startTime || form.endTime !== lesson.endTime
+    if (moving) {
+      try {
+        if (lesson.giaeStatus === 'submitted') throw new Error('Esta aula já está marcada como submetida no programa oficial. Retire primeiro esse visto e guarde antes de alterar a data ou hora.')
+        const collision = await lessonRepository.findMoveCollision(lesson.id, form)
+        if (collision && !confirmedSwap) { setMoveCollision(collision); return }
+      } catch (error) { setError(getErrorMessage(error)); return }
+    }
+    setMoveCollision(null)
     setSaving(true)
     setError('')
 
@@ -535,6 +546,7 @@ export default function LessonEditorDialog({
               .count()
           ])
 
+          const positionedLesson = moving ? await lessonRepository.moveLesson(lesson.id, form, lesson.updatedAt, confirmedSwap ? { id: confirmedSwap.id, updatedAt: confirmedSwap.updatedAt } : undefined) : lesson
           let savedLesson = await lessonRepository.updateLesson(
             lesson.id,
             {
@@ -556,7 +568,7 @@ export default function LessonEditorDialog({
               notes: form.notes
             },
             {
-              expectedUpdatedAt: lesson.updatedAt
+              expectedUpdatedAt: positionedLesson.updatedAt
             }
           )
 
@@ -1110,9 +1122,11 @@ export default function LessonEditorDialog({
                           : 'border-white/10 bg-white/[0.025] text-slate-400 hover:bg-white/[0.05]'
                       }`}
                     >
-                      Marcar como submetido
+                      Submetida no programa oficial
                     </button>
                   </div>
+                  {context.lessonNumber ? <p className="mt-2 text-xs text-slate-400">Lição {context.lessonNumber}</p> : null}
+                  {context.hasUnsubmittedLessons ? <p className="mt-2 text-xs text-amber-300">Há lições por submeter.</p> : null}
                 </section>
               </div>
 
@@ -1151,8 +1165,8 @@ export default function LessonEditorDialog({
                     <p className="mt-3 text-sm leading-7 text-slate-400">
                       Pode preparar avaliações sem marcar a aula como dada.
                       Se guardar um sumário, as faltas assinaladas ficam
-                      guardadas. Numa aula futura, só entram no cálculo depois
-                      de a cópia para o GIAE ficar confirmada como submetida.
+                      guardadas e só entram no cálculo depois de a aula ser marcada
+                      como submetida no programa oficial.
                     </p>
 
                     <button
@@ -1227,6 +1241,13 @@ export default function LessonEditorDialog({
                   />
                 </div>
 
+                {moveCollision ? <div role="alert" className="mb-3 rounded-xl border border-amber-300/30 p-3 text-sm text-amber-100">
+                  Existe uma aula nesse horário. Pretende trocar as posições das duas aulas?
+                  <div className="mt-2 flex gap-3">
+                    <button type="button" onClick={event => void handleSubmit(event, moveCollision)} className="rounded-lg border px-3 py-2">Permutar/substituir</button>
+                    <button type="button" onClick={() => setMoveCollision(null)} className="rounded-lg border px-3 py-2">Escolher outra hora</button>
+                  </div>
+                </div> : null}
                 {error ? (
                   <div
                     role="alert"

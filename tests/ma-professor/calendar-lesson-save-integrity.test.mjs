@@ -68,7 +68,7 @@ test(
     )
     assert.match(
       editorSource,
-      /expectedUpdatedAt:\s*lesson\.updatedAt/
+      /expectedUpdatedAt:\s*positionedLesson\.updatedAt/
     )
   }
 )
@@ -205,7 +205,7 @@ test(
     )
     assert.match(
       editorSource,
-      /Se guardar um sumário,[\s\S]*faltas assinaladas ficam[\s\S]*Numa aula futura,[\s\S]*só entram no cálculo[\s\S]*GIAE[\s\S]*submetida/i
+      /Se guardar um sumário,[\s\S]*faltas assinaladas ficam[\s\S]*só entram no cálculo[\s\S]*submetida no programa oficial/i
     )
   }
 )

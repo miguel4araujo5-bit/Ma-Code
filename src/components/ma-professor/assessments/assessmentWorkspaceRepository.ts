@@ -144,7 +144,24 @@ async function getGroupForModule(
 }
 
 export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepositoryBase {
-  async getWorkspace(
+  async getWorkspace(academicYearId: string, filters: AssessmentWorkspaceFilters = {}): Promise<AssessmentWorkspaceSnapshot> {
+    const snapshot = await this.getWorkspaceBeforeRecovery(academicYearId, filters)
+    if (!snapshot.selectedModule) return snapshot
+    const recoveries = await maProfessorDb.learningRecoveries.where('moduleId').equals(snapshot.selectedModule.id).toArray()
+    if (recoveries.length === 0) return snapshot
+    const studentRows = snapshot.studentRows.map(row => {
+      const history = recoveries.filter(recovery => recovery.studentId === row.student.id)
+      const pending = history.some(recovery => recovery.status !== 'completed')
+      const completed = history.filter(recovery => recovery.status === 'completed' && recovery.recoveryGrade != null).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+      if (!pending && !completed) return row
+      const grade = pending ? null : completed.recoveryGrade!
+      return { ...row, recoveryPending: pending, gradeSummary: { ...row.gradeSummary, suggestedGrade: grade, confirmedFinalGrade: grade }, finalGradeRecord: pending ? null : row.finalGradeRecord }
+    })
+    const averages = studentRows.flatMap(row => row.gradeSummary.provisionalAverage == null ? [] : [row.gradeSummary.provisionalAverage])
+    return { ...snapshot, studentRows, totals: { ...snapshot.totals, confirmedGradeCount: studentRows.filter(row => row.gradeSummary.confirmedFinalGrade !== null || row.finalGradeRecord?.qualitativeFinalGrade != null).length, classAverage: calculateAverage(averages) } }
+  }
+
+  private async getWorkspaceBeforeRecovery(
     academicYearId: string,
     filters:
       AssessmentWorkspaceFilters = {}
@@ -228,6 +245,7 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
 
           return {
             ...activity,
+            resultVersion: JSON.stringify(results.filter(result => result.assessmentId === activity.assessment.id).sort((left, right) => left.id.localeCompare(right.id)).map(result => [result.id, result.status, result.score, result.updatedAt])),
             average:
               calculateAverage(
                 gradeBearingResults.map(

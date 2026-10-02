@@ -66,6 +66,7 @@ export interface DailyStudentRow {
 }
 
 export interface DailyLessonWorkspace {
+  assessmentOverview?: Awaited<ReturnType<typeof assessmentWorkspaceRepository.getWorkspace>>
   context: CalendarLessonEditorContext
   attendance: LessonAttendanceRegister
   assessmentWorkspace: LessonAssessmentWorkspace
@@ -921,6 +922,7 @@ export class DailyWorkspaceRepository {
       )
 
     const workspace = {
+      assessmentOverview,
       context,
       attendance,
       assessmentWorkspace,

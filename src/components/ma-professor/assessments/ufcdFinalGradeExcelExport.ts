@@ -739,7 +739,11 @@ function populateCfpInputs(
         )
       }
 
-      if (student.finalGrade !== null) {
+      if (snapshot.studentRows[index]?.recoveryPending) {
+        // A fórmula do modelo também tem de ficar vazia: o Excel não pode
+        // repor uma nota automaticamente enquanto a recuperação está pendente.
+        clearWorksheetCell(files, CFP_SHEET, `BW${row}`)
+      } else if (student.finalGrade !== null) {
         setWorksheetNumber(
           files,
           CFP_SHEET,
@@ -750,9 +754,10 @@ function populateCfpInputs(
     }
   )
 
+  if (snapshot.recoveryEmission) setWorksheetString(files, CFP_SHEET, 'AI79', 'Recuperação de assiduidade')
   const serial =
     excelSerialFromIsoDate(
-      completionDate
+      snapshot.recoveryEmission?.date ?? completionDate
     )
 
   if (serial === null) {

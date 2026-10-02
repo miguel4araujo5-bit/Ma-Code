@@ -167,6 +167,40 @@ async function assertPlanificationItemsAvailable(
 
 export class LessonRepository
   extends BaseLessonRepository {
+  async findMoveCollision(id: EntityId, position: Pick<Lesson, 'date' | 'startTime' | 'endTime'>) {
+    const lesson = await this.getLesson(id)
+    if (!lesson) throw new Error('A aula indicada não existe.')
+    const lessons = await maProfessorDb.lessons.where('academicYearId').equals(lesson.academicYearId).toArray()
+    return lessons.find(row => row.id !== id && row.status !== 'cancelled' && row.date === position.date && row.startTime < position.endTime && row.endTime > position.startTime) ?? null
+  }
+
+  async moveLesson(id: EntityId, requestedPosition: Pick<Lesson, 'date' | 'startTime' | 'endTime'>, expectedUpdatedAt: string, swap?: { id: EntityId; updatedAt: string }) {
+    await this.initialize()
+    const { date, startTime, endTime } = requestedPosition
+    const position = { date, startTime, endTime }
+    return maProfessorDb.transaction('rw', maProfessorDb.tables, async () => {
+      const current = await maProfessorDb.lessons.get(id)
+      if (!current || current.updatedAt !== expectedUpdatedAt) throw new Error('Esta aula foi alterada entretanto. Atualize antes de a mover.')
+      if (current.giaeStatus === 'submitted') throw new Error('Esta aula já está marcada como submetida no programa oficial. Para alterar a data ou hora, retire primeiro esse visto.')
+      const collision = await this.findMoveCollision(id, position)
+      if (collision && (!swap || swap.id !== collision.id)) throw new Error('Já existe uma aula nesse horário. Escolha Permutar/substituir ou outra hora.')
+      const other = swap ? await maProfessorDb.lessons.get(swap.id) : null
+      if (swap && (!other || !collision || other.updatedAt !== swap.updatedAt)) throw new Error('A aula de destino foi alterada entretanto. Escolha novamente o destino.')
+      if (other?.giaeStatus === 'submitted') throw new Error('Uma ou mais aulas que está a tentar permutar estão marcadas como submetidas no programa oficial. Retire primeiro esse visto para prosseguir.')
+      if (other && (other.startTime !== position.startTime || other.endTime !== position.endTime || other.periodCount !== current.periodCount)) throw new Error('A permuta exige células com o mesmo número de tempos. Escolha outra hora.')
+      const all = await maProfessorDb.lessons.where('academicYearId').equals(current.academicYearId).toArray()
+      for (const [, destination] of other ? [[current, position], [other, current]] as const : [[current, position]] as const) {
+        if (all.some(row => row.id !== current.id && row.id !== other?.id && row.status !== 'cancelled' && row.date === destination.date && row.startTime < destination.endTime && row.endTime > destination.startTime)) throw new Error('A permuta sobrepõe-se a outra aula. Escolha outra hora.')
+      }
+      const timestamp = new Date().toISOString()
+      if (other) await maProfessorDb.lessons.put({ ...other, date: current.date, startTime: current.startTime, endTime: current.endTime, scheduleOriginalPosition: other.scheduleOriginalPosition ?? { date: other.date, startTime: other.startTime }, updatedAt: timestamp })
+      const saved = await super.updateLesson(id, position, { expectedUpdatedAt })
+      const moved = { ...saved, scheduleOriginalPosition: current.scheduleOriginalPosition ?? { date: current.date, startTime: current.startTime } }
+      await maProfessorDb.lessons.put(moved)
+      return moved
+    })
+  }
+
   override async createLesson(
     input: LessonDraft
   ) {
@@ -237,6 +271,14 @@ export class LessonRepository
             'Esta aula foi alterada noutra aba ou janela. Atualize a página antes de guardar para não substituir as alterações mais recentes.'
           )
         }
+
+        if (latest.giaeStatus === 'submitted' && (
+          (changes.date !== undefined && changes.date !== latest.date) ||
+          (changes.startTime !== undefined && changes.startTime !== latest.startTime) ||
+          (changes.endTime !== undefined && changes.endTime !== latest.endTime) ||
+          (changes.moduleId !== undefined && changes.moduleId !== latest.moduleId) ||
+          (changes.teachingAssignmentId !== undefined && changes.teachingAssignmentId !== latest.teachingAssignmentId)
+        )) throw new Error('Esta aula já está marcada como submetida no programa oficial. Para alterar a data, hora ou UFCD, retire primeiro esse visto.')
 
         const nextDate =
           changes.date ??
@@ -331,6 +373,7 @@ export class LessonRepository
                   .equals(
                     id
                   )
+                  .filter(record => record.status === 'absent')
                   .count(),
                 maProfessorDb
                   .lessonAssessments
@@ -513,7 +556,7 @@ export class LessonRepository
           !lesson.summary.trim()
         ) {
           throw new Error(
-            'Apenas aulas com sumário podem ser marcadas como submetidas no GIAE.'
+            'Apenas aulas com sumário podem ser marcadas como submetidas no programa oficial.'
           )
         }
 

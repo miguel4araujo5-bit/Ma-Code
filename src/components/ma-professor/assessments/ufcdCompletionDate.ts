@@ -1,3 +1,4 @@
+import { lessonCountsTowardUfcdProgress } from '../lessons/ufcdProgress'
 import {
   maProfessorDb,
   openMAProfessorDatabase
@@ -38,7 +39,7 @@ export function completionDateFromLessons(
 
   for (const lesson of orderedLessons) {
     if (
-      lesson.status !== 'taught' ||
+      !lessonCountsTowardUfcdProgress(lesson) ||
       !lesson.countTowardProgress ||
       !Number.isFinite(lesson.periodCount) ||
       lesson.periodCount <= 0

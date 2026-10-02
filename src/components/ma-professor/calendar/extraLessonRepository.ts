@@ -802,7 +802,7 @@ export class ExtraLessonRepository {
       )
     ) {
       throw new Error(
-        'Apenas uma aula dada com sumário pode ser marcada como submetida no GIAE.'
+        'Apenas uma aula dada com sumário pode ser marcada como submetida no programa oficial.'
       )
     }
 

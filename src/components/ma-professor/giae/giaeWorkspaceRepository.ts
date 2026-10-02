@@ -660,7 +660,7 @@ export class GIAEWorkspaceRepository {
 
     if (!authorization) {
       throw new Error(
-        'Copie este sumário antes de o marcar como submetido no GIAE.'
+        'Copie este sumário antes de o marcar como submetido no programa oficial.'
       )
     }
 
@@ -677,7 +677,7 @@ export class GIAEWorkspaceRepository {
       )
 
       throw new Error(
-        'Este sumário foi alterado desde a última cópia. Copie-o novamente antes de o marcar como submetido no GIAE.'
+        'Este sumário foi alterado desde a última cópia. Copie-o novamente antes de o marcar como submetido no programa oficial.'
       )
     }
 

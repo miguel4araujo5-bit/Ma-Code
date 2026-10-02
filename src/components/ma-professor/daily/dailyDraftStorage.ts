@@ -788,3 +788,25 @@ export async function clearMAProfessorDailyDrafts(): Promise<void> {
     database.close()
   }
 }
+
+export async function removeStudentFromMAProfessorDailyDrafts(studentId: string): Promise<void> {
+  const database = await openDailyDraftDatabase()
+  try {
+    const transaction = database.transaction(DAILY_DRAFT_STORE_NAME, 'readwrite')
+    const completed = transactionToPromise(transaction)
+    const store = transaction.objectStore(DAILY_DRAFT_STORE_NAME)
+    const records = await requestToPromise(store.getAll()) as MAProfessorDailyDraft[]
+    const cleanSignature = (value: string) => {
+      try {
+        const parsed = JSON.parse(value)
+        if (Array.isArray(parsed.students)) parsed.students = parsed.students.filter((row: { studentId: string }) => row.studentId !== studentId)
+        return JSON.stringify(parsed)
+      } catch { return '' }
+    }
+    for (const draft of records) {
+      if (!draft.students.some(row => row.studentId === studentId)) continue
+      await requestToPromise(store.put({ ...draft, students: draft.students.filter(row => row.studentId !== studentId), baseSavedSignature: cleanSignature(draft.baseSavedSignature), draftSignature: cleanSignature(draft.draftSignature) }))
+    }
+    await completed
+  } finally { database.close() }
+}

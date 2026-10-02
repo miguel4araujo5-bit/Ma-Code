@@ -361,100 +361,32 @@ after(async () => {
   }
 })
 
-test(
-  'repository enforces three attempts and only then accepts exam referral',
-  async () => {
-    await seed()
+test('only one recovery may be pending for a student/module; a new explicit recovery can follow completion', async () => {
+  await seed()
+  const first = await createAttempt()
+  await assert.rejects(() => createAttempt(), /recuperação pendente/)
+  await attendanceRepository.updateLearningRecovery(first.id, {
+    status: 'completed', recoveryDate: '2026-09-14', recoveryGrade: 12, selectedAbsenceIds: []
+  })
+  const next = await createAttempt()
+  assert.notEqual(next.id, first.id)
+  assert.equal((await maProfessorDb.learningRecoveries.get(first.id)).recoveryGrade, 12)
+})
 
-    const first = await createAttempt()
+test('legacy unsuccessful attempts and exam referral remain readable without changing their records', async () => {
+  await seed()
+  await maProfessorDb.learningRecoveries.bulkPut([recovery('r1',1), recovery('r2',2), recovery('r3',3)])
+  const referred = await attendanceRepository.referLearningRecoveryToExam('module','student')
+  assert.equal(referred.id,'r3')
+  assert.ok(referred.referredToExamAt)
+  assert.equal((await maProfessorDb.learningRecoveries.get('r1')).result,'Resultado')
+})
 
-    await assert.rejects(
-      () => createAttempt(),
-      /tentativa anterior/
-    )
-
-    await failAttempt(first)
-
-    const second = await createAttempt()
-    await failAttempt(second)
-
-    await assert.rejects(
-      () =>
-        attendanceRepository.referLearningRecoveryToExam(
-          'module',
-          'student'
-        ),
-      /três tentativas/
-    )
-
-    const third = await createAttempt()
-    await failAttempt(third)
-
-    await assert.rejects(
-      () => createAttempt(),
-      /três tentativas/
-    )
-
-    const referred =
-      await attendanceRepository.referLearningRecoveryToExam(
-        'module',
-        'student'
-      )
-
-    assert.equal(referred.id, third.id)
-    assert.ok(referred.referredToExamAt)
-
-    const persisted =
-      await maProfessorDb.learningRecoveries
-        .get(third.id)
-
-    assert.ok(persisted.referredToExamAt)
-  }
-)
-
-test(
-  'a successful attempt closes the sequence',
-  async () => {
-    await seed()
-
-    const first = await createAttempt()
-    await attendanceRepository.updateLearningRecovery(
-      first.id,
-      {
-        activity: 'Ficha de recuperação',
-        result: 'Objetivos atingidos.',
-        status: 'completed'
-      }
-    )
-    await attendanceRepository.setLearningRecoveryOutcome(
-      first.id,
-      'successful'
-    )
-
-    await assert.rejects(
-      () => createAttempt(),
-      /concluída com sucesso/
-    )
-  }
-)
-
-test(
-  'automatic synchronization never creates follow-up attempts after history already exists',
-  () => {
-    assert.match(
-      repositorySource,
-      /const assignmentHistory =[\s\S]*listRecoveryHistoryForAssignment\([\s\S]*module\.teachingAssignmentId,[\s\S]*studentId[\s\S]*\)[\s\S]*if \(assignmentHistory\.length > 0\) \{[\s\S]*return sortLearningRecoveryAttempts\(\s*assignmentHistory\s*\)/
-    )
-    assert.match(
-      repositorySource,
-      /\.filter\([\s\S]*recovery =>[\s\S]*recovery\.status !== 'completed'/
-    )
-    assert.match(
-      repositorySource,
-      /MAX_LEARNING_RECOVERY_ATTEMPTS/
-    )
-  }
-)
+test('synchronization keeps active recoveries and checks for absences recorded after completion', () => {
+  assert.match(repositorySource, /getActiveRecoveryForAssignment/)
+  assert.match(repositorySource, /row\.updatedAt > \(latestCompleted\.completedAt/)
+  assert.doesNotMatch(repositorySource, /if \(assignmentHistory\.length > 0\)/)
+})
 
 test(
   'product exposes structured attempt outcomes and exam referral without a remote persistence path',

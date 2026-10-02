@@ -1,3 +1,4 @@
+import { maProfessorDb } from '../db'
 import {
   Fragment,
   useEffect,
@@ -22,6 +23,7 @@ import {
 } from './ufcdCompletionDate'
 
 import {
+  getUfcdEmissionFingerprint,
   buildUfcdCfpModel
 } from './ufcdCfpModel'
 
@@ -226,7 +228,7 @@ export default function UfcdCfpPreview({
     exporting,
     setExporting
   ] = useState<
-    'pdf' | 'excel' | null
+    'pdf' | 'excel' | 'both' | null
   >(null)
 
   const [
@@ -403,7 +405,7 @@ export default function UfcdCfpPreview({
   }
 
   async function runExport(
-    kind: 'pdf' | 'excel'
+    kind: 'pdf' | 'excel' | 'both'
   ) {
     if (
       exportDisabled ||
@@ -413,6 +415,7 @@ export default function UfcdCfpPreview({
       return
     }
 
+    if (snapshot.studentRows.some(row => row.recoveryPending) && !window.confirm('Existem alunos com avaliação pendente por recuperação. Esses alunos ficam sem nota na folha final. Pretende prosseguir?')) return
     setExporting(kind)
     setError('')
 
@@ -424,14 +427,20 @@ export default function UfcdCfpPreview({
         current => current + 1
       )
 
-      if (kind === 'pdf') {
+      if (kind === 'pdf' || kind === 'both') {
         await exportUfcdCfpPdf(
           snapshot
         )
-      } else {
+      }
+      if (kind === 'excel' || kind === 'both') {
         await exportUfcdFinalGradeExcel(
           snapshot
         )
+      }
+      if (snapshot.selectedModule) {
+        const fingerprint = getUfcdEmissionFingerprint(snapshot)
+        await maProfessorDb.modules.update(snapshot.selectedModule.id, { lastEmissionFingerprint: fingerprint })
+        setLastEmissionFingerprint(fingerprint)
       }
     } catch (
       currentError
@@ -445,6 +454,10 @@ export default function UfcdCfpPreview({
       setExporting(null)
     }
   }
+
+  const [lastEmissionFingerprint, setLastEmissionFingerprint] = useState(snapshot.selectedModule?.lastEmissionFingerprint)
+  useEffect(() => setLastEmissionFingerprint(snapshot.selectedModule?.lastEmissionFingerprint), [snapshot.selectedModule?.id, snapshot.selectedModule?.lastEmissionFingerprint])
+  const emissionOutdated = Boolean(lastEmissionFingerprint && lastEmissionFingerprint !== getUfcdEmissionFingerprint(snapshot))
 
   const previewRows =
     Array.from(
@@ -492,6 +505,9 @@ export default function UfcdCfpPreview({
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
             Edite a autoavaliação, a classificação final e a indicação ACS diretamente na folha oficial. O PDF contém apenas a CFP; o Excel contém o livro XLSM completo.
           </p>
+          {emissionOutdated ? <p role="status" className="mt-2 text-sm text-amber-200">A avaliação foi alterada depois da última emissão. Pode emitir novamente a folha atualizada.</p> : null}
+          <button type="button" disabled={exportDisabled || Boolean(exporting) || savingAll} onClick={() => void runExport('both')} className="mt-3 rounded-xl border border-cyan-300/30 px-4 py-2 text-sm font-bold text-cyan-100">{emissionOutdated ? 'Emitir novamente Excel e PDF' : 'Emitir Excel e PDF'}</button>
+
         </div>
 
         <div className="grid shrink-0 gap-2 sm:grid-cols-3">

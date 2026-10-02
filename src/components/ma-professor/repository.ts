@@ -1475,6 +1475,22 @@ export class MAProfessorRepository {
     return record
   }
 
+  async moveUnstartedModule(id: EntityId, direction: -1 | 1, expectedUpdatedAt: string) {
+    await this.initialize()
+    return maProfessorDb.transaction('rw', maProfessorDb.modules, maProfessorDb.lessons, async () => {
+      const module = await maProfessorDb.modules.get(id)
+      if (!module || module.updatedAt !== expectedUpdatedAt) throw new Error('A unidade foi alterada entretanto. Atualize a lista.')
+      const lessons = await maProfessorDb.lessons.where('teachingAssignmentId').equals(module.teachingAssignmentId).toArray()
+      const started = new Set(lessons.filter(row => row.giaeStatus === 'submitted').map(row => row.moduleId))
+      if (started.has(id)) throw new Error('Uma UFCD com lições submetidas mantém a sua posição.')
+      const available = (await maProfessorDb.modules.where('teachingAssignmentId').equals(module.teachingAssignmentId).toArray()).filter(row => row.active && !started.has(row.id)).sort((a, b) => a.order - b.order)
+      const other = available[available.findIndex(row => row.id === id) + direction]
+      if (!other) throw new Error('Não existe outra UFCD por iniciar nessa direção.')
+      const timestamp = now()
+      await maProfessorDb.modules.bulkPut([{ ...module, order: other.order, updatedAt: timestamp }, { ...other, order: module.order, updatedAt: timestamp }])
+    })
+  }
+
   async deleteModule(id: EntityId, expectedUpdatedAt: string) {
     return this.changeModule(id, expectedUpdatedAt, null)
   }

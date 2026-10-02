@@ -837,7 +837,7 @@ export async function exportUfcdCfpPdf(
   drawCell(
     page,
     bold,
-    'Data de Conclusão do Módulo',
+    snapshot.recoveryEmission ? 'Recuperação de assiduidade' : 'Data de Conclusão do Módulo',
     rightX,
     summaryTop,
     rightBoxWidth,
@@ -851,7 +851,7 @@ export async function exportUfcdCfpPdf(
   drawCell(
     page,
     font,
-    model.completionDate,
+    snapshot.recoveryEmission ? snapshot.recoveryEmission.date.split('-').reverse().join('/') : model.completionDate,
     rightX,
     summaryTop - 18,
     rightBoxWidth,

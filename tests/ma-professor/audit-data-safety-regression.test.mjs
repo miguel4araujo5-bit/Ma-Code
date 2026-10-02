@@ -38,7 +38,7 @@ await db.groups.add({id:'group',academicYearId:'year',name:'10.º D',educationTy
 await db.subjects.add({id:'subject',academicYearId:'year',name:'Expressões',shortName:'AE',code:'AE',active:true,...stamp});
 await db.teachingAssignments.add({id:'assignment',academicYearId:'year',groupId:'group',subjectId:'subject',displayName:'AE',active:true,...stamp});
 await db.modules.add({id:'module',academicYearId:'year',teachingAssignmentId:'assignment',code:'10385',name:'Expressão',plannedPeriods:50,order:1,plannedStartDate:null,plannedEndDate:null,active:true,...stamp});
-const lesson = {id:'lesson',academicYearId:'year',teachingAssignmentId:'assignment',moduleId:'module',scheduleSlotId:null,origin:'extra',status:'taught',date:'2026-09-28',startTime:'09:00',endTime:'09:50',periodCount:1,countTowardProgress:true,plannedActivity:'',summary:'Sumário da cópia',summarySource:'manual',planificationItemIds:[],giaeStatus:'pending',giaeSubmittedAt:null,notes:'',...stamp};
+const lesson = {id:'lesson',academicYearId:'year',teachingAssignmentId:'assignment',moduleId:'module',scheduleSlotId:null,origin:'extra',status:'taught',date:'2026-09-28',startTime:'09:00',endTime:'09:50',periodCount:1,countTowardProgress:true,plannedActivity:'',summary:'Sumário da cópia',summarySource:'manual',planificationItemIds:[],giaeStatus:'submitted',giaeSubmittedAt:'2026-09-28T10:00:00.000Z',notes:'',...stamp};
 await db.lessons.add(lesson);
 const backup = await r.createMAProfessorBackup();
 assert.equal(r.validateMAProfessorBackup(backup).valid,true,JSON.stringify(r.validateMAProfessorBackup(backup)));

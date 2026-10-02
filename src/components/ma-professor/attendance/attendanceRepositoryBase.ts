@@ -1,3 +1,4 @@
+import { lessonCountsTowardUfcdProgress } from '../lessons/ufcdProgress'
 import {
   ensureDefaultMAProfessorSettings,
   maProfessorDb,
@@ -62,6 +63,9 @@ export interface AttendanceSummaryFilters {
 }
 
 export interface LearningRecoveryDraft {
+  recoveryDate?: ISODate | null
+  recoveryGrade?: number | null
+  selectedAbsenceIds?: EntityId[]
   academicYearId: EntityId
   teachingAssignmentId: EntityId
   moduleId: EntityId
@@ -74,6 +78,9 @@ export interface LearningRecoveryDraft {
 }
 
 export interface LearningRecoveryChanges {
+  recoveryDate?: ISODate | null
+  recoveryGrade?: number | null
+  selectedAbsenceIds?: EntityId[]
   contents?: string
   activity?: string
   plannedDate?: ISODate | null
@@ -433,6 +440,9 @@ function createRecoveryRecord(
       input.moduleId,
     studentId:
       input.studentId,
+    recoveryDate: input.recoveryDate ?? null,
+    recoveryGrade: input.recoveryGrade ?? null,
+    selectedAbsenceIds: input.selectedAbsenceIds ?? [],
     triggeredAt:
       timestamp,
     lessonCountAtTrigger:
@@ -865,8 +875,7 @@ async function calculateStudentModuleSummary(
       (
         lesson
       ) =>
-        lesson.status ===
-          'taught' &&
+        lessonCountsTowardUfcdProgress(lesson) &&
         lesson.countTowardProgress &&
         (
           isStudentMemberOnDate(
@@ -1066,21 +1075,11 @@ function validateRecoveryCompletion(
     return
   }
 
-  if (
-    !recovery.activity.trim()
-  ) {
-    throw new Error(
-      'Indique a atividade de recuperação realizada.'
-    )
+  if (!recovery.recoveryDate || recovery.recoveryGrade == null || !Number.isFinite(recovery.recoveryGrade) || recovery.recoveryGrade < 0 || recovery.recoveryGrade > 20) {
+    throw new Error('Indique a data e uma nota entre 0 e 20 valores para concluir a recuperação.')
   }
+  assertISODate(recovery.recoveryDate, 'A data da recuperação')
 
-  if (
-    !recovery.result.trim()
-  ) {
-    throw new Error(
-      'Indique o resultado da recuperação antes de a concluir.'
-    )
-  }
 }
 
 export class AttendanceRepository {
@@ -2106,6 +2105,9 @@ export class AttendanceRepository {
     const updated:
       LearningRecovery = {
       ...current,
+      recoveryDate: changes.recoveryDate === undefined ? current.recoveryDate : changes.recoveryDate,
+      recoveryGrade: changes.recoveryGrade === undefined ? current.recoveryGrade : changes.recoveryGrade,
+      selectedAbsenceIds: changes.selectedAbsenceIds ?? current.selectedAbsenceIds,
       contents:
         changes.contents ===
         undefined
@@ -2266,11 +2268,12 @@ export function getAbsenceWarningLevelLabel(
       string
     > = {
       regular:
-        'Regular',
+        'Dentro do limite',
       warning:
-        'Atenção',
+        'A aproximar-se do limite',
+      limit_reached: 'Limite atingido',
       recovery_required:
-        'Recuperação necessária'
+        'Limite ultrapassado'
     }
 
   return labels[

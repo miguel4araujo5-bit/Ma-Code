@@ -1,3 +1,7 @@
+import { maProfessorDb } from '../db';
+import { getUfcdEmissionFingerprint } from '../assessments/ufcdCfpModel';
+import { exportUfcdFinalGradeExcel } from '../assessments/ufcdFinalGradeExcelExport';
+import { exportUfcdCfpPdf } from '../assessments/ufcdCfpPdfExport';
 import {
     useCallback,
     useEffect,
@@ -1610,7 +1614,7 @@ export default function DailyWorkspaceView({
             !lessonForm.summary.trim()
         ) {
             setError(
-                'Escreva e guarde primeiro o sumário antes de marcar como submetido no GIAE.'
+                'Escreva e guarde primeiro o sumário antes de marcar como submetida no programa oficial.'
             );
             setSuccess('');
             return;
@@ -1655,7 +1659,7 @@ export default function DailyWorkspaceView({
                 !currentLesson.summary.trim()
             ) {
                 throw new Error(
-                    'Guarde primeiro o sumário antes de marcar como submetido no GIAE.'
+                    'Guarde primeiro o sumário antes de marcar como submetida no programa oficial.'
                 );
             }
 
@@ -1712,8 +1716,8 @@ export default function DailyWorkspaceView({
 
             setSuccess(
                 submitted
-                    ? 'Aula assinalada manualmente como submetida no GIAE.'
-                    : 'Estado “Submetido no GIAE” anulado manualmente.'
+                    ? 'Aula assinalada manualmente como submetida no programa oficial.'
+                    : 'Estado “Submetida no programa oficial” anulado manualmente.'
             );
 
             await notifySaved();
@@ -1874,7 +1878,7 @@ export default function DailyWorkspaceView({
             }
 
             setSuccess(
-                'Sumário copiado e assinalado automaticamente como submetido no GIAE.'
+                'Sumário copiado e assinalado automaticamente como submetida no programa oficial.'
             );
 
             await notifySaved();
@@ -1893,7 +1897,7 @@ export default function DailyWorkspaceView({
 
             setError(
                 copied
-                    ? `O sumário foi copiado, mas não foi assinalado como submetido no GIAE. ${message}`
+                    ? `O sumário foi copiado, mas não foi assinalado como submetida no programa oficial. ${message}`
                     : `Não foi possível copiar o sumário. ${message}`
             );
             setSuccess('');
@@ -3366,11 +3370,25 @@ export default function DailyWorkspaceView({
                                             className={`${inputClassName} min-h-36 flex-1 resize-none text-sm leading-6`}
                                         />
 
+                                        {selectedLesson.assessmentOverview?.selectedModule?.lastEmissionFingerprint && selectedLesson.assessmentOverview.selectedModule.lastEmissionFingerprint !== getUfcdEmissionFingerprint(selectedLesson.assessmentOverview) ? <p role="status" className="mt-2 text-xs text-amber-200">
+                                          A avaliação foi alterada depois da última emissão. <button type="button" className="underline" disabled={saving} onClick={async () => {
+                                            try {
+                                              const snapshot = selectedLesson.assessmentOverview!;
+                                              if (snapshot.studentRows.some(row => row.recoveryPending) && !window.confirm('Existem alunos com avaliação pendente por recuperação. Esses alunos ficam sem nota. Pretende prosseguir?')) return;
+                                              await exportUfcdFinalGradeExcel(snapshot);
+                                              await exportUfcdCfpPdf(snapshot);
+                                              await maProfessorDb.modules.update(snapshot.selectedModule!.id, { lastEmissionFingerprint: getUfcdEmissionFingerprint(snapshot) });
+                                              await loadDate(date, selectedLesson.context.lessonRow.lesson.id, selectedAssessmentId);
+                                            } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível emitir a folha.'); }
+                                          }}>Emitir novamente Excel e PDF</button>
+                                        </p> : null}
+                                        {selectedLesson.context.lessonNumber ? <p className="mt-2 text-xs text-slate-400">Lição {selectedLesson.context.lessonNumber}</p> : null}
+                                        {selectedLesson.context.hasUnsubmittedLessons ? <p className="mt-1 text-xs text-amber-300" role="status">Há lições por submeter.</p> : null}
                                         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                             <p className="min-w-0 text-[0.68rem] leading-4 text-slate-500 sm:flex-1 sm:pr-3">
                                                 {lessonIsFuture
-                                                    ? 'Aula futura: guardar o sumário mantém-na planeada até ser marcada como submetida no GIAE.'
-                                                    : 'Ao guardar o sumário, a aula fica registada como realizada.'}
+                                                    ? 'Aula futura: guardar o sumário mantém-na planeada até ser marcada como submetida no programa oficial.'
+                                                    : 'A aula só conta como dada depois de marcada como submetida no programa oficial.'}
                                             </p>
 
                                             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
@@ -3429,12 +3447,11 @@ export default function DailyWorkspaceView({
                                                             saving ||
                                                             !lessonForm.summary.trim()
                                                         }
-                                                        aria-label="Estado de submissão no GIAE"
+                                                        aria-label="Estado de submissão no programa oficial"
                                                         className="h-4 w-4 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-45"
                                                     />
 
-                                                    Submetido no
-                                                    GIAE
+                                                    Submetida no programa oficial
                                                 </label>
                                             </div>
                                         </div>

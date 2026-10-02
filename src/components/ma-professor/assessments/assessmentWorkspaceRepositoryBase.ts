@@ -1,3 +1,4 @@
+import { lessonCountsTowardUfcdProgress } from '../lessons/ufcdProgress'
 import {
   maProfessorDb,
   openMAProfessorDatabase
@@ -43,6 +44,7 @@ export interface AssessmentModuleOption {
 }
 
 export interface AssessmentWorkspaceActivityRow {
+  resultVersion?: string
   assessment: LessonAssessment
   lesson: Lesson
   criterion: AssessmentCriterion
@@ -55,6 +57,7 @@ export interface AssessmentWorkspaceActivityRow {
 }
 
 export interface AssessmentWorkspaceStudentRow {
+  recoveryPending?: boolean
   student: Student
   gradeSummary: StudentModuleGradeSummary
   finalGradeRecord: ModuleFinalGrade | null
@@ -71,6 +74,7 @@ export interface AssessmentWorkspaceTotals {
 }
 
 export interface AssessmentWorkspaceSnapshot {
+  recoveryEmission?: { date: string }
   academicYear: AcademicYear
 
   filters: {
@@ -1613,7 +1617,8 @@ export class AssessmentWorkspaceRepository {
           assessment.teachingAssignmentId ===
             selectedAssignment.id &&
           assessment.moduleId ===
-            selectedModule.id
+            selectedModule.id &&
+          context.lessons.some(lesson => lesson.id === assessment.lessonId && lessonCountsTowardUfcdProgress(lesson))
       )
 
     const assessmentIds =

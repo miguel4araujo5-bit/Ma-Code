@@ -17,6 +17,7 @@ export interface AnnualAttendancePeriodMetrics
 export type AttendanceWarningLevel =
   | 'regular'
   | 'warning'
+  | 'limit_reached'
   | 'recovery_required'
 
 export interface AttendanceWarningLevelInput {
@@ -116,8 +117,8 @@ export function calculateAnnualAttendancePeriodMetrics(
 export function getAttendanceWarningLevel({
   plannedPeriods,
   absencePeriods,
-  nextLessonPeriods,
-  warningPercent,
+  nextLessonPeriods: _nextLessonPeriods,
+  warningPercent: _warningPercent,
   recoveryThresholdPercent
 }: AttendanceWarningLevelInput): AttendanceWarningLevel {
   if (
@@ -132,62 +133,9 @@ export function getAttendanceWarningLevel({
       ? Math.max(0, absencePeriods)
       : 0
 
-  const normalizedNextLessonPeriods =
-    Number.isFinite(nextLessonPeriods)
-      ? Math.max(0, nextLessonPeriods)
-      : 0
-
-  const normalizedRecoveryThreshold =
-    Number.isFinite(recoveryThresholdPercent)
-      ? Math.max(
-          0,
-          recoveryThresholdPercent
-        )
-      : 0
-
-  const normalizedWarningPercent =
-    Number.isFinite(warningPercent)
-      ? Math.max(
-          0,
-          warningPercent
-        )
-      : 0
-
-  const absencePercent =
-    roundPercentage(
-      (
-        normalizedAbsencePeriods /
-        plannedPeriods
-      ) * 100
-    )
-
-  if (
-    absencePercent >=
-    normalizedRecoveryThreshold
-  ) {
-    return 'recovery_required'
-  }
-
-  const recoveryThresholdPeriods =
-    plannedPeriods *
-    (
-      normalizedRecoveryThreshold /
-      100
-    )
-
-  const oneLessonFromThreshold =
-    normalizedNextLessonPeriods > 0 &&
-    normalizedAbsencePeriods +
-      normalizedNextLessonPeriods >=
-      recoveryThresholdPeriods
-
-  if (
-    oneLessonFromThreshold ||
-    absencePercent >=
-      normalizedWarningPercent
-  ) {
-    return 'warning'
-  }
-
+  const threshold = plannedPeriods * recoveryThresholdPercent / 100
+  if (normalizedAbsencePeriods > threshold + 1e-9) return 'recovery_required'
+  if (Math.abs(normalizedAbsencePeriods - threshold) < 1e-9) return 'limit_reached'
+  if (normalizedAbsencePeriods > 0 && threshold - normalizedAbsencePeriods <= 2 + 1e-9) return 'warning'
   return 'regular'
 }

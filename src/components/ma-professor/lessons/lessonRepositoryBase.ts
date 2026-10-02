@@ -1160,7 +1160,7 @@ function assertLessonFields(
       !lesson.summary.trim()
     ) {
       throw new Error(
-        'Apenas aulas dadas com sumário podem ser marcadas como submetidas no GIAE.'
+        'Apenas aulas dadas com sumário podem ser marcadas como submetidas no programa oficial.'
       )
     }
   }
@@ -1697,7 +1697,7 @@ export class LessonRepository {
       !lesson.summary.trim()
     ) {
       throw new Error(
-        'Apenas aulas dadas com sumário podem ser marcadas como submetidas no GIAE.'
+        'Apenas aulas dadas com sumário podem ser marcadas como submetidas no programa oficial.'
       )
     }
 
@@ -2493,6 +2493,10 @@ export class LessonRepository {
             )
         )
       )
+
+    for (const lesson of existingLessons) {
+      if (lesson.scheduleOriginalPosition) occupiedPositions.add(lessonPositionKey(lesson.teachingAssignmentId, lesson.scheduleOriginalPosition.date, lesson.scheduleOriginalPosition.startTime))
+    }
 
     const timestamp =
       now()

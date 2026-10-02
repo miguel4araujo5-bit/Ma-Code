@@ -1,3 +1,5 @@
+import { maProfessorDb } from '../db'
+import { getLessonNumbering } from '../lessons/ufcdProgress'
 import {
   lessonRepository
 } from '../lessons/lessonRepository'
@@ -114,6 +116,7 @@ export class CalendarWorkspaceRepository
 
     return {
       ...context,
+      ...getLessonNumbering(context.lessonRow.lesson, await maProfessorDb.lessons.where('teachingAssignmentId').equals(context.lessonRow.assignment.id).toArray()),
       nextPlanificationItem
     }
   }

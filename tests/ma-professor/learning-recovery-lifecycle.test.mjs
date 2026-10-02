@@ -167,11 +167,10 @@ test('editing a recovery marks it as teacher-touched before persistence complete
   )
 })
 
-test('synchronization removes only stale untouched automatic recoveries below the threshold', () => {
-  assert.match(
-    attendanceSource,
-    /synchronizeRecoveriesForModule[\s\S]*canAutomaticallyRemoveRecovery[\s\S]*warningLevel[\s\S]*recovery_required[\s\S]*learningRecoveries[\s\S]*delete/
-  )
+test('synchronization preserves pending recoveries even if the threshold changes', () => {
+  const synchronization = attendanceSource.slice(attendanceSource.indexOf('override async synchronizeRecoveriesForModule('), attendanceSource.indexOf('async synchronizeRecoveriesForActiveAcademicYear('))
+  assert.doesNotMatch(synchronization, /\.delete\(/)
+  assert.match(synchronization, /return created/)
 })
 
 test('active-year reconciliation exists for threshold changes', () => {

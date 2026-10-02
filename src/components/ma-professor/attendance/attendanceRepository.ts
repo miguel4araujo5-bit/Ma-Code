@@ -1,3 +1,4 @@
+import { lessonCountsTowardUfcdProgress } from '../lessons/ufcdProgress'
 import {
   ensureDefaultMAProfessorSettings,
   maProfessorDb
@@ -25,10 +26,6 @@ import {
   calculateAnnualAttendancePeriodMetrics,
   getAttendanceWarningLevel
 } from './attendancePeriodMetrics'
-
-import {
-  canAutomaticallyRemoveRecovery
-} from './learningRecoveryLifecycle'
 
 import {
   MAX_LEARNING_RECOVERY_ATTEMPTS,
@@ -63,7 +60,7 @@ export function getAbsenceWarningLevelLabel(
     warningLevel ===
     'recovery_required'
   ) {
-    return '🚨 Recuperação necessária'
+    return 'Limite ultrapassado'
   }
 
   return getBaseAbsenceWarningLevelLabel(
@@ -202,8 +199,7 @@ async function hasStudentAbsenceInModule(
       lessons
         .filter(
           lesson =>
-            lesson.status ===
-              'taught'
+            lessonCountsTowardUfcdProgress(lesson)
         )
         .map(
           lesson =>
@@ -227,6 +223,19 @@ function now() {
 
 export class AttendanceRepository
   extends BaseAttendanceRepository {
+  async listRecoverableAbsences(teachingAssignmentId: EntityId, studentId: EntityId) {
+    await this.initialize()
+    const [lessons, records] = await Promise.all([
+      maProfessorDb.lessons.where('teachingAssignmentId').equals(teachingAssignmentId).toArray(),
+      maProfessorDb.lessonAttendance.where('studentId').equals(studentId).toArray()
+    ])
+    const lessonById = new Map(lessons.filter(lesson => lessonCountsTowardUfcdProgress(lesson)).map(lesson => [lesson.id, lesson]))
+    return records.filter(record => record.status === 'absent' && lessonById.has(record.lessonId)).map(record => {
+      const lesson = lessonById.get(record.lessonId)!
+      return { attendanceId: record.id, lessonId: lesson.id, date: lesson.date, startTime: lesson.startTime, periods: lesson.periodCount, updatedAt: record.updatedAt }
+    }).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+  }
+
   override async getStudentModuleAbsenceSummary(
     moduleId: EntityId,
     studentId: EntityId
@@ -337,8 +346,7 @@ export class AttendanceRepository
         lessons
           .filter(
             lesson =>
-              lesson.status ===
-                'taught' &&
+              lessonCountsTowardUfcdProgress(lesson) &&
               attendanceByLesson.has(
                 lesson.id
               )
@@ -383,8 +391,7 @@ export class AttendanceRepository
       lessons
         .filter(
           lesson =>
-            lesson.status ===
-              'taught' &&
+            lessonCountsTowardUfcdProgress(lesson) &&
             lesson.countTowardProgress &&
             lesson.periodCount > 0
         )
@@ -495,7 +502,7 @@ export class AttendanceRepository
       async () => {
         const recovery =
           await super.createLearningRecovery(
-            input
+            { ...input, status: input.status === 'completed' ? 'pending' : input.status }
           )
 
         const persisted:
@@ -517,7 +524,9 @@ export class AttendanceRepository
             persisted
           )
 
-        return persisted
+        return input.status === 'completed'
+          ? this.updateLearningRecovery(persisted.id, { ...input, status: 'completed' })
+          : persisted
       }
     )
   }
@@ -526,58 +535,6 @@ export class AttendanceRepository
     input: LearningRecoveryDraft
   ) {
     await this.initialize()
-
-    const history =
-      await listRecoveryHistory(
-        input.moduleId,
-        input.studentId
-      )
-
-    if (history.length > 0) {
-      const summary =
-        summarizeLearningRecoveryAttempts(
-          history
-        )
-
-      if (
-        summary.attemptCount >=
-        MAX_LEARNING_RECOVERY_ATTEMPTS
-      ) {
-        throw new Error(
-          'Já foram registadas três tentativas de recuperação para este aluno nesta UFCD. Não é possível criar uma quarta tentativa.'
-        )
-      }
-
-      if (summary.hasSuccessfulAttempt) {
-        throw new Error(
-          'A recuperação deste aluno já foi concluída com sucesso.'
-        )
-      }
-
-      if (summary.referredToExamAt) {
-        throw new Error(
-          'Este aluno já foi encaminhado para exame.'
-        )
-      }
-
-      if (!summary.canCreateNextAttempt) {
-        throw new Error(
-          'Conclua e classifique a tentativa anterior como “Sem sucesso” antes de iniciar uma nova tentativa.'
-        )
-      }
-    }
-
-    const activeAssignmentRecovery =
-      await getActiveRecoveryForAssignment(
-        input.teachingAssignmentId,
-        input.studentId
-      )
-
-    if (activeAssignmentRecovery) {
-      throw new Error(
-        'Este aluno já possui uma recuperação pendente ou em curso nesta disciplina.'
-      )
-    }
 
     return this.createLearningRecoveryWithOrigin(
       input,
@@ -630,16 +587,11 @@ export class AttendanceRepository
       return activeAssignmentRecovery
     }
 
-    const assignmentHistory =
-      await listRecoveryHistoryForAssignment(
-        module.teachingAssignmentId,
-        studentId
-      )
-
-    if (assignmentHistory.length > 0) {
-      return sortLearningRecoveryAttempts(
-        assignmentHistory
-      )[assignmentHistory.length - 1]!
+    const moduleHistory = await listRecoveryHistory(moduleId, studentId)
+    const latestCompleted = moduleHistory.filter(row => row.status === 'completed').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+    if (latestCompleted) {
+      const absences = await this.listRecoverableAbsences(module.teachingAssignmentId, studentId)
+      if (!absences.some(row => row.updatedAt > (latestCompleted.completedAt ?? latestCompleted.updatedAt))) return latestCompleted
     }
 
     const assignmentModules =
@@ -749,81 +701,6 @@ export class AttendanceRepository
             recovery.id
           )
       )
-
-    const candidates =
-      await maProfessorDb
-        .learningRecoveries
-        .where(
-          'teachingAssignmentId'
-        )
-        .equals(
-          module.teachingAssignmentId
-        )
-        .toArray()
-
-    for (
-      const candidate
-      of candidates
-    ) {
-      if (
-        !canAutomaticallyRemoveRecovery(
-          candidate
-        )
-      ) {
-        continue
-      }
-
-      const summary =
-        await this.getStudentModuleAbsenceSummary(
-          candidate.moduleId,
-          candidate.studentId
-        )
-
-      if (
-        summary.warningLevel ===
-        'recovery_required'
-      ) {
-        continue
-      }
-
-      const deleted =
-        await maProfessorDb.transaction(
-          'rw',
-          maProfessorDb.learningRecoveries,
-          async () => {
-            const latest =
-              await maProfessorDb
-                .learningRecoveries
-                .get(
-                  candidate.id
-                )
-
-            if (
-              !latest ||
-              !canAutomaticallyRemoveRecovery(
-                latest
-              )
-            ) {
-              return false
-            }
-
-            await maProfessorDb
-              .learningRecoveries
-              .delete(
-                latest.id
-              )
-
-            return true
-          }
-        )
-
-      if (deleted) {
-        await this.ensureLearningRecovery(
-          candidate.moduleId,
-          candidate.studentId
-        )
-      }
-    }
 
     return created
   }
@@ -981,15 +858,33 @@ export class AttendanceRepository
       'rw',
       maProfessorDb.tables,
       async () => {
+        const latest = await maProfessorDb.learningRecoveries.get(id)
+        if (!latest) throw new Error('A recuperação indicada não existe.')
+        if (latest.status === 'completed' && latest.recoveryDate && changes.status && changes.status !== 'completed') {
+          throw new Error('Para corrigir faltas, abra a aula correspondente. A recuperação concluída mantém o seu registo.')
+        }
+        const completing = latest.status !== 'completed' && changes.status === 'completed'
+        let removedAbsences = latest.removedAbsences
+        if (completing) {
+          const ids = [...new Set(changes.selectedAbsenceIds ?? latest.selectedAbsenceIds ?? [])]
+          const available = await this.listRecoverableAbsences(latest.teachingAssignmentId, latest.studentId)
+          if (!ids.length && !(latest.origin === 'manual' && available.length === 0)) throw new Error('Selecione as faltas que pretende remover antes de concluir a recuperação.')
+          const selected = ids.map(id => available.find(row => row.attendanceId === id))
+          if (selected.some(row => !row)) throw new Error('Uma das faltas selecionadas foi alterada entretanto. Atualize a lista antes de concluir.')
+          removedAbsences = selected.map(row => ({ attendanceId: row!.attendanceId, lessonId: row!.lessonId, date: row!.date, periods: row!.periods }))
+        }
         const updated =
           await super.updateLearningRecovery(
             id,
-            changes
+            latest.status === 'completed' && latest.recoveryDate
+              ? { ...changes, selectedAbsenceIds: latest.selectedAbsenceIds }
+              : changes
           ) as LearningRecoveryAttemptRecord
 
         const touched:
           LearningRecoveryAttemptRecord = {
           ...updated,
+          removedAbsences,
           outcome:
             updated.status === 'completed'
               ? updated.outcome ?? null
@@ -1001,6 +896,11 @@ export class AttendanceRepository
             updated.updatedAt
         }
 
+        if (completing) {
+          for (const absence of removedAbsences ?? []) {
+            await maProfessorDb.lessonAttendance.update(absence.attendanceId, { status: 'present', code: '', updatedAt: touched.updatedAt })
+          }
+        }
         await maProfessorDb
           .learningRecoveries
           .put(touched)

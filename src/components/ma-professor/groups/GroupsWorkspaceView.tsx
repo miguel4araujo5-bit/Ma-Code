@@ -54,6 +54,7 @@ interface GroupsWorkspaceViewProps {
     studentId: EntityId,
     changes: UpdateStudentWorkspaceInput
   ) => Promise<void> | void
+  onDeleteStudent: (studentId: EntityId, confirmation: string) => Promise<void> | void
   onSetStudentActive: (
     studentId: EntityId,
     active: boolean
@@ -294,7 +295,8 @@ export default function GroupsWorkspaceView({
   onUpdateGroup,
   onSaveStudents,
   onUpdateStudent,
-  onSetStudentActive
+  onSetStudentActive,
+  onDeleteStudent
 }: GroupsWorkspaceViewProps) {
   const rootRef =
     useRef<HTMLDivElement>(null)
@@ -1816,6 +1818,11 @@ export default function GroupsWorkspaceView({
                             >
                               Editar
                             </button>
+
+                            <button type="button" disabled={busy} className="rounded-xl border border-rose-300/20 px-4 py-2.5 text-xs font-bold text-rose-200" onClick={() => {
+                              const confirmation = window.prompt(`Eliminar ${student.name}? Serão eliminadas definitivamente as faltas, avaliações/notas, recuperações e restantes registos escolares deste aluno. Não existe caixote do lixo nem possibilidade de anular. Faça previamente uma cópia de segurança, se a pretender. Escreva ELIMINAR para confirmar.`)
+                              if (confirmation === 'ELIMINAR') void runAction(`delete-${student.id}`, () => onDeleteStudent(student.id, confirmation), 'Aluno e respetivos registos eliminados.')
+                            }}>Eliminar</button>
 
                             <button
                               type="button"

@@ -210,7 +210,7 @@ test(
         today
       ),
       'taught',
-      'Uma aula futura explicitamente submetida no GIAE deve passar a dada.'
+      'Uma aula futura explicitamente submetida no programa oficial deve passar a dada.'
     )
 
     assert.equal(
@@ -243,11 +243,11 @@ test(
   () => {
     assert.match(
       dailyWorkspaceViewSource,
-      /lessonIsFuture[\s\S]*Aula futura: guardar o sumário mantém-na planeada até ser marcada como submetida no GIAE\./
+      /lessonIsFuture[\s\S]*Aula futura: guardar o sumário mantém-na planeada até ser marcada como submetida no programa oficial\./
     )
     assert.match(
       dailyWorkspaceViewSource,
-      /Ao guardar o sumário, a aula fica registada como realizada\./
+      /A aula só conta como dada depois de marcada como submetida no programa oficial\./
     )
     assert.match(
       dailyWorkspaceViewSource,
@@ -377,7 +377,7 @@ test(
     )
     assert.doesNotMatch(
       saveBody,
-      /aula futura não pode ser marcada como submetida no GIAE/i
+      /aula futura não pode ser marcada como submetida no programa oficial/i
     )
     assert.doesNotMatch(
       saveBody,

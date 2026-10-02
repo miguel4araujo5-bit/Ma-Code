@@ -41,7 +41,8 @@ const dbUrl = transpile(`
       return {
         equals(){
           return {
-            async count(){return state()[key]}
+            async count(){return state()[key]},
+            filter(){return this}
           }
         }
       }

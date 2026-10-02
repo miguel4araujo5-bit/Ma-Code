@@ -1431,7 +1431,7 @@ export default function PlanificationWorkspaceView({
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            A previsão usa os tempos já registados e as aulas futuras do horário, respeitando os dias sem aula definidos no calendário.
+            A previsão usa os tempos já submetidos e as aulas futuras do horário, respeitando os dias sem aula definidos no calendário.
           </p>
 
           <div className="mt-5 space-y-2">
@@ -1484,7 +1484,7 @@ export default function PlanificationWorkspaceView({
         <section className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
           <p className="text-sm font-bold text-white">{selectedModuleLabel}</p>
           <p className="mt-1 text-xs text-slate-400">Gerir a própria UFCD, módulo ou UC.</p>
-          <ModuleUnitActions key={snapshot.selectedModule.id} module={snapshot.selectedModule}
+          <ModuleUnitActions allowReorder key={snapshot.selectedModule.id} module={snapshot.selectedModule}
             disabled={busy} beforeOpen={confirmDiscardUnsavedChanges}
             onChanged={async () => {
               discardOnNextSnapshotRef.current = true

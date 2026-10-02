@@ -815,6 +815,10 @@ export function validateMAProfessorBackupDataIntegrity(
       addIssue
     )
 
+    if (value.scheduleOriginalPosition !== undefined && (!isRecord(value.scheduleOriginalPosition) || !isIsoDate(value.scheduleOriginalPosition.date) || typeof value.scheduleOriginalPosition.startTime !== 'string' || !LOCAL_TIME_PATTERN.test(value.scheduleOriginalPosition.startTime))) {
+      addIssue(`${path}.scheduleOriginalPosition`, 'A posição original da aula é inválida.')
+    }
+
     if (!isIsoDate(value.date)) {
       addIssue(
         `${path}.date`,
@@ -1041,6 +1045,11 @@ export function validateMAProfessorBackupDataIntegrity(
   ) {
     const path =
       `data.learningRecoveries[${index}]`
+
+    if (value.recoveryDate != null && !isIsoDate(value.recoveryDate)) addIssue(`${path}.recoveryDate`, 'A data da recuperação não é válida.')
+    if (value.recoveryGrade != null && !isScore(value.recoveryGrade)) addIssue(`${path}.recoveryGrade`, 'A nota da recuperação deve estar entre 0 e 20.')
+    if (value.selectedAbsenceIds !== undefined && (!Array.isArray(value.selectedAbsenceIds) || !value.selectedAbsenceIds.every(id => typeof id === 'string'))) addIssue(`${path}.selectedAbsenceIds`, 'A seleção de faltas não é válida.')
+    if (value.removedAbsences !== undefined && (!Array.isArray(value.removedAbsences) || !value.removedAbsences.every(row => isRecord(row) && typeof row.attendanceId === 'string' && typeof row.lessonId === 'string' && isIsoDate(row.date) && isPositiveInteger(row.periods)))) addIssue(`${path}.removedAbsences`, 'O registo de faltas recuperadas não é válido.')
 
     validateEnum(
       value.status,

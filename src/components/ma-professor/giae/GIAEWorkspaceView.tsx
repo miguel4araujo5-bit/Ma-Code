@@ -1250,12 +1250,12 @@ export default function GIAEWorkspaceView({
               : 'Não foi possível atualizar o estado no GIAE.'
 
           throw new Error(
-            `O sumário foi copiado, mas não foi assinalado como submetido no GIAE. ${message}`
+            `O sumário foi copiado, mas não foi assinalado como submetida no programa oficial. ${message}`
           )
         }
       },
       shouldAutoSubmit
-        ? 'Sumário copiado e assinalado automaticamente como submetido no GIAE.'
+        ? 'Sumário copiado e assinalado automaticamente como submetida no programa oficial.'
         : 'Sumário copiado.'
     )
   }
@@ -1327,7 +1327,7 @@ export default function GIAEWorkspaceView({
               : 'Não foi possível atualizar o estado no GIAE.'
 
           throw new Error(
-            `Os sumários foram copiados, mas nem todos foram assinalados como submetidos no GIAE. ${message}`
+            `Os sumários foram copiados, mas nem todos foram assinalados como submetidos no programa oficial. ${message}`
           )
         }
       },
@@ -1362,7 +1362,7 @@ export default function GIAEWorkspaceView({
         onMarkSubmitted(
           lessonId
         ),
-      'Sumário marcado como submetido no GIAE.'
+      'Sumário marcado como submetida no programa oficial.'
     )
   }
 

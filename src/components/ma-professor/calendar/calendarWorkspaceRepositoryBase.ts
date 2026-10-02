@@ -1,3 +1,4 @@
+import { lessonCountsTowardUfcdProgress } from '../lessons/ufcdProgress'
 import {
   calendarEventContainsDate,
   calendarRepository,
@@ -105,6 +106,8 @@ export interface CalendarWorkspaceSnapshot {
 }
 
 export interface CalendarLessonEditorContext {
+  lessonNumber?: string | null
+  hasUnsubmittedLessons?: boolean
   lessonRow: CalendarLessonRow
   assignmentModules: ModuleUnit[]
   previousLessonTemplate: PreviousLessonTemplate | null
@@ -1592,9 +1595,7 @@ export class CalendarWorkspaceRepository {
             (
               row
             ) =>
-              row.lesson
-                .status ===
-              'taught'
+              lessonCountsTowardUfcdProgress(row.lesson)
           ).length,
 
         cancelledLessonCount:
@@ -1622,9 +1623,7 @@ export class CalendarWorkspaceRepository {
             (
               row
             ) =>
-              row.lesson
-                .status ===
-                'taught' &&
+              lessonCountsTowardUfcdProgress(row.lesson) &&
               !row.lesson
                 .summary
                 .trim()
@@ -1635,9 +1634,7 @@ export class CalendarWorkspaceRepository {
             (
               row
             ) =>
-              row.lesson
-                .status ===
-                'taught' &&
+              lessonCountsTowardUfcdProgress(row.lesson) &&
               Boolean(
                 row.lesson
                   .summary

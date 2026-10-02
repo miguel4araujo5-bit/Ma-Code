@@ -171,83 +171,6 @@ function getLastCountedLessonDate(
   )
 }
 
-function estimateCompletionDate(
-  data: AssignmentProgressData,
-  module: ModuleUnit,
-  periodsRemaining: number,
-  referenceDate: ISODate
-) {
-  if (periodsRemaining <= 0) {
-    return getLastCountedLessonDate(
-      module.id,
-      data.lessons,
-      todayISO()
-    )
-  }
-
-  const activeSlots =
-    data.slots.filter(
-      slot =>
-        slot.active &&
-        slot.teachingAssignmentId ===
-          data.assignment.id
-    )
-
-  if (activeSlots.length === 0) {
-    return null
-  }
-
-  let cursor =
-    module.plannedStartDate &&
-    module.plannedStartDate > referenceDate
-      ? module.plannedStartDate
-      : referenceDate
-
-  let accumulated = 0
-  let checkedDays = 0
-
-  while (
-    cursor <= data.academicYear.endDate &&
-    checkedDays < 550
-  ) {
-    checkedDays += 1
-
-    if (
-      !data.events.some(
-        event =>
-          eventBlocksAssignment(
-            event,
-            data.assignment,
-            cursor
-          )
-      )
-    ) {
-      const weekday = getWeekday(cursor)
-
-      accumulated +=
-        activeSlots
-          .filter(
-            slot =>
-              slot.weekday === weekday &&
-              slot.validFrom <= cursor &&
-              slot.validUntil >= cursor
-          )
-          .reduce(
-            (total, slot) =>
-              total + slot.periodCount,
-            0
-          )
-
-      if (accumulated >= periodsRemaining) {
-        return cursor
-      }
-    }
-
-    cursor = addDays(cursor, 1)
-  }
-
-  return null
-}
 
 async function loadAssignmentProgressData(
   teachingAssignmentId: EntityId
@@ -443,6 +366,7 @@ async function lessonHasRelatedData(
   lesson: Lesson
 ) {
   if (
+    lesson.updatedAt !== lesson.createdAt ||
     lesson.planificationItemIds.length > 0 ||
     lesson.plannedActivity.trim() ||
     lesson.summary.trim() ||
@@ -660,19 +584,12 @@ export class UfcdProgressRepository {
         ? data.academicYear.startDate
         : referenceToday
 
-    if (
-      dateFrom >
-      data.academicYear.endDate
-    ) {
-      return projectSequentialUfcdCompletionDates({
-        modules:
-          data.modules,
-        progress,
-        actualCompletionDateByModuleId,
-        futureLessons:
-          []
-      })
-    }
+    const remainingPeriods = progress.reduce((sum, row) => sum + row.periodsRemaining, 0)
+    const lastSlotEnd = data.slots.filter(slot => slot.active).reduce((end, slot) => slot.validUntil > end ? slot.validUntil : end, '') || data.academicYear.endDate
+    const weeklyPeriods = data.slots.filter(slot => slot.active && slot.validUntil === lastSlotEnd).reduce((sum, slot) => sum + slot.periodCount, 0)
+    const lastKnownDate = data.events.reduce((end, event) => event.endDate > end ? event.endDate : end, lastSlotEnd > dateFrom ? lastSlotEnd : dateFrom)
+    const projectionEnd = addDays(lastKnownDate, Math.ceil(remainingPeriods / Math.max(1, weeklyPeriods)) * 7 + 14)
+    const projectionSlots = data.slots.map(slot => slot.validUntil === lastSlotEnd ? { ...slot, validUntil: projectionEnd } : slot)
 
     const relatedLessonIds =
       await loadRelatedLessonIds(
@@ -688,7 +605,7 @@ export class UfcdProgressRepository {
           data.assignment
         ],
         slots:
-          data.slots,
+          projectionSlots,
         modules:
           data.modules,
         events:
@@ -698,7 +615,7 @@ export class UfcdProgressRepository {
         relatedLessonIds,
         dateFrom,
         dateTo:
-          data.academicYear.endDate
+          projectionEnd
       })
 
     const deletedLessonIds =
@@ -754,7 +671,6 @@ export class UfcdProgressRepository {
       reconciliation.createLessons
         .filter(
           lesson =>
-            lesson.countTowardProgress &&
             lesson.date >=
               dateFrom
         )
@@ -1001,24 +917,10 @@ export class UfcdProgressRepository {
     const academicYearId =
       snapshot.academicYear.id
 
-    const [
-      lessons,
-      slots,
-      events
-    ] = await Promise.all([
-      maProfessorDb.lessons
-        .where('academicYearId')
-        .equals(academicYearId)
-        .toArray(),
-      maProfessorDb.weeklyScheduleSlots
-        .where('academicYearId')
-        .equals(academicYearId)
-        .toArray(),
-      maProfessorDb.schoolCalendarEvents
-        .where('academicYearId')
-        .equals(academicYearId)
-        .toArray()
-    ])
+    const lessons = await maProfessorDb.lessons
+      .where('academicYearId')
+      .equals(academicYearId)
+      .toArray()
 
     const referenceToday = todayISO()
     let totalPeriodsPlanned = 0
@@ -1026,7 +928,7 @@ export class UfcdProgressRepository {
     let totalPeriodsRemaining = 0
 
     const assignments =
-      snapshot.assignments.map(row => {
+      await Promise.all(snapshot.assignments.map(async row => {
         const assignmentLessons =
           lessons.filter(
             lesson =>
@@ -1055,18 +957,8 @@ export class UfcdProgressRepository {
             ])
           )
 
-        const progressData:
-          AssignmentProgressData = {
-          academicYear:
-            snapshot.academicYear,
-          assignment:
-            row.assignment,
-          modules,
-          lessons:
-            assignmentLessons,
-          slots,
-          events
-        }
+        const projection = await this.getAssignmentCompletionProjection(row.assignment.id)
+        const projectedDateByModule = new Map(projection.modules.map(item => [item.moduleId, item.estimatedCompletionDate]))
 
         const dashboardModules =
           row.modules.map(moduleRow => {
@@ -1086,15 +978,7 @@ export class UfcdProgressRepository {
                 completionPercent:
                   actual.completionPercent,
                 estimatedCompletionDate:
-                  estimateCompletionDate(
-                    progressData,
-                    moduleRow.module,
-                    actual.periodsRemaining,
-                    snapshot.referenceDate <
-                      referenceToday
-                      ? referenceToday
-                      : snapshot.referenceDate
-                  )
+                  projectedDateByModule.get(moduleRow.module.id) ?? null
               }
             }
           })
@@ -1166,7 +1050,7 @@ export class UfcdProgressRepository {
               periodsPlanned
             )
         }
-      })
+      }))
 
     return {
       ...snapshot,

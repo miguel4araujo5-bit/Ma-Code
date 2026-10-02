@@ -1946,6 +1946,11 @@ export default function MAProfessorApp({
           onSaveStudents={handleSaveStudents}
           onUpdateStudent={handleUpdateStudent}
           onSetStudentActive={handleSetStudentActive}
+          onDeleteStudent={async (studentId, confirmation) => {
+            await groupsWorkspaceRepository.deleteStudent(studentId, confirmation)
+            await refreshSetupSnapshot()
+            refreshConfigurationWorkspaces()
+          }}
         />
       )
     }

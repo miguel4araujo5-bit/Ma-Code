@@ -237,7 +237,7 @@ test('official XLSM loader normalizes sheet paths and repairs student references
 })
 
 test('module completion date comes from taught periods that count toward progress', () => {
-  assert.match(completionSource, /lesson\.status !== 'taught'/)
+  assert.match(completionSource, /!lessonCountsTowardUfcdProgress\(lesson\)/)
   assert.match(completionSource, /!lesson\.countTowardProgress/)
   assert.match(completionSource, /completedPeriods \+=\s*lesson\.periodCount/)
   assert.match(completionSource, /completedPeriods >= plannedPeriods/)

@@ -129,11 +129,6 @@ try {
       '/src/components/ma-professor/attendance/attendanceRepository.ts'
     )
 
-    const {
-      recoveryAssessmentRepository
-    } = await import(
-      '/src/components/ma-professor/attendance/recoveryAssessmentRepository.ts'
-    )
 
     const {
       dailyCriteriaGridRepository
@@ -219,7 +214,7 @@ try {
       teachingAssignmentId: assignment.id,
       code: '10385',
       name: 'Expressão Dramática',
-      plannedPeriods: 10,
+      plannedPeriods: 9,
       order: 1,
       plannedStartDate: '2026-09-01',
       plannedEndDate: '2027-02-28',
@@ -566,17 +561,10 @@ try {
             'Atividade de recuperação E2E',
           result:
             'Recuperação concluída E2E',
-          status: 'completed'
-        }
-      )
-
-    await recoveryAssessmentRepository
-      .saveAssessment(
-        automaticRecovery.id,
-        {
-          'e2e-criterion-1': 18,
-          'e2e-criterion-2': 16,
-          'e2e-criterion-3': 14
+          status: 'completed',
+          recoveryDate: '2026-09-21',
+          recoveryGrade: 16,
+          selectedAbsenceIds: (await attendanceRepository.listRecoverableAbsences(assignment.id, studentB.id)).map(row => row.attendanceId)
         }
       )
 
@@ -595,8 +583,8 @@ try {
       .saveModuleFinalGrade({
         moduleId: module.id,
         studentId: studentA.id,
-        finalGrade: 13,
-        selfAssessmentGrade: 13,
+        finalGrade: 14,
+        selfAssessmentGrade: 14,
         usesAcs: false,
         note: 'Fecho E2E'
       })
@@ -780,12 +768,9 @@ try {
             restoredFutureLesson?.status ?? null,
           recoveryStatus:
             restoredRecovery?.status ?? null,
-          recoveryScores:
-            restoredRecovery
-              ?.assessmentScores ?? null,
-          recoveryRecordedAt:
-            restoredRecovery
-              ?.assessmentRecordedAt ?? null,
+          recoveryGrade: restoredRecovery?.recoveryGrade ?? null,
+          recoveryDate: restoredRecovery?.recoveryDate ?? null,
+          removedAbsenceCount: restoredRecovery?.removedAbsences?.length ?? 0,
           finalGrade:
             restoredFinalGrade?.finalGrade ?? null,
           selfAssessmentGrade:
@@ -841,7 +826,7 @@ try {
   )
   assert.equal(
     result.attendance.studentB?.absencePercent,
-    10
+    11.11
   )
   assert.equal(
     result.attendance.studentB?.warningLevel,
@@ -854,12 +839,12 @@ try {
   assert.equal(
     result.workspaceBeforeRecovery
       .studentA?.provisionalAverage,
-    13
+    14
   )
   assert.equal(
     result.workspaceBeforeRecovery
       .studentA?.suggestedGrade,
-    13
+    14
   )
   assert.equal(
     result.workspaceBeforeRecovery
@@ -882,18 +867,18 @@ try {
   )
   assert.equal(
     result.futureLesson.assessmentCount,
-    3
+    0
   )
 
   assert.equal(
     result.workspaceAfterRecovery
       .studentA?.provisionalAverage,
-    13
+    14
   )
   assert.equal(
     result.workspaceAfterRecovery
       .studentB?.provisionalAverage,
-    16.8
+    null
   )
   assert.deepEqual(
     result.workspaceAfterRecovery
@@ -901,17 +886,17 @@ try {
         criterion =>
           criterion.average
       ),
-    [18, 16, 14]
+    [null, null, null]
   )
   assert.equal(
     result.workspaceAfterRecovery
       .studentB?.suggestedGrade,
-    null
+    16
   )
   assert.equal(
     result.workspaceAfterRecovery
       .classAverage,
-    14.9
+    14
   )
 
   assert.equal(
@@ -962,24 +947,17 @@ try {
     result.backup.restored.recoveryStatus,
     'completed'
   )
-  assert.deepEqual(
-    result.backup.restored.recoveryScores,
-    {
-      'e2e-criterion-1': 18,
-      'e2e-criterion-2': 16,
-      'e2e-criterion-3': 14
-    }
-  )
-  assert.ok(
-    result.backup.restored.recoveryRecordedAt
-  )
+  assert.equal(result.backup.restored.recoveryGrade, 16)
+  assert.equal(result.backup.restored.recoveryDate, '2026-09-21')
+  assert.equal(result.backup.restored.removedAbsenceCount, 1)
+  assert.equal(result.backup.restoredWorkspace.studentB?.confirmedFinalGrade, 16)
   assert.equal(
     result.backup.restored.finalGrade,
-    13
+    14
   )
   assert.equal(
     result.backup.restored.selfAssessmentGrade,
-    13
+    14
   )
   assert.equal(
     result.backup.restored.planificationItems,
@@ -1017,17 +995,17 @@ try {
   assert.equal(
     result.backup.restoredWorkspace
       .studentA?.provisionalAverage,
-    13
+    14
   )
   assert.equal(
     result.backup.restoredWorkspace
       .studentB?.provisionalAverage,
-    16.8
+    null
   )
   assert.equal(
     result.backup.restoredWorkspace
       .classAverage,
-    14.9
+    14
   )
 
   assert.deepEqual(

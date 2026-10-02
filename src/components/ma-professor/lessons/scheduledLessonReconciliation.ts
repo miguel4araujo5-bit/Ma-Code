@@ -287,6 +287,7 @@ export function isPristineScheduledLesson(
     lesson.giaeSubmittedAt ===
       null &&
     !lesson.notes.trim() &&
+    !lesson.scheduleOriginalPosition &&
     !hasRelatedData
   )
 }
@@ -390,7 +391,7 @@ export function planScheduledLessonReconciliation(
       const key =
         getScheduleOccurrenceKey(
           lesson.scheduleSlotId,
-          lesson.date
+          lesson.scheduleOriginalPosition?.date ?? lesson.date
         )
 
       const rows =
@@ -508,7 +509,7 @@ export function planScheduledLessonReconciliation(
       const key =
         getScheduleOccurrenceKey(
           lesson.scheduleSlotId,
-          lesson.date
+          lesson.scheduleOriginalPosition?.date ?? lesson.date
         )
 
       if (expectedByKey.has(key)) {

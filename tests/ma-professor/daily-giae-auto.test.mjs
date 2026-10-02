@@ -201,7 +201,7 @@ test(
     )
     assert.match(
       handler,
-      /O sumário foi copiado, mas não foi assinalado como submetido no GIAE/
+      /O sumário foi copiado, mas não foi assinalado como submetida no programa oficial/
     )
     assert.match(
       handler,
@@ -282,7 +282,7 @@ test(
     )
 
     const statusMarker =
-      'aria-label="Estado de submissão no GIAE"'
+      'aria-label="Estado de submissão no programa oficial"'
     const markerIndex =
       dailySource.indexOf(statusMarker)
     const inputStart =

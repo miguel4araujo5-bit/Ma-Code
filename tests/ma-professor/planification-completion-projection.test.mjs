@@ -180,7 +180,7 @@ test(
             },
             {
               date:
-                '2026-09-29',
+                '2026-09-28',
               startTime:
                 '09:00',
               periodCount:
@@ -208,7 +208,7 @@ test(
           moduleId:
             'ufcd-3',
           estimatedCompletionDate:
-            '2026-09-29'
+            '2026-09-28'
         }
       ]
     )
@@ -216,13 +216,13 @@ test(
     assert.equal(
       result
         .disciplineCompletionDate,
-      '2026-09-29'
+      '2026-09-28'
     )
   }
 )
 
 test(
-  'a lesson that finishes one UFCD does not spill surplus periods into the next UFCD',
+  'a projected slot allocates all its available periods across sequential UFCD',
   async () => {
     const projection =
       await import(
@@ -303,7 +303,7 @@ test(
           moduleId:
             'ufcd-2',
           estimatedCompletionDate:
-            null
+            '2026-09-25'
         }
       ]
     )
@@ -311,7 +311,7 @@ test(
     assert.equal(
       result
         .disciplineCompletionDate,
-      null
+      '2026-09-25'
     )
   }
 )
