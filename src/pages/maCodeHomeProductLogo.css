@@ -1,11 +1,12 @@
 /* O logótipo MA-Professor já inclui o seu próprio rebordo e cantos arredondados.
-   Evitar uma segunda moldura apenas no cartão da página inicial da MA-Code. */
-#produtos a[href='/produtos/ma-professor'] > div:first-child {
+   Preservar o desenho original em todos os ecrãs, sem molduras nem recortes adicionais. */
+#produtos a[href='/produtos/ma-professor'] > div:first-child,
+.service-card div:has(> img[src='/ma-professor/logo.svg']) {
   border: 0;
   background: transparent;
   box-shadow: none;
 }
 
-#produtos a[href='/produtos/ma-professor'] > div:first-child > img {
+img[src='/ma-professor/logo.svg'] {
   border-radius: 0;
 }
