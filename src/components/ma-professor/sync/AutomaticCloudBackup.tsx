@@ -13,8 +13,7 @@ import {
   markCloudBackupReminderShown,
   readCloudBackupPreference,
   readCloudBackupReminderTimestamp,
-  useCloudBackupPreference,
-  writeCloudBackupPreference
+  useCloudBackupPreference
 } from './cloudBackupPreference'
 import {
   markMAProfessorCloudBackupDirty,
@@ -23,22 +22,31 @@ import {
   writeMAProfessorCloudBackupTrust
 } from './cloudBackupTrust'
 
-const AUTO_BACKUP_DEBOUNCE_MS = 90 * 1000
-const AUTO_BACKUP_MAX_DIRTY_MS = 5 * 60 * 1000
-const AUTO_BACKUP_MIN_INTERVAL_MS = 10 * 60 * 1000
+const REMINDER_TIMES = [
+  { hour: 12, minute: 19 },
+  { hour: 16, minute: 59 }
+] as const
+const SAME_SLOT_GUARD_MS = 60 * 1000
 
-type Choice = 'save' | 'confirm' | 'skip' | 'disable'
+type Choice = 'save' | 'confirm' | 'skip'
 type Feedback = { tone: 'success' | 'error'; message: string }
-
-function readTimestamp(value: string | null | undefined) {
-  const timestamp = value ? Date.parse(value) : 0
-  return Number.isFinite(timestamp) ? timestamp : 0
-}
 
 function isMAProfessorMutation(changedParts: unknown) {
   if (typeof changedParts !== 'object' || changedParts === null) return false
   const prefix = `idb://${MA_PROFESSOR_DATABASE_NAME}/`
   return Object.keys(changedParts).some(part => part.startsWith(prefix))
+}
+
+function nextReminderTime(now = new Date()) {
+  for (const slot of REMINDER_TIMES) {
+    const candidate = new Date(now)
+    candidate.setHours(slot.hour, slot.minute, 0, 0)
+    if (candidate.getTime() > now.getTime()) return candidate.getTime()
+  }
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(REMINDER_TIMES[0].hour, REMINDER_TIMES[0].minute, 0, 0)
+  return tomorrow.getTime()
 }
 
 export default function AutomaticCloudBackup() {
@@ -63,7 +71,7 @@ export default function AutomaticCloudBackup() {
     return () => window.removeEventListener(MA_PROFESSOR_OPAQUE_KEY_EVENT, update)
   }, [session.email])
 
-  // Observar edições também com lembretes desligados, sem rede nem temporizadores.
+  // Observar edições também com lembretes desligados, sem rede nem polling.
   useEffect(() => {
     let resetSuspended = false
     const handleTrustCleared = () => {
@@ -97,8 +105,7 @@ export default function AutomaticCloudBackup() {
     let disposed = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const initialTrust = readMAProfessorCloudBackupTrust(session)
-    let dirtySince: number | null = readTimestamp(initialTrust?.dirtyAt) || null
-    let lastMutationAt = dirtySince === null ? null : Date.now()
+    let dirty = Boolean(initialTrust?.dirtyAt)
     let mutationSequence = 0
     let running = false
     let reminderOpen = false
@@ -113,34 +120,35 @@ export default function AutomaticCloudBackup() {
 
     function scheduleReminder() {
       clearTimer()
-      if (!canRun() || running || reminderOpen || dirtySince === null) return
-
+      if (!canRun()) return
       const now = Date.now()
-      const trust = readMAProfessorCloudBackupTrust(session)
-      const previousBackupAt = trust?.recordRevision ? readTimestamp(trust.updatedAt) : 0
-      const previousReminderAt = Math.max(lastReminderAt, readCloudBackupReminderTimestamp(session))
-      let dueAt = Math.min((lastMutationAt ?? now) + AUTO_BACKUP_DEBOUNCE_MS, dirtySince + AUTO_BACKUP_MAX_DIRTY_MS)
-      if (previousBackupAt) dueAt = Math.max(dueAt, previousBackupAt + AUTO_BACKUP_MIN_INTERVAL_MS)
-      if (previousReminderAt) dueAt = Math.max(dueAt, previousReminderAt + AUTO_BACKUP_MIN_INTERVAL_MS)
+      const dueAt = nextReminderTime(new Date(now))
       timer = setTimeout(showReminder, Math.max(0, dueAt - now))
     }
 
     function showReminder() {
       timer = null
-      if (!canRun() || running || reminderOpen || dirtySince === null) return
-      // Uma janela em segundo plano espera por foco, sem polling nem acesso à nuvem.
-      if (!isForeground() || !readMAProfessorOpaqueExportKey(session.email)) return
-      // Não interromper um editor ou outra confirmação que já esteja aberta.
-      if (document.querySelector('[aria-modal="true"], dialog[open]')) {
-        timer = setTimeout(showReminder, AUTO_BACKUP_DEBOUNCE_MS)
+      if (!canRun()) return
+
+      // O lembrete pertence apenas a este horário. Se o professor não estiver
+      // presente, não fica em fila nem reaparece mais tarde.
+      if (running || reminderOpen || !dirty || !isForeground() || !readMAProfessorOpaqueExportKey(session.email)) {
+        scheduleReminder()
         return
       }
+      // Não interromper outro diálogo. Este lembrete perde-se em vez de ser adiado.
+      if (document.querySelector('[aria-modal="true"], dialog[open]')) {
+        scheduleReminder()
+        return
+      }
+
       const elsewhere = readCloudBackupReminderTimestamp(session)
-      if (elsewhere > lastReminderAt && Date.now() < elsewhere + AUTO_BACKUP_MIN_INTERVAL_MS) {
+      if (elsewhere > lastReminderAt && Date.now() < elsewhere + SAME_SLOT_GUARD_MS) {
         lastReminderAt = elsewhere
         scheduleReminder()
         return
       }
+
       lastReminderAt = markCloudBackupReminderShown(session)
       prepared.current = null
       confirmed.current = false
@@ -149,24 +157,19 @@ export default function AutomaticCloudBackup() {
       reminderOpen = true
       setFeedback(null)
       setPromptOpen(true)
+      scheduleReminder()
     }
 
     async function choose(choice: Choice) {
       if (!canRun() || running || !reminderOpen) return
-      if (choice === 'disable' && !writeCloudBackupPreference(session, 'disabled')) {
-        setFeedback({ tone: 'error', message: 'Não foi possível guardar a escolha. Tente novamente.' })
-        return
-      }
-      if (choice === 'skip' || choice === 'disable') {
+      if (choice === 'skip') {
         prepared.current = null
         confirmed.current = false
         setPreparedBackup(null)
         setUploadConfirmed(false)
-        lastReminderAt = markCloudBackupReminderShown(session)
         reminderOpen = false
         setPromptOpen(false)
         setFeedback(null)
-        scheduleReminder()
         return
       }
 
@@ -179,7 +182,7 @@ export default function AutomaticCloudBackup() {
       const sequenceAtStart = mutationSequence
       try {
         if (choice === 'save') {
-          // Sim e Atualizar apenas preparam localmente; exigem confirmação posterior.
+          // Guardar agora apenas prepara localmente; o envio exige confirmação posterior.
           prepared.current = null
           setPreparedBackup(null)
           const backup = await createMAProfessorBackup()
@@ -194,15 +197,13 @@ export default function AutomaticCloudBackup() {
         if (!canRun()) return
 
         const changedDuringUpload = mutationSequence !== preparationSequence.current
-        dirtySince = changedDuringUpload ? lastMutationAt ?? Date.now() : null
-        if (!changedDuringUpload) lastMutationAt = null
+        dirty = changedDuringUpload
         writeMAProfessorCloudBackupTrust(session, {
           serverRevision: result.serverRevision,
           recordRevision: result.recordRevision,
           updatedAt: result.updatedAt,
-          dirtyAt: dirtySince === null ? null : new Date(dirtySince).toISOString()
+          dirtyAt: changedDuringUpload ? new Date().toISOString() : null
         })
-        lastReminderAt = markCloudBackupReminderShown(session)
         reminderOpen = false
         setPromptOpen(false)
         prepared.current = null
@@ -214,39 +215,27 @@ export default function AutomaticCloudBackup() {
         setFeedback({ tone: 'error', message: `Não foi possível confirmar a gravação da cópia online. ${message}` })
         const trust = readMAProfessorCloudBackupTrust(session)
         if (trust) writeMAProfessorCloudBackupTrust(session, { ...trust, automaticError: message })
-        // Uma nova tentativa exige outra escolha explícita de Sim.
+        // Uma nova tentativa exige nova confirmação explícita.
       } finally {
         running = false
-        if (canRun()) {
-          setBusy(false)
-          scheduleReminder()
-        }
+        if (canRun()) setBusy(false)
       }
     }
     answer.current = choice => { void choose(choice) }
 
     const handleStorageMutation = (changedParts: unknown) => {
       if (!canRun() || !isMAProfessorMutation(changedParts)) return
-      const now = Date.now()
       mutationSequence += 1
-      lastMutationAt = now
-      if (dirtySince === null) dirtySince = now
-      scheduleReminder()
+      dirty = true
     }
     const handleTrustChanged = () => {
       if (!canRun() || running) return
       const trust = readMAProfessorCloudBackupTrust(session)
-      if (trust?.dirtyAt && dirtySince === null) {
-        dirtySince = readTimestamp(trust.dirtyAt) || null
-        lastMutationAt = dirtySince
-      }
-      if (trust && !trust.dirtyAt) {
-        dirtySince = null
-        lastMutationAt = null
+      dirty = Boolean(trust?.dirtyAt)
+      if (!dirty) {
         reminderOpen = false
         setPromptOpen(false)
       }
-      scheduleReminder()
     }
     const handleForeground = () => {
       if (!canRun() || running) return
@@ -254,7 +243,6 @@ export default function AutomaticCloudBackup() {
         reminderOpen = false
         setPromptOpen(false)
       }
-      if (isForeground()) scheduleReminder()
     }
     const handleOtherWindow = () => {
       if (!canRun()) {
@@ -343,10 +331,10 @@ export default function AutomaticCloudBackup() {
         }}
       >
         <h2 id="cloud-backup-reminder-title" className="text-lg font-black text-white">
-          Tem alterações significativas por guardar. Deseja guardar o seu progresso?
+          Tem alterações por guardar. Deseja guardar o seu progresso?
         </h2>
         <p id="cloud-backup-reminder-description" className="mt-3 text-sm leading-6 text-slate-300">
-          Ao escolher Sim, poderá rever o quadro e confirmar a substituição da cópia online pelos dados deste dispositivo. Os seus dados continuam guardados neste dispositivo.
+          Ao escolher Guardar agora, poderá rever o quadro e confirmar a substituição da cópia online pelos dados deste dispositivo. Os seus dados continuam guardados neste dispositivo.
         </p>
         {busy ? <p role="status" className="mt-3 text-sm text-violet-200">A preparar ou guardar a cópia…</p> : null}
         {feedback?.tone === 'error' ? <p role="alert" className="mt-3 text-sm text-rose-200">{feedback.message}</p> : null}
@@ -364,9 +352,8 @@ export default function AutomaticCloudBackup() {
             onCancel={() => answer.current?.('skip')}
           />
         ) : <div className="mt-5 flex flex-wrap gap-3">
-          <button type="button" disabled={busy} onClick={() => answer.current?.('save')} className="rounded-xl bg-violet-300 px-5 py-2.5 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:opacity-60">Sim</button>
-          <button type="button" data-skip disabled={busy} onClick={() => answer.current?.('skip')} className="rounded-xl border border-white/20 px-5 py-2.5 text-sm font-bold text-slate-200 transition hover:bg-white/5 disabled:opacity-60">Não</button>
-          <button type="button" disabled={busy} onClick={() => answer.current?.('disable')} className="rounded-xl px-3 py-2.5 text-sm text-slate-400 transition hover:text-white disabled:opacity-60">Não voltar a perguntar</button>
+          <button type="button" disabled={busy} onClick={() => answer.current?.('save')} className="rounded-xl bg-violet-300 px-5 py-2.5 text-sm font-black text-slate-950 transition hover:bg-violet-200 disabled:opacity-60">Guardar agora</button>
+          <button type="button" data-skip disabled={busy} onClick={() => answer.current?.('skip')} className="rounded-xl border border-white/20 px-5 py-2.5 text-sm font-bold text-slate-200 transition hover:bg-white/5 disabled:opacity-60">Agora não</button>
         </div>}
       </div>
     </div>,
