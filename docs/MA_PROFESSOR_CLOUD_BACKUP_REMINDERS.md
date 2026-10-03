@@ -22,14 +22,14 @@ O intervalo e a eliminação reutilizam o perfil, registo e histórico existente
 
 ### Aplicação em produção
 
-Aplicar `0006_problem_reports.sql` no D1 existente antes de servir o novo percurso de relatórios. Confirmar as migrações pendentes pelo procedimento existente; a limpeza V1/V2 da migração `0005` conserva o gate de salvaguarda e verificação descrito em `MA-PROFESSOR_BACKUP_V3_CUTOVER.md`. A conclusão desta implementação não afirma que as migrações remotas já foram aplicadas.
+Aplicar `0006_problem_reports.sql` no D1 existente para ativar a persistência e gestão dos relatórios no Admin. Enquanto essa tabela não existir, conserva-se exclusivamente o percurso anterior de envio por email; se esse envio falhar, não se confirma sucesso. Outras falhas D1 continuam visíveis e não acionam este fallback. Confirmar as migrações pendentes pelo procedimento existente; a limpeza V1/V2 da migração `0005` conserva o gate de salvaguarda e verificação descrito em `MA-PROFESSOR_BACKUP_V3_CUTOVER.md`. A conclusão desta implementação não afirma que as migrações remotas já foram aplicadas.
 
 Os testes usam contas fictícias, Worker real com SQLite local e Chromium. Os resultados concretos constam do resumo da alteração. Não equivalem a publicação, medição de CPU D1/Worker ou validação num iPhone físico.
 
 ### Validação da conclusão
 
 - Build TypeScript/Vite e geração das 16 rotas: passaram.
-- MA-Professor: 1127 testes, zero falhas. Incluem horários locais, avisos perdidos, foco preservado, snapshot confirmado, erros sem reenvio automático, intervalo entre dispositivos, eliminação concorrente e rollback, recuperação V3 após eliminação e relatórios com identidade verificada/anonimato/auth Admin.
+- MA-Professor: 1127 testes na suite completa inicial, zero falhas, e teste adicional do envio anterior enquanto a migração está pendente. Incluem horários locais, avisos perdidos, foco preservado, snapshot confirmado, erros sem reenvio automático, intervalo entre dispositivos, eliminação concorrente e rollback, recuperação V3 após eliminação e relatórios com identidade verificada/anonimato/auth Admin.
 - Conquistador: 1 teste; MA-Quadro: 15 testes; todos passaram.
 - Chromium: os três percursos existentes de acesso/OPAQUE/cópias, navegação unificada e regressão integrada passaram. O percurso de cópias cobre APAGAR, preservação dos dados e perfil, novo envio após eliminar e os dois horários de lembrete a 1366 e 390 px.
 - Verificação de whitespace/diff: passou. Os dados e bindings remotos não foram alterados durante os testes.

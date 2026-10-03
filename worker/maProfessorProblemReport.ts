@@ -842,6 +842,7 @@ async function sendProblemReportEmail(
     `Versão: ${report.version}`,
     `Ecrã: ${report.screen}`,
     `Browser: ${report.browser}`,
+    `Dispositivo: ${report.device}`,
     `Data no dispositivo: ${report.occurredAt}`,
     `Recebido no servidor: ${receivedAt}`,
     '',
@@ -874,6 +875,11 @@ async function sendProblemReportEmail(
         report.browser
       ),
 
+    device:
+      escapeHtml(
+        report.device
+      ),
+
     occurredAt:
       escapeHtml(
         report.occurredAt
@@ -899,6 +905,7 @@ async function sendProblemReportEmail(
         <p style="margin:0 0 8px;"><strong>Versão:</strong> ${safe.version}</p>
         <p style="margin:0 0 8px;"><strong>Ecrã:</strong> ${safe.screen}</p>
         <p style="margin:0 0 8px;"><strong>Browser:</strong> ${safe.browser}</p>
+        <p style="margin:0 0 8px;"><strong>Dispositivo:</strong> ${safe.device}</p>
         <p style="margin:0 0 8px;"><strong>Data no dispositivo:</strong> ${safe.occurredAt}</p>
         <p style="margin:0;"><strong>Recebido no servidor:</strong> ${safe.receivedAt}</p>
       </div>
@@ -1037,10 +1044,21 @@ export async function handleMAProfessorProblemReportApiRequest(
         now
       ).toISOString()
 
-    await storeProblemReport(body, report, env, now)
-    // O Admin é o destino persistente. Uma falha do aviso por email não perde o relatório.
-    try { await sendProblemReportEmail(env, report, receivedAt) } catch {
-      console.error('MA-Professor report saved; email notification unavailable')
+    let stored = true
+    try {
+      await storeProblemReport(body, report, env, now)
+    } catch (error) {
+      // Conserva o envio anterior durante a aplicação da migração, sem esconder outras falhas D1.
+      if (!(error instanceof Error) || !/no such table:\s*ma_professor_problem_reports\b/i.test(error.message)) throw error
+      stored = false
+    }
+    if (stored) {
+      // O Admin é o destino persistente. Uma falha do aviso por email não perde o relatório.
+      try { await sendProblemReportEmail(env, report, receivedAt) } catch {
+        console.error('MA-Professor report saved; email notification unavailable')
+      }
+    } else {
+      await sendProblemReportEmail(env, report, receivedAt)
     }
 
     return json({

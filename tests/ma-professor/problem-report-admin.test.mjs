@@ -44,7 +44,7 @@ async function fixture(t) {
   const admin = (path = '', body, { auth = true, origin = 'https://ma-code.pt' } = {}) => runtime.handleMAProfessorAdminApiRequest(new Request(`https://ma-code.pt/api/admin/ma-professor/problem-reports${path}`, {
     method: body ? 'POST' : 'GET', headers: { Cookie: auth ? 'test-admin' : '', Origin: origin, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {})
   }), env)
-  return { db, report, admin, writes }
+  return { db, env, report, admin, writes }
 }
 
 test('reviewed diagnostic persists with verified contact; caller-supplied account, school data and credentials are excluded', async t => {
@@ -98,4 +98,22 @@ test('report storage failure is visible; rate-limited reports do not create a di
   for (let i = 0; i < 7; i++) assert.equal((await f.report(draft)).status, 200)
   assert.equal((await f.report(draft)).status, 429)
   assert.equal(f.db.prepare('SELECT count(*) AS n FROM ma_professor_problem_reports').get().n, 7)
+})
+
+test('before migration the existing email delivery remains available and never claims success if delivery fails', async t => {
+  const f = await fixture(t)
+  f.db.exec('DROP TABLE ma_professor_problem_reports')
+  f.env.RESEND_API_KEY_MA_PROFESSOR = 'test-mail-key'
+  const deliveries = []
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    deliveries.push({ url, body: JSON.parse(init.body) })
+    return Response.json({ success: true })
+  })
+  assert.equal((await f.report({ ...draft, session: { token: 'valid-session', deviceId: 'device-a' }, students: ['PRIVATE_STUDENT'], exportKey: 'PRIVATE_KEY' })).status, 200)
+  assert.equal(deliveries.length, 1)
+  assert.match(deliveries[0].body.text, /Dispositivo: iPhone/)
+  assert.doesNotMatch(JSON.stringify(deliveries), /valid-session|device-a|PRIVATE_STUDENT|PRIVATE_KEY/)
+  assert.equal((await f.admin()).status, 503)
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ success: false }, { status: 503 }))
+  assert.equal((await f.report(draft)).status, 503)
 })
