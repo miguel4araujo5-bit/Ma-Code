@@ -934,6 +934,8 @@ try {
   })
   assert.equal(protectedCopy.cryptoVersion, 3)
   assert.equal(protectedCopy.backup.found, true)
+  cloudWorker.advance(30_000)
+  await page.clock.fastForward(30_000)
 
   // Simulate the cloud session becoming invalid before the password is
   // confirmed again. Reauthentication must rotate the token and recover.
@@ -965,7 +967,7 @@ try {
     name: 'Fazer cópia de segurança para a nuvem', exact: true
   }).locator('..')
   const prepareBackupButton = page.getByRole('button', {
-    name: 'Preparar cópia para a nuvem', exact: true
+    name: 'Guardar cópia online', exact: true
   })
   const uploadPreparedBackupButton = page.getByRole('button', {
     name: 'Confirmar e enviar para a nuvem', exact: true
@@ -1224,85 +1226,86 @@ try {
   await cloudPanel.getByRole('button', { name: 'Desativar lembretes de cópia', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'disabled')
 
-  // A reminder never accesses the cloud until the professor explicitly chooses Sim.
-  await page.clock.setSystemTime(new Date(FIXED_NOW))
+  // Deleting online data leaves the local database, reminders and OPAQUE profile unchanged.
+  const deletionBaseline = await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
+    const repository = await import('/src/components/ma-professor/settings/backupRepository.ts')
+    const preference = await import('/src/components/ma-professor/sync/cloudBackupPreference.ts')
+    const session = storage.readMAProfessorAccessSession()
+    preference.writeCloudBackupPreference(session, 'enabled')
+    return { data: (await repository.createMAProfessorBackup()).data, protection: (await service.inspectMAProfessorCloudBackup(session)).protection }
+  })
+  await cloudPanel.getByRole('button', {name:'Eliminar cópia online',exact:true}).click()
+  const deletion = page.getByRole('dialog', {name:'Eliminar cópia online',exact:true})
+  const deleteButton = deletion.getByRole('button', {name:'Eliminar definitivamente',exact:true})
+  assert.equal(await deleteButton.isEnabled(),false)
+  await deletion.getByLabel('Escreva APAGAR para confirmar.').fill('apagar')
+  assert.equal(await deleteButton.isEnabled(),false)
+  await deletion.getByLabel('Escreva APAGAR para confirmar.').fill('APAGAR')
+  await deleteButton.click()
+  await cloudPanel.getByRole('status').filter({hasText:'Cópia online eliminada.'}).waitFor({state:'visible'})
+  assert.equal((await readCloudSession()).preference,'enabled')
+  const afterDeletion = await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
+    const repository = await import('/src/components/ma-professor/settings/backupRepository.ts')
+    const session = storage.readMAProfessorAccessSession()
+    return { data: (await repository.createMAProfessorBackup()).data, status: await service.inspectMAProfessorCloudBackup(session) }
+  })
+  assert.deepEqual(afterDeletion.data,deletionBaseline.data)
+  assert.equal(afterDeletion.status.backup.found,false)
+  assert.deepEqual(afterDeletion.status.protection,deletionBaseline.protection)
+  cloudWorker.advance(30_000)
+  await page.clock.fastForward(30_000)
+  await prepareBackupButton.click()
+  await uploadConfirmation.check()
+  await uploadPreparedBackupButton.click()
+  await cloudPanel.getByRole('status').filter({hasText:'Cópia de segurança cifrada, enviada e confirmada'}).waitFor({state:'visible'})
+  await cloudPanel.getByRole('button', {name:'Desativar lembretes de cópia',exact:true}).click()
+
+  // Scheduled prompts read no cloud data and never upload before final confirmation.
+  await page.clock.setSystemTime(new Date('2026-09-21T12:18:30+01:00'))
   await page.evaluate(async () => {
     const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
     const preference = await import('/src/components/ma-professor/sync/cloudBackupPreference.ts')
     const trust = await import('/src/components/ma-professor/sync/cloudBackupTrust.ts')
     const session = storage.readMAProfessorAccessSession()
-    trust.writeMAProfessorCloudBackupTrust(session, {
-      ...trust.readMAProfessorCloudBackupTrust(session),
-      updatedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      dirtyAt: new Date().toISOString()
-    })
+    trust.writeMAProfessorCloudBackupTrust(session, { ...trust.readMAProfessorCloudBackupTrust(session), dirtyAt: new Date().toISOString() })
     preference.writeCloudBackupPreference(session, 'enabled')
   })
   const countCloudRequests = () => apiRequests.filter(item => item.path.startsWith('/api/ma-professor/cloud-backup/')).length
   const beforeReminder = countCloudRequests()
-  await page.clock.fastForward(91_000)
-  const reminder = page.getByRole('dialog', {
-    name: 'Tem alterações significativas por guardar. Deseja guardar o seu progresso?', exact: true
-  })
+  await page.clock.fastForward(30_000)
+  const reminder = page.getByRole('dialog', { name: 'Tem alterações por guardar. Deseja guardar o seu progresso?', exact: true })
   await reminder.waitFor({state:'visible'})
-  assert.equal(countCloudRequests(), beforeReminder)
-  assert.deepEqual(await reminder.getByRole('button').allTextContents(), ['Sim', 'Não', 'Não voltar a perguntar'])
-  for (const width of [1366, 390]) {
+  assert.equal(countCloudRequests(),beforeReminder)
+  assert.deepEqual(await reminder.getByRole('button').allTextContents(),['Guardar agora','Agora não'])
+  for (const width of [1366,390]) {
     await page.setViewportSize({width,height:900})
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-    assert.equal(await reminder.getByRole('button', {name:'Não voltar a perguntar',exact:true}).isVisible(), true)
-    if (process.env.MA_PROFESSOR_REMINDER_SCREENSHOTS) {
-      await page.screenshot({path:join(process.env.MA_PROFESSOR_REMINDER_SCREENSHOTS, `ma-professor-reminder-${width}.png`)})
-    }
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true)
+    assert.equal(await reminder.getByRole('button',{name:'Agora não',exact:true}).isVisible(),true)
   }
   await page.setViewportSize({width:1366,height:900})
-  await reminder.getByRole('button', {name:'Não',exact:true}).click()
-  await page.clock.fastForward(9 * 60 * 1000)
+  await reminder.getByRole('button',{name:'Agora não',exact:true}).click()
+  await page.clock.fastForward(60_000)
   assert.equal(await reminder.count(),0)
   assert.equal(countCloudRequests(),beforeReminder)
-  await page.clock.fastForward(60 * 1000)
+  await page.clock.fastForward(279*60_000)
   await reminder.waitFor({state:'visible'})
-  await reminder.getByRole('button', {name:'Sim',exact:true}).click()
-  const reminderPreview = reminder.getByRole('group', {name:'Dados que vão ser enviados',exact:true})
+  await reminder.getByRole('button',{name:'Guardar agora',exact:true}).click()
+  const reminderPreview=reminder.getByRole('group',{name:'Dados que vão ser enviados',exact:true})
   await reminderPreview.waitFor({state:'visible'})
-  assert.equal(countCloudRequests(), beforeReminder)
+  assert.equal(countCloudRequests(),beforeReminder)
+  cloudWorker.advance(30_000)
   await reminderPreview.getByRole('checkbox').check()
-  await reminderPreview.getByRole('button', {name:'Confirmar e enviar para a nuvem',exact:true}).click()
+  await reminderPreview.getByRole('button',{name:'Confirmar e enviar para a nuvem',exact:true}).click()
   await page.getByRole('status').filter({hasText:'Cópia online guardada e verificada.'}).waitFor({state:'visible'})
   assert.equal(await reminder.count(),0)
-  assert.ok(countCloudRequests() > beforeReminder)
-
-  await page.evaluate(async () => {
-    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
-    const trust = await import('/src/components/ma-professor/sync/cloudBackupTrust.ts')
-    const session = storage.readMAProfessorAccessSession()
-    trust.writeMAProfessorCloudBackupTrust(session, {
-      ...trust.readMAProfessorCloudBackupTrust(session),
-      updatedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      dirtyAt: new Date().toISOString()
-    })
-  })
-  // Simulate an actual new edit after the verified copy, using the canonical database.
-  await page.evaluate(async () => {
-    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
-    const saved = await maProfessorDb.lessons.toArray()
-    const lesson = saved.find(item => item.summary)
-    await maProfessorDb.lessons.update(lesson.id, {notes:'Alteração para testar o próximo lembrete.'})
-  })
-  await page.clock.fastForward(10 * 60 * 1000)
-  await reminder.waitFor({state:'visible'})
-  const beforeDisable = countCloudRequests()
-  await reminder.getByRole('button', {name:'Não voltar a perguntar',exact:true}).click()
-  assert.equal((await readCloudSession()).preference,'disabled')
-  await page.clock.fastForward(60 * 60 * 1000)
-  assert.equal(await reminder.count(),0)
-  assert.equal(countCloudRequests(),beforeDisable)
-  // Restore the fixture note so later persistence assertions keep their original scope.
-  await page.evaluate(async () => {
-    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
-    const lesson = (await maProfessorDb.lessons.toArray()).find(item => item.summary)
-    await maProfessorDb.lessons.update(lesson.id, {notes:''})
-  })
+  assert.ok(countCloudRequests()>beforeReminder)
+  await cloudPanel.getByRole('button',{name:'Desativar lembretes de cópia',exact:true}).click()
+  await page.clock.fastForward(30_000)
+  cloudWorker.advance(30_000)
 
   // Reopening must lose only the memory key and preserve the explicit choice.
   await page.reload({ waitUntil: 'domcontentloaded' })

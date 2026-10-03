@@ -36,7 +36,10 @@ async function accountIdFor(email) {
   return 'account-' + Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ma-professor-account-v1:${email.trim().toLowerCase()}`))).toString('hex')
 }
 
+let fixtureTime = Date.parse('2026-10-03T12:00:00Z')
+
 async function fixture(t, { cutover = true } = {}) {
+  t.mock.timers.enable({ apis: ['Date'], now: fixtureTime += 120_000 })
   const db = new DatabaseSync(':memory:')
   t.after(() => db.close())
   const migrations = new URL('../../migrations/ma-professor/', import.meta.url)
@@ -85,7 +88,7 @@ async function fixture(t, { cutover = true } = {}) {
   })
   runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
   t.after(() => runtime.clearMAProfessorOpaqueExportKey())
-  return { db, env, requests, post, failRecord: value => { failRecord = value }, beforeBatch: callback => { beforeBatch = callback } }
+  return { db, env, requests, post, advance: (ms = 30_000) => t.mock.timers.tick(ms), failRecord: value => { failRecord = value }, beforeBatch: callback => { beforeBatch = callback } }
 }
 
 function initialization(prepared) {
@@ -102,6 +105,7 @@ test('new account: read-only empty status, first v3 backup, real Worker update a
   const first = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 0 })
   assert.equal(first.serverRevision, 1)
   assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, 3)
+  f.advance()
   const second = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 1 })
   assert.equal(second.serverRevision, 2, 'real push-v3 response must satisfy the client parser')
   runtime.clearMAProfessorOpaqueExportKey()
@@ -149,6 +153,7 @@ test('initialization validates session and envelope, and opt-out or lost export 
 test('v3 concurrent updates return a typed 409 and preserve the winning ciphertext', async t => {
   const f = await fixture(t)
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  f.advance()
   f.beforeBatch(() => {
     f.db.exec('UPDATE ma_professor_encrypted_records SET server_revision = 2, record_revision = 2; UPDATE ma_professor_sync_profiles SET server_revision = 2;')
   })
@@ -184,6 +189,7 @@ test('legacy v2 profiles are rejected and cannot be read, overwritten or promote
 test('cutover removes legacy profiles and children but preserves every V3 profile, ciphertext and history byte', async t => {
   const f = await fixture(t, { cutover: false })
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  f.advance()
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 1 })
   const profile = f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()
   const record = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get()
@@ -221,6 +227,7 @@ test('cutover removes legacy profiles and children but preserves every V3 profil
 test('D1 rejects old Worker INSERT, UPDATE and REPLACE writes after the cutover', async t => {
   const f = await fixture(t)
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  f.advance()
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
   const profile = f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()
   const record = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get()
@@ -272,6 +279,7 @@ test('a reused email blocked by V2 becomes a fresh V3 account after cleanup and 
   await assert.rejects(runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup), /v3 atual/)
   f.db.exec(cutoverSql)
   assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, null)
+  f.advance()
   const recreatedKey = Buffer.from(crypto.getRandomValues(new Uint8Array(64))).toString('base64url')
   runtime.saveMAProfessorOpaqueExportKey(session.email, recreatedKey)
   assert.equal((await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 0 })).serverRevision, 1)
@@ -286,6 +294,7 @@ test('a reused email blocked by V2 becomes a fresh V3 account after cleanup and 
 test('canonical account deletion removes cloud history even without cascades and permits the same email with a new key', async t => {
   const f = await fixture(t)
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  f.advance()
   await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
   f.db.exec('PRAGMA foreign_keys = OFF')
   const otherProfile = { ...f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get(), account_id: 'other-account' }
@@ -294,15 +303,94 @@ test('canonical account deletion removes cloud history even without cascades and
   insertRow(f.db, 'ma_professor_sync_profiles', otherProfile)
   insertRow(f.db, 'ma_professor_encrypted_records', otherRecord)
   insertRow(f.db, 'ma_professor_encrypted_record_history', otherHistory)
+  const report = { id: 'teacher-report', account_id: await accountIdFor(session.email), contact_email: session.email, error_type: 'Falha técnica', app_version: 'test', screen: '/ma-professor', browser: 'Chromium', device: 'Desktop', occurred_at: '2026-10-03T12:00:00Z', message: '', status: 'new', internal_note: '', created_at: Date.now(), updated_at: Date.now() }
+  const otherReport = { ...report, id: 'other-report', account_id: 'other-account', contact_email: 'other@example.test' }
+  insertRow(f.db, 'ma_professor_problem_reports', report)
+  insertRow(f.db, 'ma_professor_problem_reports', otherReport)
   await adminRuntime.deleteCloudAccountData(f.env, [session.email])
   assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_sync_profiles').all().map(row => ({ ...row })), [otherProfile])
   assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_records').all().map(row => ({ ...row })), [otherRecord])
   assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').all().map(row => ({ ...row })), [otherHistory])
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_problem_reports').all().map(row => ({ ...row })), [otherReport])
   assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, null)
+  f.advance()
   const recreatedKey = Buffer.from(crypto.getRandomValues(new Uint8Array(64))).toString('base64url')
   runtime.saveMAProfessorOpaqueExportKey(session.email, recreatedKey)
   assert.equal((await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 0 })).serverRevision, 1)
   assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' })).backup, backup)
+})
+
+test('30-second upload interval is enforced by the server across devices without changing ciphertext or revisions', async t => {
+  const f = await fixture(t)
+  const prepared = await runtime.prepareMAProfessorCloudBackupV3Promotion(session, backup)
+  assert.equal((await f.post('/initialize-v3', initialization(prepared))).status, 200)
+  const before = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get()
+  const body = { ...session, deviceId: 'device-b', recordId: 'database-v1', expectedServerRevision: 1, expectedRecordRevision: 1, encrypted: prepared.encrypted }
+  const limited = await f.post('/push-v3', body)
+  assert.equal(limited.status, 429)
+  assert.equal((await limited.json()).retryAfterSeconds, 30)
+  f.advance(29_999)
+  assert.equal((await f.post('/push-v3', body)).status, 429)
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get(), before)
+  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ma_professor_encrypted_record_history').get().n, 0)
+  f.advance(1)
+  assert.equal((await f.post('/push-v3', body)).status, 200)
+  assert.equal(f.db.prepare('SELECT server_revision FROM ma_professor_sync_profiles').get().server_revision, 2)
+})
+
+test('online deletion requires APAGAR and the reviewed revisions; removes ciphertext/history and keeps protection for the next V3 copy', async t => {
+  const f = await fixture(t)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  f.advance()
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  const status = await runtime.inspectMAProfessorCloudBackup(session)
+  const profile = f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()
+  const body = { ...session, recordId: 'database-v1', expectedServerRevision: status.serverRevision, expectedRecordRevision: status.backup.recordRevision, confirmation: 'APAGAR' }
+  assert.equal((await f.post('/delete-v3', { ...body, confirmation: 'apagar' })).status, 400)
+  assert.equal((await f.post('/delete-v3', { ...body, token: 'wrong' })).status, 401)
+  assert.equal((await f.post('/delete-v3', { ...body, expectedServerRevision: 1 })).status, 409)
+  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ma_professor_encrypted_record_history').get().n, 1)
+  const deleted = await runtime.deleteMAProfessorCloudBackup(session, status, 'APAGAR')
+  assert.equal(deleted.backup.found, false)
+  assert.equal(deleted.cryptoVersion, 3)
+  assert.deepEqual(deleted.protection, status.protection)
+  assert.equal(deleted.serverRevision, 3)
+  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ma_professor_encrypted_records').get().n, 0)
+  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ma_professor_encrypted_record_history').get().n, 0)
+  assert.deepEqual({ ...f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get(), server_revision: profile.server_revision }, { ...profile })
+  assert.equal(await runtime.downloadCompatibleMAProfessorCloudBackup(session), null)
+  f.advance()
+  const saved = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 3 })
+  assert.equal(saved.serverRevision, 4)
+  assert.equal(saved.recordRevision, 1)
+  runtime.clearMAProfessorOpaqueExportKey()
+  runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
+  assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' })).backup, backup)
+  assert.deepEqual((await runtime.inspectMAProfessorCloudBackup(session)).protection, status.protection)
+})
+
+test('a deletion prepared before another device saves never deletes the newer copy or its history', async t => {
+  const f = await fixture(t)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  const stale = await runtime.inspectMAProfessorCloudBackup(session)
+  f.advance()
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  const records = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').all()
+  const history = f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').all()
+  await assert.rejects(runtime.deleteMAProfessorCloudBackup(session, stale, 'APAGAR'), runtime.MAProfessorCloudBackupRevisionConflictError)
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_records').all(), records)
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').all(), history)
+})
+
+test('online deletion rolls back content and history if a D1 statement fails', async t => {
+  const f = await fixture(t)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  const status = await runtime.inspectMAProfessorCloudBackup(session)
+  const record = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get()
+  f.db.exec("CREATE TRIGGER injected_delete_failure BEFORE UPDATE ON ma_professor_sync_profiles BEGIN SELECT RAISE(ABORT, 'injected'); END")
+  await assert.rejects(runtime.deleteMAProfessorCloudBackup(session, status, 'APAGAR'))
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get(), record)
+  assert.equal(f.db.prepare('SELECT server_revision FROM ma_professor_sync_profiles').get().server_revision, 1)
 })
 
 test('cloud authentication failures identify the originating session and preserve renewed credentials', async t => {

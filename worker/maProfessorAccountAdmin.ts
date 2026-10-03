@@ -487,7 +487,8 @@ async function assertCloudAccountDataDeleted(
     MaProfessorAccountAdminEnv,
   accountIds: string[],
   hasSupportSchema: boolean,
-  hasHistorySchema: boolean
+  hasHistorySchema: boolean,
+  hasReportSchema: boolean
 ) {
   const placeholders =
     accountIds
@@ -499,6 +500,7 @@ async function assertCloudAccountDataDeleted(
       )
 
   const tables = [
+    ...(hasReportSchema ? ['ma_professor_problem_reports'] : []),
     ...(hasSupportSchema ? ['ma_professor_support_tickets'] : []),
     ...(hasHistorySchema ? ['ma_professor_encrypted_record_history'] : []),
     'ma_professor_encrypted_records',
@@ -547,15 +549,17 @@ async function deleteCloudAccountData(
   const cloudSchema = await env.MA_PROFESSOR_DB.prepare(
     `SELECT
       COUNT(CASE WHEN name IN ('ma_professor_support_tickets', 'ma_professor_support_messages') THEN 1 END) AS support_tables,
-      COUNT(CASE WHEN name = 'ma_professor_encrypted_record_history' THEN 1 END) AS history_tables
+      COUNT(CASE WHEN name = 'ma_professor_encrypted_record_history' THEN 1 END) AS history_tables,
+      COUNT(CASE WHEN name = 'ma_professor_problem_reports' THEN 1 END) AS report_tables
     FROM sqlite_master
-    WHERE type = 'table' AND name IN ('ma_professor_support_tickets', 'ma_professor_support_messages', 'ma_professor_encrypted_record_history')`
-  ).first<{ support_tables: number; history_tables: number }>()
-  if (!cloudSchema || ![0, 2].includes(Number(cloudSchema.support_tables)) || ![0, 1].includes(Number(cloudSchema.history_tables))) {
+    WHERE type = 'table' AND name IN ('ma_professor_support_tickets', 'ma_professor_support_messages', 'ma_professor_encrypted_record_history', 'ma_professor_problem_reports')`
+  ).first<{ support_tables: number; history_tables: number; report_tables?: number }>()
+  if (!cloudSchema || ![0, 2].includes(Number(cloudSchema.support_tables)) || ![0, 1].includes(Number(cloudSchema.history_tables)) || ![0, 1].includes(Number(cloudSchema.report_tables ?? 0))) {
     throw new Error('Não foi possível confirmar o esquema dos dados cloud antes da eliminação.')
   }
   const hasSupportSchema = Number(cloudSchema.support_tables) === 2
   const hasHistorySchema = Number(cloudSchema.history_tables) === 1
+  const hasReportSchema = Number(cloudSchema.report_tables ?? 0) === 1
   const accountIds =
     await Promise.all(
       emails.map(
@@ -576,6 +580,9 @@ async function deleteCloudAccountData(
     await env
       .MA_PROFESSOR_DB
       .batch([
+        ...(hasReportSchema ? [env.MA_PROFESSOR_DB.prepare(
+          `DELETE FROM ma_professor_problem_reports WHERE account_id IN (${placeholders})`
+        ).bind(...accountIds)] : []),
         ...(hasSupportSchema ? [env.MA_PROFESSOR_DB.prepare(
           `DELETE FROM ma_professor_support_messages WHERE ticket_id IN (SELECT id FROM ma_professor_support_tickets WHERE account_id IN (${placeholders}))`
         ).bind(...accountIds),
@@ -615,7 +622,7 @@ async function deleteCloudAccountData(
 
   if (
     results.length !==
-      (3 + (hasSupportSchema ? 2 : 0) + (hasHistorySchema ? 1 : 0)) ||
+      (3 + (hasSupportSchema ? 2 : 0) + (hasHistorySchema ? 1 : 0) + (hasReportSchema ? 1 : 0)) ||
     results.some(
       result =>
         result.success !==
@@ -631,7 +638,8 @@ async function deleteCloudAccountData(
     env,
     accountIds,
     hasSupportSchema,
-    hasHistorySchema
+    hasHistorySchema,
+    hasReportSchema
   )
 }
 

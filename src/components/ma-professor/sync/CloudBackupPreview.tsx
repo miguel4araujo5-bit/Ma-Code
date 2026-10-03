@@ -128,6 +128,7 @@ function getPreparedBackupStats(
 interface Props {
   preparedBackup: MAProfessorBackup
   busy: boolean
+  uploadBlocked?: boolean
   uploadConfirmed: boolean
   onConfirmationChange: (confirmed: boolean) => void
   onConfirm: () => void
@@ -136,7 +137,7 @@ interface Props {
 }
 
 // Quadro comum à cópia manual e ao lembrete: apresenta o snapshot que será enviado.
-export default function CloudBackupPreview({ preparedBackup, busy, uploadConfirmed,
+export default function CloudBackupPreview({ preparedBackup, busy, uploadBlocked = false, uploadConfirmed,
   onConfirmationChange, onConfirm, onRefresh, onCancel }: Props) {
   const preparedStats = getPreparedBackupStats(preparedBackup)
   return (
@@ -186,7 +187,7 @@ export default function CloudBackupPreview({ preparedBackup, busy, uploadConfirm
                   <input
                     type="checkbox"
                     checked={uploadConfirmed}
-                    disabled={busy}
+                    disabled={busy || uploadBlocked}
                     onChange={event => onConfirmationChange(event.target.checked)}
                     className="mt-1 h-4 w-4 shrink-0 accent-violet-500"
                   />
@@ -197,7 +198,7 @@ export default function CloudBackupPreview({ preparedBackup, busy, uploadConfirm
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  disabled={busy || !uploadConfirmed}
+                  disabled={busy || uploadBlocked || !uploadConfirmed}
                   onClick={() =>
                     onConfirm()
                   }

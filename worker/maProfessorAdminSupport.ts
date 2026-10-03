@@ -9,18 +9,21 @@ import {
   type MaProfessorSupportTicketEnv
 } from './maProfessorSupportTickets'
 
+import { handleMAProfessorProblemReportAdminRequest, type MaProfessorProblemReportEnv } from './maProfessorProblemReport'
+
 export {
   isMAProfessorAdminApiPath
 }
 
 export type MaProfessorAdminEnv =
   ExistingMaProfessorAdminEnv &
-  MaProfessorSupportTicketEnv
+  MaProfessorSupportTicketEnv & MaProfessorProblemReportEnv
 
 const ADMIN_PREFIX =
   '/api/admin/ma-professor'
 const SUPPORT_PREFIX =
   `${ADMIN_PREFIX}/support-tickets`
+const REPORT_PREFIX = `${ADMIN_PREFIX}/problem-reports`
 
 function normalizeOrigin(
   value: string
@@ -131,7 +134,7 @@ export async function handleMAProfessorAdminApiRequest(
     pathname !== SUPPORT_PREFIX &&
     !pathname.startsWith(
       `${SUPPORT_PREFIX}/`
-    )
+    ) && pathname !== REPORT_PREFIX && !pathname.startsWith(`${REPORT_PREFIX}/`)
   ) {
     return handleExistingMAProfessorAdminApiRequest(
       request,
@@ -170,6 +173,10 @@ export async function handleMAProfessorAdminApiRequest(
     pathname.slice(
       ADMIN_PREFIX.length
     ) || '/'
+
+  if (pathname === REPORT_PREFIX || pathname.startsWith(`${REPORT_PREFIX}/`)) {
+    return handleMAProfessorProblemReportAdminRequest(request, env, action)
+  }
 
   return handleMAProfessorSupportTicketAdminRequest(
     request,

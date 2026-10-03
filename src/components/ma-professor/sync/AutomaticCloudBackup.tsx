@@ -9,6 +9,8 @@ import type { MAProfessorBackup } from '../types'
 import CloudBackupPreview from './CloudBackupPreview'
 import { createMAProfessorBackup } from '../settings/backupRepository'
 import { uploadAndVerifyCompatibleMAProfessorCloudBackup } from './cloudBackupService'
+import { useCloudBackupCooldown } from './cloudBackupCooldown'
+import { ProblemReportDialog } from '../support/ProblemReportDialog'
 import {
   markCloudBackupReminderShown,
   readCloudBackupPreference,
@@ -52,6 +54,8 @@ function nextReminderTime(now = new Date()) {
 export default function AutomaticCloudBackup() {
   const { session } = useMAProfessorAccess()
   const preference = useCloudBackupPreference(session)
+  const cooldown = useCloudBackupCooldown(session.email)
+  const [reportOpen, setReportOpen] = useState(false)
   const answer = useRef<((choice: Choice) => void) | null>(null)
   const dialog = useRef<HTMLDivElement>(null)
   const [promptOpen, setPromptOpen] = useState(false)
@@ -123,7 +127,11 @@ export default function AutomaticCloudBackup() {
       if (!canRun()) return
       const now = Date.now()
       const dueAt = nextReminderTime(new Date(now))
-      timer = setTimeout(showReminder, Math.max(0, dueAt - now))
+      timer = setTimeout(() => {
+        // Um browser suspenso pode executar este timer muito depois do horário.
+        if (Date.now() >= dueAt + SAME_SLOT_GUARD_MS) scheduleReminder()
+        else showReminder()
+      }, Math.max(0, dueAt - now))
     }
 
     function showReminder() {
@@ -279,10 +287,13 @@ export default function AutomaticCloudBackup() {
   useEffect(() => {
     if (!promptOpen) return
     const previousFocus = document.activeElement
-    dialog.current?.querySelector<HTMLElement>('[data-skip], input[type=checkbox]')?.focus()
     return () => {
       if (previousFocus instanceof window.HTMLElement && previousFocus.isConnected) previousFocus.focus()
     }
+  }, [promptOpen])
+
+  useEffect(() => {
+    if (promptOpen) dialog.current?.querySelector<HTMLElement>('[data-skip], input[type=checkbox]')?.focus()
   }, [promptOpen, preparedBackup])
 
   useEffect(() => {
@@ -299,8 +310,8 @@ export default function AutomaticCloudBackup() {
     ) : null
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4">
+  return <>{createPortal(
+    <div inert={reportOpen} className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4">
       <div
         ref={dialog}
         role="dialog"
@@ -334,10 +345,17 @@ export default function AutomaticCloudBackup() {
         </p>
         {busy ? <p role="status" className="mt-3 text-sm text-violet-200">A preparar ou guardar a cópia…</p> : null}
         {feedback?.tone === 'error' ? <p role="alert" className="mt-3 text-sm text-rose-200">{feedback.message}</p> : null}
+        {feedback?.tone === 'error' ? <div className="mt-3 flex flex-wrap gap-3">
+          <button type="button" disabled={busy || cooldown} onClick={() => answer.current?.('save')} className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white disabled:opacity-50">Tentar novamente</button>
+          <button type="button" disabled={busy} onClick={() => setReportOpen(true)} className="rounded-xl border border-white/20 px-3 py-2 text-sm text-white">Enviar relatório</button>
+          <button type="button" disabled={busy} onClick={() => answer.current?.('skip')} className="rounded-xl px-3 py-2 text-sm text-slate-300">Ignorar</button>
+        </div> : null}
+        {cooldown ? <p role="status" className="mt-3 text-xs text-amber-100">Aguarde 30 segundos entre envios de cópias online.</p> : null}
         {preparedBackup ? (
           <CloudBackupPreview
             preparedBackup={preparedBackup}
             busy={busy}
+            uploadBlocked={cooldown}
             uploadConfirmed={uploadConfirmed}
             onConfirmationChange={value => {
               confirmed.current = value
@@ -354,5 +372,5 @@ export default function AutomaticCloudBackup() {
       </div>
     </div>,
     document.body
-  )
+  )}<ProblemReportDialog open={reportOpen} errorSummary="Falha ao guardar a cópia online V3" onClose={() => setReportOpen(false)} /></>
 }

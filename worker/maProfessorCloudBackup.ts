@@ -18,6 +18,7 @@ const KEY_WRAP_ALGORITHM =
   'AES-256-GCM'
 const ENCRYPTION_ALGORITHM =
   'AES-256-GCM'
+const UPLOAD_INTERVAL_MS = 30_000
 const MAX_BODY_BYTES = 1_500_000
 const MAX_CIPHERTEXT_BYTES = 1_000_000
 const NONCE_BYTES = 12
@@ -1014,6 +1015,7 @@ async function handleStatus(
       recoveryWrappedMasterKeyNonce:
         profile.recovery_wrapped_master_key_nonce
     },
+    retryAfterSeconds: Math.max(0, Math.ceil((profile.updated_at + UPLOAD_INTERVAL_MS - Date.now()) / 1000)),
     updatedAt:
       new Date(
         profile.updated_at
@@ -1177,6 +1179,11 @@ async function handlePushV3(
     )
   }
 
+  const retryAfterSeconds = Math.ceil((profile.updated_at + UPLOAD_INTERVAL_MS - Date.now()) / 1000)
+  if (retryAfterSeconds > 0) {
+    throw new CloudBackupApiError('Aguarde 30 segundos entre cópias online.', 429, { retryAfterSeconds })
+  }
+
   const existing =
     await readExistingRecord(
       authenticated.accountId,
@@ -1211,7 +1218,7 @@ async function handlePushV3(
 
   const results =
     await env.MA_PROFESSOR_DB.batch([
-      env.MA_PROFESSOR_DB
+      existing ? env.MA_PROFESSOR_DB
         .prepare(
           `
             UPDATE ma_professor_encrypted_records
@@ -1241,6 +1248,7 @@ async function handlePushV3(
                   AND recovery_kdf_algorithm = ?
                   AND recovery_key_wrap_algorithm = ?
                   AND deleted_at IS NULL
+                  AND updated_at <= ?
               )
           `
         )
@@ -1263,7 +1271,29 @@ async function handlePushV3(
           expectedServerRevision,
           CRYPTO_VERSION,
           KDF_ALGORITHM,
-          KEY_WRAP_ALGORITHM
+          KEY_WRAP_ALGORITHM,
+          timestamp - UPLOAD_INTERVAL_MS
+        ) : env.MA_PROFESSOR_DB.prepare(`
+          INSERT INTO ma_professor_encrypted_records (
+            account_id, record_id, server_revision, record_revision,
+            source_device_id_hash, encryption_version, encryption_algorithm,
+            nonce, ciphertext, ciphertext_hash, created_at, updated_at, deleted_at
+          )
+          SELECT ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, NULL
+          WHERE EXISTS (
+            SELECT 1 FROM ma_professor_sync_profiles
+            WHERE account_id = ? AND server_revision = ? AND crypto_version = ?
+              AND recovery_kdf_algorithm = ? AND recovery_key_wrap_algorithm = ?
+              AND deleted_at IS NULL AND updated_at <= ?
+          ) AND NOT EXISTS (
+            SELECT 1 FROM ma_professor_encrypted_records WHERE account_id = ? AND record_id = ?
+          )
+        `).bind(
+          authenticated.accountId, RECORD_ID, nextServerRevision, sourceDeviceIdHash,
+          encrypted.encryptionVersion, encrypted.encryptionAlgorithm,
+          encrypted.nonce, encrypted.ciphertext, encrypted.ciphertextHash, timestamp, timestamp,
+          authenticated.accountId, expectedServerRevision, CRYPTO_VERSION, KDF_ALGORITHM,
+          KEY_WRAP_ALGORITHM, timestamp - UPLOAD_INTERVAL_MS, authenticated.accountId, RECORD_ID
         ),
       env.MA_PROFESSOR_DB
         .prepare(
@@ -1350,6 +1380,46 @@ async function handlePushV3(
         timestamp
       ).toISOString()
   })
+}
+
+
+async function handleDeleteV3(body: JsonBody, env: MaProfessorCloudBackupEnv) {
+  if (body.confirmation !== 'APAGAR' || body.recordId !== RECORD_ID) {
+    throw new CloudBackupApiError('Escreva APAGAR para confirmar a eliminação da cópia online.', 400)
+  }
+  const expectedServerRevision = parseExpectedRevision(body.expectedServerRevision)
+  const expectedRecordRevision = parseExpectedRevision(body.expectedRecordRevision)
+  const authenticated = await verifyAccessSession(body, env)
+  const profile = assertV3StoredProfile(await readExistingProfile(authenticated.accountId, env))
+  const record = await readExistingRecord(authenticated.accountId, env)
+  if (profile.server_revision !== expectedServerRevision || (record?.record_revision ?? 0) !== expectedRecordRevision) {
+    throw new CloudBackupApiError('A cópia online mudou. Atualize o estado antes de confirmar a eliminação.', 409)
+  }
+
+  // A revisão avança na mesma transação que elimina o conteúdo e o histórico.
+  // O perfil OPAQUE/V3 e o instante do último envio permanecem intactos.
+  const results = await env.MA_PROFESSOR_DB.batch([
+    env.MA_PROFESSOR_DB.prepare(`
+      DELETE FROM ma_professor_encrypted_records
+      WHERE account_id = ? AND record_id = ? AND server_revision = ? AND record_revision = ?
+        AND EXISTS (SELECT 1 FROM ma_professor_sync_profiles WHERE account_id = ? AND server_revision = ? AND deleted_at IS NULL)
+    `).bind(authenticated.accountId, RECORD_ID, expectedServerRevision, expectedRecordRevision, authenticated.accountId, expectedServerRevision),
+    env.MA_PROFESSOR_DB.prepare(`
+      DELETE FROM ma_professor_encrypted_record_history
+      WHERE account_id = ? AND record_id = ?
+        AND EXISTS (SELECT 1 FROM ma_professor_sync_profiles WHERE account_id = ? AND server_revision = ? AND deleted_at IS NULL)
+        AND NOT EXISTS (SELECT 1 FROM ma_professor_encrypted_records WHERE account_id = ? AND record_id = ?)
+    `).bind(authenticated.accountId, RECORD_ID, authenticated.accountId, expectedServerRevision, authenticated.accountId, RECORD_ID),
+    env.MA_PROFESSOR_DB.prepare(`
+      UPDATE ma_professor_sync_profiles SET server_revision = server_revision + 1
+      WHERE account_id = ? AND server_revision = ? AND crypto_version = ? AND deleted_at IS NULL
+        AND NOT EXISTS (SELECT 1 FROM ma_professor_encrypted_records WHERE account_id = ? AND record_id = ?)
+    `).bind(authenticated.accountId, expectedServerRevision, CRYPTO_VERSION, authenticated.accountId, RECORD_ID)
+  ])
+  if (results.some(result => !result.success) || results[2]?.meta?.changes !== 1) {
+    throw new CloudBackupApiError('A cópia online mudou. Atualize o estado antes de confirmar a eliminação.', 409)
+  }
+  return handleStatus(body, env)
 }
 
 function getErrorDetails(
@@ -1508,6 +1578,8 @@ export async function handleMAProfessorCloudBackupApiRequest(
           body,
           env
         )
+      case '/delete-v3':
+        return await handleDeleteV3(body, env)
       case '/push-v3':
         return await handlePushV3(
           body,

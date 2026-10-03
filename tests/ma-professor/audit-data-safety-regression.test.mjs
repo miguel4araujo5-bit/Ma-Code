@@ -111,7 +111,7 @@ const plugin={name:'audit-control',setup(b){b.onResolve({filter:/.*/},args=>{
  else if(args.path.endsWith('/db'))contents='export const MA_PROFESSOR_DATABASE_NAME="ma-professor";';
  else if(args.path.endsWith('AccessGate'))contents='export const useMAProfessorAccess=()=>({session:globalThis.__audit.session});';
  else if(args.path.endsWith('cloudBackupPreference'))contents='export const readCloudBackupPreference=()=>globalThis.__audit.preference();export const useCloudBackupPreference=()=>globalThis.__audit.preference();export const writeCloudBackupPreference=()=>false;export const markCloudBackupReminderShown=()=>globalThis.__audit.reminder();export const readCloudBackupReminderTimestamp=()=>globalThis.__audit.reminderTimestamp();';
- else if(args.path.endsWith('accessStorage'))contents='export const readMAProfessorOpaqueExportKey=()=>"key"; export const MA_PROFESSOR_OPAQUE_KEY_EVENT="key-event";';
+ else if(args.path.endsWith('accessStorage'))contents='export const readMAProfessorStoredAccess=()=>null; export const readMAProfessorOpaqueExportKey=()=>"key"; export const MA_PROFESSOR_OPAQUE_KEY_EVENT="key-event";';
  else if(args.path.endsWith('backupRepository'))contents='export const canonicalizeMAProfessorBackupData=(data)=>globalThis.__audit.canonicalize(data); export const createMAProfessorBackup=async()=>globalThis.__audit.backup();';
  else contents='export class MAProfessorCloudBackupPermanentError extends Error{}; export class MAProfessorCloudBackupRevisionConflictError extends Error{};export class MAProfessorCloudBackupAuthenticationRequiredError extends Error{};export const inspectMAProfessorCloudBackup=async()=>globalThis.__audit.status();export const downloadMAProfessorCloudBackupV3=async()=>null;export const uploadAndVerifyCompatibleMAProfessorCloudBackup=(...args)=>globalThis.__audit.upload(...args);';
  return {contents,loader:'js'};
@@ -150,7 +150,7 @@ assert.equal(resetBackup.data.settings.length,1);
 __audit.backup=()=>resetBackup;
 await mutate();finishUpload();await settle();
 assert.equal(auto.readMAProfessorCloudBackupTrust(__audit.session),null);
-assert.equal(timers.size,0);assert.equal(uploadCalls,2);
+await fire();assert.equal(timers.size,0);assert.equal(uploadCalls,2);
 unmount();await mount();assert.equal(timers.size,0);
 record('RESET_AUTOMATIC_DISABLED',{noUploadAfterReset:true,inFlightCannotRestoreTrust:true});
 preference='enabled';
@@ -159,13 +159,13 @@ unmount();uploadError=new auto.MAProfessorCloudBackupPermanentError('A cópia ci
 await mount();await mutate();const before=uploadCalls;await fire();
 assert.equal(uploadCalls,before);
 __audit.refs[0].current('save');await settle();__audit.refs[3].current=true;__audit.refs[0].current('confirm');await settle();
-assert.equal(uploadCalls-before,1);assert.equal(timers.size,0);
+assert.equal(uploadCalls-before,1);assert.equal(timers.size,1);
 assert.ok(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError);
 unmount();await mount();assert.ok(timers.size>0);
-await fire();assert.equal(uploadCalls-before,1);assert.equal(timers.size,0);
+await fire();assert.equal(uploadCalls-before,1);assert.equal(timers.size,1);
 record('REMINDER_ERROR_REQUIRES_CONFIRMATION',{attemptsForPermanentError:1,silentRetry:false});
 await mutate();assert.equal(auto.readMAProfessorCloudBackupTrust(__audit.session).automaticError,null);
-__audit.refs[0].current('save');await settle();__audit.refs[3].current=true;__audit.refs[0].current('confirm');await settle();assert.equal(uploadCalls-before,2);assert.equal(timers.size,0);
+__audit.refs[0].current('save');await settle();__audit.refs[3].current=true;__audit.refs[0].current('confirm');await settle();assert.equal(uploadCalls-before,2);assert.equal(timers.size,1);
 unmount();globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;Date.now=originalNow;
 
 // Production D1 SQL and handlers; export-only instrumentation to exercise the canonical deletion helper.

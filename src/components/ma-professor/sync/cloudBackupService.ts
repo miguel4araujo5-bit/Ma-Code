@@ -31,6 +31,8 @@ import type {
   MAProfessorBackupV3EncryptedData
 } from './cloudBackupV3Crypto'
 
+import { deferCloudBackupUpload, reserveCloudBackupUpload } from './cloudBackupCooldown'
+
 const API_PREFIX =
   '/api/ma-professor/cloud-backup'
 
@@ -322,6 +324,10 @@ async function postJson(
 
   let response: Response
 
+  if (authSession && ['/initialize-v3', '/push-v3'].includes(path)) {
+    reserveCloudBackupUpload(authSession.email)
+  }
+
   try {
     response =
       await fetch(
@@ -362,6 +368,11 @@ async function postJson(
         ? data.message.trim()
         : fallbackMessage
 
+    if (response.status === 429 && authSession) {
+      const seconds = isObject(data) && typeof data.retryAfterSeconds === 'number' ? data.retryAfterSeconds : 30
+      deferCloudBackupUpload(authSession.email, Math.min(30, Math.max(1, seconds)) * 1000)
+    }
+
     if (
       response.status === 401 &&
       authSession
@@ -377,7 +388,8 @@ async function postJson(
       response.status === 409 &&
       [
         '/initialize-v3',
-        '/push-v3'
+        '/push-v3',
+        '/delete-v3'
       ].includes(path)
     ) {
       throw new MAProfessorCloudBackupRevisionConflictError(
@@ -668,7 +680,28 @@ async function readStatus(
       session
     )
 
-  return parseStatus(data)
+  const status = parseStatus(data)
+  if (isObject(data) && typeof data.retryAfterSeconds === 'number' && data.retryAfterSeconds > 0) {
+    deferCloudBackupUpload(session.email, Math.min(30, data.retryAfterSeconds) * 1000)
+  }
+  return status
+}
+
+export async function deleteMAProfessorCloudBackup(
+  session: MAProfessorAccessSession,
+  status: MAProfessorCloudBackupStatus,
+  confirmation: string
+) {
+  if (confirmation !== 'APAGAR') throw new Error('Escreva APAGAR para confirmar a eliminação da cópia online.')
+  const result = parseStatus(await postJson('/delete-v3', {
+    ...sessionBody(session), recordId: RECORD_ID, confirmation,
+    expectedServerRevision: status.serverRevision,
+    expectedRecordRevision: status.backup.recordRevision ?? 0
+  }, 'Não foi possível eliminar a cópia online.', session))
+  if (result.backup.found || result.serverRevision !== status.serverRevision + 1) {
+    throw new MAProfessorCloudBackupRevisionConflictError('A eliminação da cópia online não ficou confirmada. Atualize o estado.')
+  }
+  return result
 }
 
 async function getEncryptedBackup(
@@ -899,10 +932,7 @@ export async function uploadAndVerifyMAProfessorCloudBackupV3(
     status.cryptoVersion !==
       CRYPTO_VERSION ||
     !status.protection ||
-    !status.backup.found ||
-    !isPositiveInteger(
-      status.backup.recordRevision
-    )
+    (status.backup.found && !isPositiveInteger(status.backup.recordRevision))
   ) {
     throw new Error(
       'A proteção v3 da cópia online não está pronta para receber novos dados.'
@@ -972,7 +1002,7 @@ export async function uploadAndVerifyMAProfessorCloudBackupV3(
           expectedServerRevision:
             status.serverRevision,
           expectedRecordRevision:
-            status.backup.recordRevision,
+            status.backup.recordRevision ?? 0,
           encrypted
         },
         'Não foi possível guardar a cópia cifrada v3.',

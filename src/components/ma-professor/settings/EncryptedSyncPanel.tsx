@@ -1,6 +1,9 @@
 import CloudBackupPreview from '../sync/CloudBackupPreview'
 import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
 import CloudBackupReauthentication from '../sync/CloudBackupReauthentication'
+import { createPortal } from 'react-dom'
+import { ProblemReportDialog } from '../support/ProblemReportDialog'
+import { useCloudBackupCooldown } from '../sync/cloudBackupCooldown'
 import {
   useCloudBackupPreference
 } from '../sync/cloudBackupPreference'
@@ -23,6 +26,7 @@ import {
 
 import {
   inspectMAProfessorCloudBackup,
+  deleteMAProfessorCloudBackup,
   MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT,
   MAProfessorCloudBackupAuthenticationRequiredError,
   uploadAndVerifyCompatibleMAProfessorCloudBackup,
@@ -127,6 +131,22 @@ export function EncryptedSyncPanel() {
     )
 
   const automaticError = useMAProfessorAutomaticBackupError(session)
+  const cooldown = useCloudBackupCooldown(session.email)
+  const operationRunning = useRef(false)
+  const [deleteStatus, setDeleteStatus] = useState<MAProfessorCloudBackupStatus | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const deletePreviousFocus = useRef<HTMLElement | null>(null)
+  const deleteOpen = Boolean(deleteStatus)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportType, setReportType] = useState('Falha ao guardar a cópia online V3')
+
+  useEffect(() => {
+    if (!deleteOpen) return
+    return () => {
+      if (deletePreviousFocus.current?.isConnected) deletePreviousFocus.current.focus()
+      deletePreviousFocus.current = null
+    }
+  }, [deleteOpen])
 
   const [
     keyAvailable,
@@ -336,10 +356,11 @@ export function EncryptedSyncPanel() {
   const handlePrepareBackup =
     async () => {
       // Apenas lê os dados locais; também é chamado logo após confirmar a password.
-      if (busy) {
+      if (busy || operationRunning.current) {
         return
       }
 
+      operationRunning.current = true
       setBusy(true)
       setFeedback(null)
       setUploadConfirmed(false)
@@ -352,6 +373,7 @@ export function EncryptedSyncPanel() {
           backup
         )
       } catch (error) {
+        setReportType('Falha ao preparar a cópia online V3')
         setPreparedBackup(null)
         setFeedback({
           tone: 'error',
@@ -359,6 +381,7 @@ export function EncryptedSyncPanel() {
             `Não foi possível preparar a cópia. ${getErrorMessage(error)}`
         })
       } finally {
+        operationRunning.current = false
         setBusy(false)
       }
     }
@@ -368,12 +391,14 @@ export function EncryptedSyncPanel() {
       if (
         busy ||
         needsReauthentication ||
+        cooldown || operationRunning.current ||
         !preparedBackup ||
         !uploadConfirmed
       ) {
         return
       }
 
+      operationRunning.current = true
       setBusy(true)
       setFeedback(null)
       setUploadConfirmed(false)
@@ -468,6 +493,7 @@ export function EncryptedSyncPanel() {
             `Cópia de segurança cifrada, enviada e confirmada no servidor como revisão ${result.recordRevision}.${pendingChangesMessage}`
         })
       } catch (error) {
+        setReportType('Falha ao guardar a cópia online V3')
         if (
           error instanceof
             MAProfessorCloudBackupAuthenticationRequiredError
@@ -488,9 +514,38 @@ export function EncryptedSyncPanel() {
 
         await refreshStatus()
       } finally {
+        operationRunning.current = false
         setBusy(false)
       }
     }
+
+  const handleDelete = async () => {
+    if (busy || operationRunning.current || !deleteStatus || deleteConfirmation !== 'APAGAR') return
+    operationRunning.current = true
+    setBusy(true)
+    setFeedback(null)
+    try {
+      const result = await deleteMAProfessorCloudBackup(session, deleteStatus, deleteConfirmation)
+      setStatus(result)
+      setDeleteStatus(null)
+      setDeleteConfirmation('')
+      setPreparedBackup(null)
+      setUploadConfirmed(false)
+      writeMAProfessorCloudBackupTrust(session, {
+        serverRevision: result.serverRevision, recordRevision: null, updatedAt: null,
+        dirtyAt: new Date().toISOString()
+      })
+      setFeedback({ tone: 'success', message: 'Cópia online eliminada. Os dados deste dispositivo e a configuração dos lembretes foram mantidos.' })
+    } catch (error) {
+      setReportType('Falha ao eliminar a cópia online V3')
+      setFeedback({ tone: 'error', message: getErrorMessage(error) })
+      setDeleteStatus(null)
+      await refreshStatus()
+    } finally {
+      operationRunning.current = false
+      setBusy(false)
+    }
+  }
 
   const found =
     status?.backup.found === true
@@ -534,7 +589,7 @@ export function EncryptedSyncPanel() {
           {!preparedBackup ? (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || cooldown}
               onClick={() =>
                 void handlePrepareBackup()
               }
@@ -542,7 +597,7 @@ export function EncryptedSyncPanel() {
             >
               {busy
                 ? 'A preparar cópia…'
-                : 'Preparar cópia para a nuvem'}
+                : 'Guardar cópia online'}
             </button>
           ) : null}
 
@@ -550,6 +605,7 @@ export function EncryptedSyncPanel() {
             <CloudBackupPreview
               preparedBackup={preparedBackup}
               busy={busy}
+              uploadBlocked={cooldown}
               uploadConfirmed={uploadConfirmed}
               onConfirmationChange={setUploadConfirmed}
               onConfirm={() => void handleUpload()}
@@ -561,6 +617,8 @@ export function EncryptedSyncPanel() {
               }}
             />
           ) : null}
+
+          {cooldown ? <p role="status" className="mt-3 text-xs text-amber-100">Aguarde 30 segundos entre envios de cópias online.</p> : null}
 
           <div className="mt-5 border-t border-white/10 pt-4">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
@@ -615,6 +673,10 @@ export function EncryptedSyncPanel() {
                 ? 'Os lembretes estão ativos. A cópia online só é enviada depois de rever o quadro e confirmar o envio.'
                 : 'Os lembretes estão desativados neste dispositivo. A preparação acima não envia dados até confirmar o envio.'}
             </p>
+            {found ? <button type="button" disabled={busy} onClick={() => {
+              deletePreviousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+              setDeleteConfirmation(''); setFeedback(null); setDeleteStatus(status)
+            }} className="mt-4 rounded-xl border border-rose-300/30 px-4 py-2.5 text-sm font-bold text-rose-200 disabled:opacity-50">Eliminar cópia online</button> : null}
           </div>
 
           {statusError ? (
@@ -644,6 +706,37 @@ export function EncryptedSyncPanel() {
           {feedback.message}
         </p>
       ) : null}
+      {feedback?.tone === 'error' ? <div className="mt-3 flex flex-wrap gap-3">
+        <button type="button" disabled={busy || cooldown} onClick={() => { void handlePrepareBackup() }} className="rounded-xl border border-white/15 px-4 py-2 text-sm text-white disabled:opacity-50">Tentar novamente</button>
+        <button type="button" disabled={busy} onClick={() => setReportOpen(true)} className="rounded-xl border border-white/15 px-4 py-2 text-sm text-white">Enviar relatório</button>
+        <button type="button" disabled={busy} onClick={() => { setFeedback(null); setPreparedBackup(null); setUploadConfirmed(false) }} className="rounded-xl px-4 py-2 text-sm text-slate-300">Ignorar</button>
+      </div> : null}
+      {deleteStatus ? createPortal(<div className="fixed inset-0 z-[1000] grid place-items-center bg-slate-950/80 p-4">
+        <section role="dialog" aria-modal="true" aria-labelledby="delete-cloud-backup-title" onKeyDown={event => {
+          if (event.key === 'Escape' && !busy) {
+            event.preventDefault()
+            setDeleteStatus(null)
+          }
+          if (event.key !== 'Tab') return
+          const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not([disabled]), button:not([disabled])'))
+          const first = controls[0]
+          const last = controls[controls.length - 1]
+          if (!first || !last) { event.preventDefault(); return }
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+        }} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-rose-300/30 bg-slate-900 p-5 text-white">
+          <h2 id="delete-cloud-backup-title" className="text-lg font-black">Eliminar cópia online</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-300">Esta ação elimina a cópia cifrada e o respetivo histórico no servidor. Os dados deste dispositivo não são apagados. A proteção da conta e os lembretes mantêm-se.</p>
+          <label className="mt-4 block text-sm">Escreva APAGAR para confirmar.
+            <input autoFocus value={deleteConfirmation} disabled={busy} onChange={event => setDeleteConfirmation(event.target.value)} className="mt-2 block w-full rounded-xl border border-white/20 bg-slate-950 p-3" />
+          </label>
+          <div className="mt-4 flex gap-3">
+            <button type="button" disabled={busy || deleteConfirmation !== 'APAGAR'} onClick={() => { void handleDelete() }} className="rounded-xl bg-rose-300 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50">{busy ? 'A eliminar…' : 'Eliminar definitivamente'}</button>
+            <button type="button" disabled={busy} onClick={() => setDeleteStatus(null)} className="rounded-xl border border-white/20 px-4 py-2 text-sm">Cancelar</button>
+          </div>
+        </section>
+      </div>, document.body) : null}
+      <ProblemReportDialog open={reportOpen} errorSummary={reportType} onClose={() => setReportOpen(false)} />
     </section>
   )
 }

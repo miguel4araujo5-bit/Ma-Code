@@ -1,7 +1,9 @@
 import {
   useEffect,
+  useRef,
   useState
 } from 'react'
+import { createPortal } from 'react-dom'
 
 import {
   createProblemReportDraft,
@@ -23,6 +25,7 @@ export function ProblemReportDialog({
   screen,
   onClose
 }: ProblemReportDialogProps) {
+  const dialog = useRef<HTMLElement>(null)
   const [
     draft,
     setDraft
@@ -80,6 +83,15 @@ export function ProblemReportDialog({
     ]
   )
 
+  useEffect(() => {
+    if (!open || !draft) return
+    const previousFocus = document.activeElement
+    dialog.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    return () => {
+      if (previousFocus instanceof window.HTMLElement && previousFocus.isConnected) previousFocus.focus()
+    }
+  }, [open, Boolean(draft)])
+
   if (
     !open ||
     !draft
@@ -114,16 +126,27 @@ export function ProblemReportDialog({
       }
     }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[500] grid place-items-center bg-slate-950/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[1100] grid place-items-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm"
       role="presentation"
     >
       <section
-        className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-900 p-5 text-white shadow-2xl sm:p-6"
+        ref={dialog}
+        className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-3xl border border-white/10 bg-slate-900 p-5 text-white shadow-2xl sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="ma-professor-problem-report-title"
+        onKeyDown={event => {
+          if (event.key === 'Escape' && !sending) { event.preventDefault(); event.stopPropagation(); onClose() }
+          if (event.key === 'Tab') {
+            const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), textarea:not(:disabled)'))
+            const first = items[0], last = items[items.length - 1]
+            if (document.activeElement === (event.shiftKey ? first : last)) {
+              event.preventDefault(); (event.shiftKey ? last : first)?.focus()
+            }
+          }
+        }}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -165,8 +188,10 @@ export function ProblemReportDialog({
             <p className="mt-4 text-sm leading-6 text-slate-300">
               Confirme os dados técnicos abaixo. Nenhum dado escolar, ficheiro, conteúdo do IndexedDB ou password é incluído automaticamente.
             </p>
+            <p className="mt-2 text-xs text-slate-400">Se houver uma sessão válida, o relatório fica associado à sua conta para podermos prestar apoio.</p>
 
             <dl className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-xs">
+              <div><dt className="font-black text-slate-400">Dispositivo</dt><dd className="mt-1 text-slate-200">{draft.device}</dd></div>
               <div>
                 <dt className="font-black text-slate-400">
                   Erro
@@ -287,6 +312,6 @@ export function ProblemReportDialog({
           </>
         )}
       </section>
-    </div>
+    </div>, document.body
   )
 }

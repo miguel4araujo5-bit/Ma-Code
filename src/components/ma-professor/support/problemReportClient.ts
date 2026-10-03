@@ -1,3 +1,5 @@
+import { readMAProfessorStoredAccess } from '../access/accessStorage'
+
 const PROBLEM_REPORT_ENDPOINT =
   '/api/ma-professor/problem-report'
 
@@ -9,11 +11,13 @@ export interface ProblemReportDraft {
   screen: string
   browser: string
   occurredAt: string
+  device?: string
 }
 
 export interface ProblemReportPayload
   extends ProblemReportDraft {
   message?: string
+  session?: { token: string; deviceId: string }
 }
 
 function normalizeText(
@@ -148,8 +152,20 @@ export function createProblemReportDraft(
     browser:
       readBrowserName(),
     occurredAt:
-      new Date().toISOString()
+      new Date().toISOString(),
+    device: readDeviceName()
   }
+}
+
+function readDeviceName() {
+  const agent = typeof navigator === 'undefined' ? '' : navigator.userAgent
+  if (/iPhone/.test(agent)) return 'iPhone'
+  if (/iPad/.test(agent)) return 'iPad'
+  if (/Android/.test(agent)) return 'Android'
+  if (/Macintosh|Mac OS X/.test(agent)) return 'Mac'
+  if (/Windows/.test(agent)) return 'Windows'
+  if (/Linux/.test(agent)) return 'Linux'
+  return 'Dispositivo desconhecido'
 }
 
 export async function sendProblemReport(
@@ -173,12 +189,18 @@ export async function sendProblemReport(
       draft.browser,
     occurredAt:
       draft.occurredAt,
+    device: draft.device || 'Dispositivo desconhecido',
     ...(normalizedMessage
       ? {
           message:
             normalizedMessage
         }
       : {})
+  }
+
+  const access = readMAProfessorStoredAccess()
+  if (access?.token && access.deviceId) {
+    payload.session = { token: access.token, deviceId: access.deviceId }
   }
 
   const response =

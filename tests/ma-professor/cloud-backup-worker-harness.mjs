@@ -7,7 +7,9 @@ import { build } from 'esbuild'
 export async function createCloudBackupWorkerHarness(email, token) {
   let acceptedToken = token
 
-  const output = await build({ entryPoints: [fileURLToPath(new URL('../../worker/maProfessorCloudBackup.ts', import.meta.url))], bundle: true, write: false, format: 'esm', platform: 'node' })
+  const source = await readFile(new URL('../../worker/maProfessorCloudBackup.ts', import.meta.url), 'utf8')
+  const timedSource = source.replaceAll('Date.now()', 'testNow()') + '\nlet testClock = Date.now(); function testNow() { return testClock } export function advanceTestClock(ms) { testClock += ms }'
+  const output = await build({ stdin: { contents: timedSource, loader: 'ts', resolveDir: fileURLToPath(new URL('../../worker/', import.meta.url)) }, bundle: true, write: false, format: 'esm', platform: 'node' })
   const worker = await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`)
   const db = new DatabaseSync(':memory:')
   const migrations = new URL('../../migrations/ma-professor/', import.meta.url)
@@ -40,6 +42,7 @@ export async function createCloudBackupWorkerHarness(email, token) {
   return {
     handle: request => worker.handleMAProfessorCloudBackupApiRequest(request, env),
     setToken: value => { acceptedToken = value },
+    advance: milliseconds => worker.advanceTestClock(milliseconds),
     close: () => db.close()
   }
 }

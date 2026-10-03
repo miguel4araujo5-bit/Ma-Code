@@ -9,6 +9,7 @@ import MAProfessorAccountMaintenanceCollapsible from '../components/admin/ma-pro
 import MAProfessorAdminWorkspaceCompact from '../components/admin/ma-professor/MAProfessorAdminWorkspaceCompact'
 import MAProfessorApprovalQueue from '../components/admin/ma-professor/MAProfessorApprovalQueue'
 import MAProfessorSupportTickets from '../components/admin/ma-professor/MAProfessorSupportTickets'
+import MAProfessorProblemReports from '../components/admin/ma-professor/MAProfessorProblemReports'
 
 import {
   getMAProfessorAdminOverview,
@@ -453,6 +454,7 @@ function MAProfessorAdminContent() {
       </section>
 
       <MAProfessorSupportTickets />
+      <MAProfessorProblemReports />
 
       <MAProfessorAccountMaintenanceCollapsible
         overview={overview}

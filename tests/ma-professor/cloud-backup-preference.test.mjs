@@ -319,9 +319,7 @@ async function automaticHarness(
       'Date'
     ],
     now:
-      new Date(
-        '2026-09-20T12:00:00Z'
-      )
+      new Date(2026, 8, 20, 12, 18, 30)
   })
 
   const replacements = {
@@ -342,6 +340,8 @@ async function automaticHarness(
     '../access/accessStorage':
       './access-storage.mjs',
     './CloudBackupPreview': './preview.mjs',
+    './cloudBackupCooldown': './cooldown.mjs',
+    '../support/ProblemReportDialog': './report.mjs',
     './CloudBackupReauthentication':
       './reauth.mjs'
   }
@@ -354,6 +354,8 @@ async function automaticHarness(
     )
 
   await files.compile('sync/CloudBackupPreview.tsx', 'preview.mjs')
+  await files.compile('sync/cloudBackupCooldown.ts', 'cooldown.mjs')
+  await files.write('report.mjs', `import React from 'react'; export function ProblemReportDialog({open,onClose}) { return open ? React.createElement('section', {role:'dialog', 'aria-label':'Relatório técnico'}, React.createElement('button', {onClick:onClose}, 'Fechar relatório')) : null }`)
   await files.compile(
     'sync/cloudBackupPreference.ts',
     'preference.mjs'
@@ -443,6 +445,7 @@ async function automaticHarness(
   await files.write(
     'service.mjs',
     `
+      import { reserveCloudBackupUpload } from './cooldown.mjs'
       export const calls = { inspect: 0, upload: 0, download: 0 }
       let waitForStatus = null
       let waitForUpload = null
@@ -477,6 +480,7 @@ async function automaticHarness(
       }
       export async function uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, options) {
         if (!options.canUpload()) throw new Error('disabled')
+        reserveCloudBackupUpload(session.email)
         calls.upload++
         lastUpload = { session, backup, options }
         if (waitForUpload) await waitForUpload
@@ -552,6 +556,13 @@ async function automaticHarness(
     storage,
     trust,
     backup,
+    nextSlot: async () => {
+      const now = new Date(); const next = new Date(now);
+      const slots = [[12,19],[16,59]]; let found = false;
+      for (const [hour,minute] of slots) { next.setHours(hour,minute,0,0); if (next > now) { found=true; break } }
+      if (!found) { next.setDate(next.getDate()+1); next.setHours(12,19,0,0) }
+      await act(async () => t.mock.timers.tick(next.getTime()-now.getTime()))
+    },
     click: async label => act(async () => {
       const button = [...document.querySelectorAll('button')].find(item => item.textContent === label)
       assert.ok(button, `Missing button: ${label}`)
@@ -577,291 +588,126 @@ async function automaticHarness(
   }
 }
 
-const reminderTitle = 'Tem alterações significativas por guardar. Deseja guardar o seu progresso?'
-const dialog = () => document.querySelector('[role=dialog]')
+const reminderTitle = 'Tem alterações por guardar. Deseja guardar o seu progresso?'
+const dialog = () => document.querySelector('[aria-labelledby=cloud-backup-reminder-title]')
 const noNetwork = service => assert.deepEqual(service.calls, { inspect: 0, upload: 0, download: 0 })
+const enabled = ({ preference }) => preference.writeCloudBackupPreference(session, 'enabled')
 
-test('Sim prepares a local preview; only final confirmation uploads the reviewed snapshot', async t => {
-  const h = await automaticHarness(t)
-  assert.match(document.body.textContent, /não recebe a sua password pessoal/)
-  assert.match(document.body.textContent, /dados são cifrados neste dispositivo antes do envio/)
-  await h.mutate()
-  await h.tick(15 * 60 * 1000)
-  noNetwork(h.service)
-  assert.equal(h.dexie.listeners.size, 1)
-
-  await h.click('Ativar lembretes de cópia')
-  assert.equal(h.preference.readCloudBackupPreference(session), 'enabled')
-  assert.equal(h.dexie.listeners.size, 2)
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
-  assert.match(dialog().textContent, new RegExp(reminderTitle.replace('?', '\?')))
-  assert.deepEqual([...dialog().querySelectorAll('button')].map(b => b.textContent), ['Sim', 'Não', 'Não voltar a perguntar'])
-  assert.equal(document.activeElement.textContent, 'Não')
-  noNetwork(h.service)
-
-  h.backup.setName('Data changed after the reminder appeared')
-  await h.click('Sim')
-  noNetwork(h.service)
-  await h.confirm()
-  assert.equal(h.service.calls.upload, 1)
-  assert.equal(h.service.lastUpload.backup.data.students[0].name, 'Data changed after the reminder appeared')
+test('Guardar agora prepares locally; final confirmation alone uploads the reviewed snapshot and restores focus', async t => {
+  const h = await automaticHarness(t, enabled)
+  const editor = document.createElement('button'); editor.textContent='Editor'; document.body.append(editor); editor.focus()
+  await h.mutate(); await h.tick(29_999); assert.equal(dialog(), null)
+  await h.tick(1); noNetwork(h.service); assert.ok(dialog()); assert.match(dialog().textContent, /Tem alterações por guardar/)
+  assert.deepEqual([...dialog().querySelectorAll('button')].map(b => b.textContent), ['Guardar agora','Agora não'])
+  h.backup.setName('Reviewed snapshot'); await h.click('Guardar agora'); noNetwork(h.service)
+  assert.ok(document.querySelector('[aria-label="Dados que vão ser enviados"]'))
+  await h.confirm(); assert.equal(h.service.calls.upload, 1); assert.equal(dialog(), null)
+  assert.equal(document.activeElement, editor)
+  assert.equal(h.service.lastUpload.backup.data.students[0].name, 'Reviewed snapshot')
   assert.equal(h.service.lastUpload.options.expectedServerRevision, undefined)
-  assert.equal(dialog(), null)
-  assert.match(document.querySelector('[role=status]').textContent, /guardada e verificada/)
-  await h.tick(15 * 60 * 1000)
-  assert.equal(h.service.calls.upload, 1)
-  assert.equal(dialog(), null)
+  await h.tick(60_000); assert.equal(h.service.calls.upload, 1)
 })
 
-test('Não sends nothing, retains pending changes and respects the interval across reload', async t => {
-  const h = await automaticHarness(t, ({preference, trust}) => {
-    preference.writeCloudBackupPreference(session, 'enabled')
-    trust.writeMAProfessorCloudBackupTrust(session, {serverRevision: 2, recordRevision: 2, updatedAt: '2026-09-20T10:00:00Z'})
-  })
-  await h.mutate()
-  await h.tick(90 * 1000)
-  await h.click('Não')
-  assert.equal(dialog(), null)
+test('Agora não retains pending changes through reload and asks only at the next scheduled slot', async t => {
+  const h = await automaticHarness(t, enabled); await h.mutate(); await h.nextSlot(); await h.click('Agora não')
   assert.ok(h.trust.readMAProfessorCloudBackupTrust(session).dirtyAt)
-  await h.remount()
-  await h.tick(9 * 60 * 1000)
-  assert.equal(dialog(), null)
-  await h.tick(60 * 1000)
-  assert.ok(dialog())
-  noNetwork(h.service)
+  await h.remount(); await h.tick(60_000); assert.equal(dialog(), null)
+  await h.nextSlot(); assert.ok(dialog()); assert.equal(new Date().getHours(),16); assert.equal(new Date().getMinutes(),59); noNetwork(h.service)
 })
 
-test('Não voltar a perguntar persists, does not send, and settings can re-enable reminders', async t => {
-  const h = await automaticHarness(t, ({preference}) => preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.mutate()
-  await h.tick(90 * 1000)
-  await h.click('Não voltar a perguntar')
-  assert.equal(h.preference.readCloudBackupPreference(session), 'disabled')
-  assert.equal(h.dexie.listeners.size, 1)
-  await h.remount()
-  await h.mutate()
-  await h.tick(60 * 60 * 1000)
-  assert.equal(dialog(), null)
-  noNetwork(h.service)
-  await act(async () => h.preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
-  noNetwork(h.service)
+test('disabled reminders stay off across reload; re-enabling uses the next slot without an immediate prompt', async t => {
+  const h = await automaticHarness(t, enabled); await h.mutate()
+  await act(async () => h.preference.writeCloudBackupPreference(session,'disabled'))
+  await h.remount(); await h.nextSlot(); assert.equal(dialog(),null); noNetwork(h.service)
+  await act(async () => h.preference.writeCloudBackupPreference(session,'enabled'))
+  await h.tick(1); assert.equal(dialog(),null); await h.nextSlot(); assert.ok(dialog())
 })
 
-test('legacy enabled preference migrates to reminders so old windows cannot silently upload', async t => {
-  const key = 'ma-professor-cloud-backup-choice-v1:professor%40example.com:device-a'
-  const h = await automaticHarness(t, () => window.localStorage.setItem(key, 'enabled'))
-  assert.equal(h.preference.readCloudBackupPreference(session), 'enabled')
-  assert.equal(window.localStorage.getItem(key), 'reminders')
-  // This is the exact authorization condition in the previous version.
-  assert.notEqual(window.localStorage.getItem(key), 'enabled')
-  await h.mutate()
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
-  noNetwork(h.service)
+test('legacy enabled preference becomes reminders and never silently uploads', async t => {
+  const key='ma-professor-cloud-backup-choice-v1:professor%40example.com:device-a'
+  const h=await automaticHarness(t,()=>window.localStorage.setItem(key,'enabled'))
+  assert.equal(window.localStorage.getItem(key),'reminders')
+  await h.mutate(); await h.nextSlot(); assert.ok(dialog()); noNetwork(h.service)
 })
 
-test('a disable from another window during preparation prevents the confirmed upload', async t => {
-  const h = await automaticHarness(t, ({preference}) => preference.writeCloudBackupPreference(session, 'enabled'))
-  let release
-  h.backup.holdPreparation(new Promise(resolve => { release = resolve }))
-  await h.mutate()
-  await h.tick(90 * 1000)
-  await h.click('Sim')
-  const key = Object.keys(window.localStorage).find(key => key.startsWith('ma-professor-cloud-backup-choice-v1:'))
-  await act(async () => {
-    window.localStorage.setItem(key, 'disabled')
-    window.dispatchEvent(new window.StorageEvent('storage', {key, newValue: 'disabled'}))
-    release()
-  })
-  await h.tick(15 * 60 * 1000)
-  noNetwork(h.service)
-  assert.equal(dialog(), null)
-  assert.equal(h.dexie.listeners.size, 1)
+test('disabling from another window during preparation prevents the confirmed upload', async t => {
+  const h=await automaticHarness(t,enabled); let release
+  h.backup.holdPreparation(new Promise(resolve=>{release=resolve}))
+  await h.mutate(); await h.nextSlot(); await h.click('Guardar agora')
+  const key=Object.keys(window.localStorage).find(key=>key.startsWith('ma-professor-cloud-backup-choice-v1:'))
+  await act(async()=>{window.localStorage.setItem(key,'disabled');window.dispatchEvent(new window.StorageEvent('storage',{key,newValue:'disabled'}));release()})
+  await h.tick(60_000); noNetwork(h.service); assert.equal(dialog(),null)
 })
 
-test('a clean device stays clean after re-enabling; disabled edits survive reload', async t => {
-  const h = await automaticHarness(t, ({preference, trust}) => {
-    preference.writeCloudBackupPreference(session, 'enabled')
-    trust.writeMAProfessorCloudBackupTrust(session, {serverRevision: 4, recordRevision: 4, updatedAt: new Date().toISOString()})
-  })
-  await h.tick(15 * 60 * 1000)
-  assert.equal(dialog(), null)
-  await act(async () => h.preference.writeCloudBackupPreference(session, 'disabled'))
-  await act(async () => h.preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.tick(15 * 60 * 1000)
-  assert.equal(dialog(), null)
-  assert.equal(h.trust.readMAProfessorCloudBackupTrust(session).dirtyAt, null)
-  await act(async () => h.preference.writeCloudBackupPreference(session, 'disabled'))
-  await h.mutate()
-  await h.remount()
-  await act(async () => h.preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
-  noNetwork(h.service)
+test('clean devices do not prompt, and disabled local edits remain pending through reload', async t => {
+  const h=await automaticHarness(t,enabled); await h.nextSlot(); assert.equal(dialog(),null)
+  await act(async()=>h.preference.writeCloudBackupPreference(session,'disabled'))
+  await h.mutate(); await h.remount(); await act(async()=>h.preference.writeCloudBackupPreference(session,'enabled'))
+  await h.nextSlot(); assert.ok(dialog()); noNetwork(h.service)
 })
 
-test('a new device without prior trust never prompts until an actual edit', async t => {
-  const h = await automaticHarness(t, ({preference}) => preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.tick(60 * 60 * 1000)
-  assert.equal(dialog(), null)
-  assert.equal(h.trust.readMAProfessorCloudBackupTrust(session), null)
-  await h.mutate()
-  await h.remount()
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
-  assert.equal(h.trust.readMAProfessorCloudBackupTrust(session).recordRevision, null)
-  noNetwork(h.service)
+test('no OPAQUE key skips a slot; unlocking never uploads or replays a missed reminder', async t => {
+  const h=await automaticHarness(t,({preference,storage})=>{storage.setKey(null);enabled({preference})})
+  await h.mutate(); await h.nextSlot(); assert.equal(dialog(),null); noNetwork(h.service)
+  await act(async()=>h.storage.setKey('memory-key')); await h.tick(1); assert.equal(dialog(),null)
+  await h.nextSlot(); assert.ok(dialog()); noNetwork(h.service)
+  await h.click('Guardar agora'); await h.confirm(); assert.equal(h.service.calls.upload,1)
+  assert.equal(Object.values(window.localStorage).some(value=>value.includes('memory-key')),false)
 })
 
-test('missing OPAQUE key makes no silent network request and unlock resumes the reminder, not an upload', async t => {
-  const h = await automaticHarness(t, ({preference, storage}) => {
-    storage.setKey(null)
-    preference.writeCloudBackupPreference(session, 'enabled')
-  })
-  await h.mutate()
-  await h.tick(60 * 60 * 1000)
-  assert.equal(dialog(), null)
-  assert.equal(document.querySelector('input[type=password]'), null)
-  noNetwork(h.service)
-  await act(async () => h.storage.setKey('memory-key'))
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
-  noNetwork(h.service)
-  await h.click('Sim')
-  noNetwork(h.service)
-  await h.confirm()
-  assert.equal(h.service.calls.upload, 1)
-  assert.equal(Object.values(window.localStorage).some(value => value.includes('memory-key')), false)
+test('edits during a confirmed upload remain pending and only cause a question at the next slot', async t => {
+  const h=await automaticHarness(t,enabled); let release
+  h.service.holdUpload(new Promise(resolve=>{release=resolve}))
+  await h.mutate(); await h.nextSlot(); await h.click('Guardar agora'); await h.confirm(); await h.mutate()
+  await act(async()=>release()); assert.ok(h.trust.readMAProfessorCloudBackupTrust(session).dirtyAt)
+  await h.remount(); await h.nextSlot(); assert.ok(dialog()); assert.equal(h.service.calls.upload,1)
 })
 
-test('changes during a confirmed upload remain pending after reload and never trigger a silent second upload', async t => {
-  const h = await automaticHarness(t, ({preference, trust}) => {
-    preference.writeCloudBackupPreference(session, 'enabled')
-    trust.writeMAProfessorCloudBackupTrust(session, {serverRevision: 8, recordRevision: 8, updatedAt: '2026-09-20T10:00:00Z'})
-  })
-  let release
-  h.service.holdUpload(new Promise(resolve => { release = resolve }))
-  await h.mutate()
-  await h.tick(90 * 1000)
-  await h.click('Sim')
-  await h.confirm()
-  await h.mutate()
-  await act(async () => release())
-  assert.ok(h.trust.readMAProfessorCloudBackupTrust(session).dirtyAt)
-  await h.remount()
-  await h.tick(10 * 60 * 1000)
-  assert.ok(dialog())
-  assert.equal(h.service.calls.upload, 1)
+test('failures allow reporting, retry after 30 seconds and fresh confirmation, or ignore without an automatic retry', async t => {
+  const h=await automaticHarness(t,enabled); h.service.setUploadError(new Error('Rejected'))
+  await h.mutate(); await h.nextSlot(); await h.click('Guardar agora'); await h.confirm()
+  assert.match(document.querySelector('[role=alert]').textContent,/Não foi possível confirmar/)
+  assert.equal([...dialog().querySelectorAll('button')].find(b=>b.textContent==='Tentar novamente').disabled,true)
+  await h.click('Enviar relatório'); assert.ok(document.querySelector('[aria-label="Relatório técnico"]')); assert.equal(h.service.calls.upload,1)
+  await h.click('Fechar relatório'); await h.tick(30_000); h.service.setUploadError(null)
+  await h.click('Tentar novamente'); assert.equal(document.querySelector('input[type=checkbox]').checked,false)
+  await h.confirm(); assert.equal(h.service.calls.upload,2); assert.equal(dialog(),null)
 })
 
-test('upload failures stay visible and require fresh final confirmation; no automatic retries', async t => {
-  const h = await automaticHarness(t, ({preference}) => preference.writeCloudBackupPreference(session, 'enabled'))
-  h.service.setUploadError(new h.service.MAProfessorCloudBackupPermanentError('The upload was rejected'))
-  await h.mutate()
-  await h.tick(90 * 1000)
-  await h.click('Sim')
-  await h.confirm()
-  assert.match(document.querySelector('[role=alert]').textContent, /Não foi possível confirmar/)
-  await h.tick(60 * 60 * 1000)
-  await h.mutate()
-  assert.equal(h.service.calls.upload, 1)
-  h.service.setUploadError(null)
-  await h.confirm()
-  assert.equal(h.service.calls.upload, 2)
-  assert.equal(dialog(), null)
+test('inactive slots are discarded; the next active slot appears above an existing modal and restores that editor', async t => {
+  let focused=false
+  const h=await automaticHarness(t,({preference})=>{Object.defineProperty(document,'hasFocus',{configurable:true,value:()=>focused});enabled({preference})})
+  await h.mutate(); await h.nextSlot(); assert.equal(dialog(),null)
+  focused=true; await act(async()=>window.dispatchEvent(new Event('focus'))); await h.tick(1); assert.equal(dialog(),null)
+  const editor=document.createElement('button');editor.textContent='Previous modal'; const modal=document.createElement('div');modal.setAttribute('role','dialog');modal.append(editor);document.body.append(modal);editor.focus()
+  await h.nextSlot(); assert.ok(dialog()); assert.match(dialog().parentElement.className,/z-\[1000\]/)
+  await h.click('Agora não'); assert.equal(document.activeElement,editor); assert.ok(modal.isConnected); noNetwork(h.service)
 })
 
-test('a hidden window waits for focus; reminders do not interrupt another open dialog', async t => {
-  let focused = false
-  const h = await automaticHarness(t, ({preference}) => {
-    Object.defineProperty(document, 'hasFocus', {configurable:true, value:() => focused})
-    preference.writeCloudBackupPreference(session, 'enabled')
-  })
-  await h.mutate()
-  await h.tick(90 * 1000)
-  assert.equal(dialog(), null)
-  noNetwork(h.service)
-  const editor = document.createElement('div')
-  editor.setAttribute('aria-modal','true')
-  document.body.append(editor)
-  focused = true
-  await act(async () => window.dispatchEvent(new Event('focus')))
-  await h.tick(1)
-  assert.equal(dialog(), null)
-  editor.remove()
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
-  noNetwork(h.service)
+test('suspended-browser timers do not show a late reminder when execution resumes', async t => {
+  const h=await automaticHarness(t,enabled);await h.mutate();await h.tick(3*60_000)
+  assert.equal(new Date().getMinutes(),21);assert.equal(dialog(),null);noNetwork(h.service)
+  await h.nextSlot();assert.ok(dialog())
 })
 
-test('quiet-period debounce and maximum dirty time only produce a question, never a network request', async t => {
-  const h = await automaticHarness(t, ({preference, trust}) => {
-    preference.writeCloudBackupPreference(session, 'enabled')
-    trust.writeMAProfessorCloudBackupTrust(session, {serverRevision:1,recordRevision:1,updatedAt:'2026-09-20T10:00:00Z'})
-  })
-  await h.mutate()
-  for (let i=0; i<4; i++) {
-    await h.tick(60 * 1000)
-    assert.equal(dialog(), null)
-    await h.mutate()
-  }
-  await h.tick(60 * 1000)
-  assert.ok(dialog())
-  noNetwork(h.service)
+test('a successful manual copy clears pending changes without starting another copy', async t => {
+  const h=await automaticHarness(t,enabled);await h.mutate()
+  await act(async()=>h.trust.writeMAProfessorCloudBackupTrust(session,{serverRevision:2,recordRevision:2,updatedAt:new Date().toISOString()}))
+  await h.nextSlot();assert.equal(dialog(),null);noNetwork(h.service)
 })
 
-test('a successful manual copy clears the queued question without sending another copy', async t => {
-  const h = await automaticHarness(t, ({preference, trust}) => {
-    preference.writeCloudBackupPreference(session, 'enabled')
-    trust.writeMAProfessorCloudBackupTrust(session, {serverRevision:1,recordRevision:1,updatedAt:'2026-09-20T10:00:00Z'})
-  })
-  await h.mutate()
-  await act(async () => h.trust.writeMAProfessorCloudBackupTrust(session,{serverRevision:2,recordRevision:2,updatedAt:new Date().toISOString()}))
-  await h.tick(15 * 60 * 1000)
-  assert.equal(dialog(), null)
-  noNetwork(h.service)
+test('preview refresh sends nothing; post-preview edits remain pending and cancel returns to the original screen', async t => {
+  const h=await automaticHarness(t,enabled);await h.mutate();await h.nextSlot();await h.click('Guardar agora')
+  h.backup.setName('Reviewed');await h.click('Atualizar pré-visualização');noNetwork(h.service)
+  h.backup.setName('Later edit');await h.mutate();await h.confirm()
+  assert.equal(h.service.lastUpload.backup.data.students[0].name,'Reviewed');assert.ok(h.trust.readMAProfessorCloudBackupTrust(session).dirtyAt)
+  await h.nextSlot();await h.click('Guardar agora');await h.click('Cancelar');assert.equal(dialog(),null);assert.equal(h.service.calls.upload,1)
 })
 
-test('preview refresh and cancel never upload; post-preview edits stay pending', async t => {
-  const h = await automaticHarness(t, ({preference}) => preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.mutate()
-  await h.tick(90 * 1000)
-  await h.click('Sim')
-  noNetwork(h.service)
-  h.backup.setName('Reviewed')
-  await h.click('Atualizar pré-visualização')
-  assert.equal(document.querySelector('input[type=checkbox]').checked, false)
-  noNetwork(h.service)
-  h.backup.setName('Later edit')
-  await h.mutate()
-  await h.confirm()
-  assert.equal(h.service.lastUpload.backup.data.students[0].name, 'Reviewed')
-  assert.ok(h.trust.readMAProfessorCloudBackupTrust(session).dirtyAt)
-  await h.tick(10 * 60 * 1000)
-  await h.click('Sim')
-  await h.click('Cancelar')
-  assert.equal(dialog(), null)
-  assert.equal(h.service.calls.upload, 1)
-})
-
-test('reset clears pending changes and cannot arm a reminder with empty data', async t => {
-  const h = await automaticHarness(t, ({preference}) => preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.mutate()
-  await act(async () => {
-    h.preference.writeCloudBackupPreference(session, 'disabled')
-    h.trust.clearMAProfessorCloudBackupTrust(session)
-  })
-  await h.mutate()
-  assert.equal(h.trust.readMAProfessorCloudBackupTrust(session), null)
-  await h.remount()
-  await act(async () => h.preference.writeCloudBackupPreference(session, 'enabled'))
-  await h.tick(60 * 60 * 1000)
-  assert.equal(dialog(), null)
-  noNetwork(h.service)
-  await h.mutate()
-  await h.tick(90 * 1000)
-  assert.ok(dialog())
+test('reset clears pending changes and does not arm a reminder until a new real edit', async t => {
+  const h=await automaticHarness(t,enabled);await h.mutate()
+  await act(async()=>{h.preference.writeCloudBackupPreference(session,'disabled');h.trust.clearMAProfessorCloudBackupTrust(session)})
+  await h.mutate();assert.equal(h.trust.readMAProfessorCloudBackupTrust(session),null)
+  await h.remount();await act(async()=>h.preference.writeCloudBackupPreference(session,'enabled'));await h.nextSlot();assert.equal(dialog(),null)
+  await h.mutate();await h.nextSlot();assert.ok(dialog());noNetwork(h.service)
 })

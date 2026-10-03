@@ -1,3 +1,5 @@
+import type { MaProfessorAccessEnv } from './maProfessorAccess'
+
 export const MA_PROFESSOR_PROBLEM_REPORT_PATH =
   '/api/ma-professor/problem-report'
 
@@ -69,6 +71,8 @@ interface D1PreparedStatementLike {
 
   run():
     Promise<D1ResultLike>
+
+  all<T>(): Promise<{ success: boolean; results?: T[] }>
 }
 
 interface D1DatabaseLike {
@@ -83,6 +87,8 @@ export interface MaProfessorProblemReportEnv {
 
   RESEND_API_KEY_MA_PROFESSOR?:
     string
+
+  MA_PROFESSOR_ACCESS?: MaProfessorAccessEnv['MA_PROFESSOR_ACCESS']
 }
 
 interface ValidProblemReport {
@@ -92,6 +98,7 @@ interface ValidProblemReport {
   browser: string
   occurredAt: string
   message: string
+  device: string
 }
 
 class ProblemReportApiError
@@ -484,7 +491,79 @@ function validateProblemReport(
     screen,
     browser,
     occurredAt,
-    message
+    message,
+    device: normalizeText(body.device, 80) || 'Dispositivo desconhecido'
+  }
+}
+
+async function reportContact(body: JsonObject, env: MaProfessorProblemReportEnv) {
+  // A identidade vem exclusivamente da sessão verificada, nunca de um email enviado pelo cliente.
+  if (!env.MA_PROFESSOR_ACCESS || !isJsonObject(body.session)) return null
+  const token = normalizeText(body.session.token, 256)
+  const deviceId = normalizeText(body.session.deviceId, 180)
+  if (!token || !deviceId) return null
+  const binding = env.MA_PROFESSOR_ACCESS
+  const response = await binding.get(binding.idFromName('ma-professor-access-global')).fetch(new Request(
+    'https://ma-professor.internal/api/ma-professor/access/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, deviceId })
+    }
+  ))
+  const result = await response.json() as { success?: boolean; license?: { email?: string } }
+  if (!response.ok || result.success !== true || !result.license?.email) return null
+  const email = result.license.email.trim().toLowerCase()
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(`ma-professor-account-v1:${email}`))
+  return { email, accountId: `account-${bytesToHex(new Uint8Array(digest))}` }
+}
+
+async function storeProblemReport(body: JsonObject, report: ValidProblemReport, env: MaProfessorProblemReportEnv, now: number) {
+  let contact: Awaited<ReturnType<typeof reportContact>> = null
+  try { contact = await reportContact(body, env) } catch { /* O diagnóstico também funciona se a sessão falhar. */ }
+  const result = await env.MA_PROFESSOR_DB.prepare(`
+    INSERT INTO ma_professor_problem_reports (
+      id, account_id, contact_email, error_type, app_version, screen, browser,
+      device, occurred_at, message, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(crypto.randomUUID(), contact?.accountId ?? null, contact?.email ?? null,
+    report.error, report.version, report.screen, report.browser, report.device,
+    report.occurredAt, report.message, now, now).run()
+  if (!result.success || result.meta?.changes !== 1) {
+    throw new ProblemReportApiError('Não foi possível guardar o relatório no suporte. Tente novamente mais tarde.', 503)
+  }
+}
+
+// Chamado apenas depois da autenticação e da proteção de origem do Admin existente.
+export async function handleMAProfessorProblemReportAdminRequest(request: Request, env: MaProfessorProblemReportEnv, action: string) {
+  try {
+    if (action === '/problem-reports' && request.method === 'GET') {
+      const result = await env.MA_PROFESSOR_DB.prepare(`
+        SELECT id, account_id, contact_email, error_type, app_version, screen, browser,
+          device, occurred_at, message, status, internal_note, created_at, updated_at
+        FROM ma_professor_problem_reports
+        ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'in_review' THEN 1 ELSE 2 END, created_at DESC
+        LIMIT 100
+      `).all<Record<string, unknown>>()
+      if (!result.success) throw new Error('report-list-failed')
+      return json({ success: true, reports: result.results ?? [] })
+    }
+    if (action !== '/problem-reports/update' || request.method !== 'POST') {
+      return json({ success: false, message: 'Método ou operação não permitido.' }, 405)
+    }
+    const body = await readJsonBody(request)
+    const id = normalizeText(body.id, 80)
+    const status = normalizeText(body.status, 30)
+    if (!id || !['new', 'in_review', 'resolved'].includes(status) || typeof body.internalNote !== 'string') {
+      return json({ success: false, message: 'Indique um relatório e estado válidos.' }, 400)
+    }
+    const result = await env.MA_PROFESSOR_DB.prepare(`
+      UPDATE ma_professor_problem_reports SET status = ?, internal_note = ?, updated_at = ? WHERE id = ?
+    `).bind(status, normalizeText(body.internalNote, 1600), Date.now(), id).run()
+    if (!result.success) throw new Error('report-update-failed')
+    if (result.meta?.changes !== 1) return json({ success: false, message: 'Relatório não encontrado.' }, 404)
+    return json({ success: true })
+  } catch (error) {
+    if (error instanceof ProblemReportApiError) return json({ success: false, message: error.message }, error.status)
+    return json({ success: false, message: 'O serviço de relatórios está temporariamente indisponível.' }, 503)
   }
 }
 
@@ -958,11 +1037,11 @@ export async function handleMAProfessorProblemReportApiRequest(
         now
       ).toISOString()
 
-    await sendProblemReportEmail(
-      env,
-      report,
-      receivedAt
-    )
+    await storeProblemReport(body, report, env, now)
+    // O Admin é o destino persistente. Uma falha do aviso por email não perde o relatório.
+    try { await sendProblemReportEmail(env, report, receivedAt) } catch {
+      console.error('MA-Professor report saved; email notification unavailable')
+    }
 
     return json({
       success:

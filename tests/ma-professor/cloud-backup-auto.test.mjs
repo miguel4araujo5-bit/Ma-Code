@@ -161,7 +161,7 @@ test(
     )
     assert.match(
       automatic,
-      /AUTO_BACKUP_MIN_INTERVAL_MS = 10 \* 60 \* 1000/
+      /hour: 12, minute: 19.*hour: 16, minute: 59/
     )
     assert.doesNotMatch(
       automatic,

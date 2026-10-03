@@ -162,11 +162,11 @@ test(
 )
 
 test(
-  'server report endpoint is isolated from the access Durable Object and persists only rate-limit metadata',
+  'report endpoint remains rate-limited and authenticates optional contact without reading school data',
   () => {
     assert.doesNotMatch(
       workerSource,
-      /MA_PROFESSOR_ACCESS|DurableObject|maProfessorDb/
+      /maProfessorDb|indexedDB|Dexie/
     )
 
     assert.doesNotMatch(
@@ -345,7 +345,7 @@ function createDb(
             })
 
             if (
-              /INSERT INTO ma_professor_problem_report_rate_limits/
+              /INSERT INTO ma_professor_problem_report(?:_rate_limits|s)/
                 .test(
                   sql
                 )
@@ -536,7 +536,7 @@ test(
       assert.ok(
         database.statements.some(
           entry =>
-            /INSERT INTO ma_professor_problem_report_rate_limits/
+            /INSERT INTO ma_professor_problem_report(?:_rate_limits|s)/
               .test(
                 entry.sql
               )
