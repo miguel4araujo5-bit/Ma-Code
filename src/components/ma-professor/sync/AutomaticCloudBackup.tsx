@@ -131,13 +131,9 @@ export default function AutomaticCloudBackup() {
       if (!canRun()) return
 
       // O lembrete pertence apenas a este horário. Se o professor não estiver
-      // presente, não fica em fila nem reaparece mais tarde.
+      // presente, não fica em fila nem reaparece mais tarde. Quando está presente,
+      // abre acima de qualquer diálogo já existente e pode ser ignorado.
       if (running || reminderOpen || !dirty || !isForeground() || !readMAProfessorOpaqueExportKey(session.email)) {
-        scheduleReminder()
-        return
-      }
-      // Não interromper outro diálogo. Este lembrete perde-se em vez de ser adiado.
-      if (document.querySelector('[aria-modal="true"], dialog[open]')) {
         scheduleReminder()
         return
       }
@@ -304,7 +300,7 @@ export default function AutomaticCloudBackup() {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4">
       <div
         ref={dialog}
         role="dialog"
