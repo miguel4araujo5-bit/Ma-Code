@@ -11,6 +11,7 @@ const bundle = await build({
     export * from './src/components/ma-professor/sync/cloudBackupService.ts';
     export * from './src/components/ma-professor/access/accessStorage.ts';
     export * from './worker/maProfessorCloudBackup.ts';
+    export * from './worker/maProfessorSync.ts';
   `, resolveDir: root }, bundle: true, write: false, format: 'esm', platform: 'node'
 })
 const runtime = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
@@ -18,12 +19,29 @@ const session = { token: 'test-token', email: 'new-teacher@example.test', device
 const exportKey = Buffer.from(crypto.getRandomValues(new Uint8Array(64))).toString('base64url')
 const keys = ['teacherProfiles', 'academicYears', 'groups', 'subjects', 'teachingAssignments', 'modules', 'students', 'assessmentSchemes', 'assessmentCriteria', 'planifications', 'planificationItems', 'weeklyScheduleSlots', 'schoolCalendarEvents', 'lessons', 'summarySuggestions', 'lessonAttendance', 'lessonAssessments', 'assessmentResults', 'moduleFinalGrades', 'learningRecoveries', 'settings', 'setupProgress']
 const backup = { product: 'ma-professor', schemaVersion: 1, exportedAt: '2026-09-21T12:00:00Z', data: Object.fromEntries(keys.map(key => [key, []])) }
+const cutoverSql = await readFile(new URL('../../migrations/ma-professor/0005_cloud_backup_v3_only.sql', import.meta.url), 'utf8')
+const adminSource = await readFile(new URL('../../worker/maProfessorAccountAdmin.ts', import.meta.url), 'utf8')
+const adminBundle = await build({
+  stdin: { contents: `${adminSource}\nexport { deleteCloudAccountData };`, resolveDir: `${root}/worker`, loader: 'ts' },
+  bundle: true, write: false, format: 'esm', platform: 'node'
+})
+const adminRuntime = await import(`data:text/javascript;base64,${Buffer.from(adminBundle.outputFiles[0].text).toString('base64')}`)
 
-async function fixture(t) {
+function insertRow(db, table, row) {
+  const columns = Object.keys(row)
+  db.prepare(`INSERT INTO ${table} (${columns.join(',')}) VALUES (${columns.map(() => '?').join(',')})`).run(...Object.values(row))
+}
+
+async function accountIdFor(email) {
+  return 'account-' + Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ma-professor-account-v1:${email.trim().toLowerCase()}`))).toString('hex')
+}
+
+async function fixture(t, { cutover = true } = {}) {
   const db = new DatabaseSync(':memory:')
   t.after(() => db.close())
   const migrations = new URL('../../migrations/ma-professor/', import.meta.url)
   for (const name of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
+    if (!cutover && name === '0005_cloud_backup_v3_only.sql') continue
     db.exec(await readFile(new URL(name, migrations), 'utf8'))
   }
   const requests = []
@@ -67,7 +85,7 @@ async function fixture(t) {
   })
   runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
   t.after(() => runtime.clearMAProfessorOpaqueExportKey())
-  return { db, requests, post, failRecord: value => { failRecord = value }, beforeBatch: callback => { beforeBatch = callback } }
+  return { db, env, requests, post, failRecord: value => { failRecord = value }, beforeBatch: callback => { beforeBatch = callback } }
 }
 
 function initialization(prepared) {
@@ -140,7 +158,8 @@ test('v3 concurrent updates return a typed 409 and preserve the winning cipherte
 })
 
 test('legacy v2 profiles are rejected and cannot be read, overwritten or promoted', async t => {
-  const f = await fixture(t)
+  // A database that has not yet applied the cutover must still fail closed.
+  const f = await fixture(t, { cutover: false })
   const accountId = 'account-' + Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`ma-professor-account-v1:${session.email}`))).toString('hex')
   const legacyKey = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64')
   f.db.prepare(`INSERT INTO ma_professor_sync_profiles VALUES (?,0,2,'SESSION-AUTH-V1','','{}','RAW-AES-256-GCM-SESSION-V1',?,'',1,1,NULL)`).run(accountId, legacyKey)
@@ -160,6 +179,130 @@ test('legacy v2 profiles are rejected and cannot be read, overwritten or promote
   assert.equal(profile.recovery_wrapped_master_key, legacyKey)
   assert.equal(f.db.prepare('SELECT count(*) AS n FROM ma_professor_encrypted_records').get().n, 0)
   assert.equal(f.requests.some(r => /\/(key|push|promote-v3)$/.test(r.path)), false)
+})
+
+test('cutover removes legacy profiles and children but preserves every V3 profile, ciphertext and history byte', async t => {
+  const f = await fixture(t, { cutover: false })
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 1 })
+  const profile = f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()
+  const record = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get()
+  const history = f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').get()
+  insertRow(f.db, 'ma_professor_sync_profiles', { ...profile, account_id: 'deleted-v3', deleted_at: 1 })
+  const snapshot = () => ['ma_professor_sync_profiles', 'ma_professor_encrypted_records', 'ma_professor_encrypted_record_history']
+    .map(table => f.db.prepare(`SELECT * FROM ${table} ORDER BY account_id, server_revision`).all())
+  const preserved = snapshot()
+  f.db.exec('PRAGMA foreign_keys = OFF')
+
+  for (const [version, deletedAt] of [[1, null], [2, null], [2, 1]]) {
+    const accountId = `legacy-${version}-${deletedAt}`
+    insertRow(f.db, 'ma_professor_sync_profiles', {
+      ...profile, account_id: accountId, crypto_version: version,
+      recovery_kdf_algorithm: version === 1 ? 'PBKDF2-HMAC-SHA-256' : 'SESSION-AUTH-V1', deleted_at: deletedAt
+    })
+    insertRow(f.db, 'ma_professor_encrypted_records', { ...record, account_id: accountId, encryption_version: version })
+    insertRow(f.db, 'ma_professor_encrypted_record_history', { ...history, account_id: accountId, encryption_version: version })
+    insertRow(f.db, 'ma_professor_sync_devices', {
+      account_id: accountId, device_id_hash: 'old-device', device_public_key: '{}', key_wrap_algorithm: 'RSA-OAEP-3072-SHA-256',
+      wrapped_master_key: 'old-key', wrapped_master_key_nonce: '', created_at: 1, last_seen_at: 1, revoked_at: null
+    })
+  }
+  // A former V2-to-V3 promotion can have left V2 history beneath a V3 profile.
+  insertRow(f.db, 'ma_professor_encrypted_record_history', { ...history, server_revision: 9, encryption_version: 2 })
+  f.db.exec(cutoverSql)
+  assert.deepEqual(snapshot(), preserved)
+  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ma_professor_sync_devices').get().n, 0)
+  assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(), [])
+  f.db.exec(cutoverSql)
+  assert.deepEqual(snapshot(), preserved, 'Reapplying the cutover must leave V3 data unchanged.')
+  assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup(session)).backup, backup)
+})
+
+test('D1 rejects old Worker INSERT, UPDATE and REPLACE writes after the cutover', async t => {
+  const f = await fixture(t)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  const profile = f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()
+  const record = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get()
+  const history = f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').get()
+  for (const version of [1, 2]) {
+    assert.throws(() => insertRow(f.db, 'ma_professor_sync_profiles', { ...profile, account_id: `legacy-${version}`, crypto_version: version }), /must use V3/)
+    assert.throws(() => f.db.prepare('UPDATE ma_professor_sync_profiles SET crypto_version = ?').run(version), /must use V3/)
+    assert.throws(() => f.db.prepare('INSERT OR REPLACE INTO ma_professor_sync_profiles SELECT account_id,server_revision,?,recovery_kdf_algorithm,recovery_kdf_salt,recovery_kdf_parameters,recovery_key_wrap_algorithm,recovery_wrapped_master_key,recovery_wrapped_master_key_nonce,created_at,updated_at,deleted_at FROM ma_professor_sync_profiles').run(version), /must use V3/)
+    assert.throws(() => insertRow(f.db, 'ma_professor_encrypted_records', { ...record, record_id: `legacy-${version}`, encryption_version: version }), /must use V3/)
+    assert.throws(() => f.db.prepare('UPDATE ma_professor_encrypted_records SET encryption_version = ?').run(version), /must use V3/)
+    assert.throws(() => insertRow(f.db, 'ma_professor_encrypted_record_history', { ...history, server_revision: 9, encryption_version: version }), /must use V3/)
+    assert.throws(() => f.db.prepare('UPDATE ma_professor_encrypted_record_history SET encryption_version = ?').run(version), /must use V3/)
+  }
+  assert.throws(() => f.db.exec("UPDATE ma_professor_sync_profiles SET recovery_kdf_algorithm='SESSION-AUTH-V1'"), /must use V3/)
+  assert.throws(() => f.db.exec("UPDATE ma_professor_sync_profiles SET recovery_key_wrap_algorithm='RAW-AES-256-GCM-SESSION-V1'"), /must use V3/)
+  assert.throws(() => f.db.exec("INSERT INTO ma_professor_sync_devices VALUES ('old','hash','{}','RSA','key','',1,1,NULL)"), /disabled/)
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get(), profile)
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get(), record)
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').get(), history)
+  assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup(session)).backup, backup)
+})
+
+test('legacy sync initialization returns 410 without consulting access or D1; read-only status remains compatible', async t => {
+  const f = await fixture(t)
+  const request = action => new Request(`https://ma-code.pt/api/ma-professor/sync/${action}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://ma-code.pt' }, body: JSON.stringify(session)
+  })
+  const forbidden = () => { throw new Error('The retired endpoint must not access a binding.') }
+  const result = await runtime.handleMAProfessorSyncApiRequest(request('initialize'), {
+    MA_PROFESSOR_DB: { prepare: forbidden, batch: forbidden },
+    MA_PROFESSOR_ACCESS: { idFromName: forbidden, get: forbidden }
+  })
+  assert.equal(result.status, 410)
+  assert.equal((await result.json()).success, false)
+  const empty = await (await runtime.handleMAProfessorSyncApiRequest(request('status'), f.env)).json()
+  assert.equal(empty.profileExists, false)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  const ready = await (await runtime.handleMAProfessorSyncApiRequest(request('status'), f.env)).json()
+  assert.equal(ready.databaseReady, true)
+  assert.equal(ready.profileExists, true)
+  assert.equal(ready.cryptoVersion, 3)
+  assert.equal(ready.serverRevision, 1)
+})
+
+test('a reused email blocked by V2 becomes a fresh V3 account after cleanup and survives reload and new-device download', async t => {
+  const f = await fixture(t, { cutover: false })
+  const accountId = await accountIdFor(session.email)
+  f.db.prepare("INSERT INTO ma_professor_sync_profiles VALUES (?,0,2,'SESSION-AUTH-V1','','{}','RAW-AES-256-GCM-SESSION-V1','old-test-key','',1,1,NULL)").run(accountId)
+  await assert.rejects(runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup), /v3 atual/)
+  f.db.exec(cutoverSql)
+  assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, null)
+  const recreatedKey = Buffer.from(crypto.getRandomValues(new Uint8Array(64))).toString('base64url')
+  runtime.saveMAProfessorOpaqueExportKey(session.email, recreatedKey)
+  assert.equal((await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 0 })).serverRevision, 1)
+  runtime.clearMAProfessorOpaqueExportKey()
+  assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, 3)
+  await assert.rejects(runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' }), runtime.MAProfessorCloudBackupAuthenticationRequiredError)
+  runtime.saveMAProfessorOpaqueExportKey(session.email, recreatedKey)
+  assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' })).backup, backup)
+  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ma_professor_sync_profiles WHERE crypto_version <> 3').get().n, 0)
+})
+
+test('canonical account deletion removes cloud history even without cascades and permits the same email with a new key', async t => {
+  const f = await fixture(t)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  f.db.exec('PRAGMA foreign_keys = OFF')
+  const otherProfile = { ...f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get(), account_id: 'other-account' }
+  const otherRecord = { ...f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get(), account_id: 'other-account' }
+  const otherHistory = { ...f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').get(), account_id: 'other-account' }
+  insertRow(f.db, 'ma_professor_sync_profiles', otherProfile)
+  insertRow(f.db, 'ma_professor_encrypted_records', otherRecord)
+  insertRow(f.db, 'ma_professor_encrypted_record_history', otherHistory)
+  await adminRuntime.deleteCloudAccountData(f.env, [session.email])
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_sync_profiles').all().map(row => ({ ...row })), [otherProfile])
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_records').all().map(row => ({ ...row })), [otherRecord])
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_record_history').all().map(row => ({ ...row })), [otherHistory])
+  assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).cryptoVersion, null)
+  const recreatedKey = Buffer.from(crypto.getRandomValues(new Uint8Array(64))).toString('base64url')
+  runtime.saveMAProfessorOpaqueExportKey(session.email, recreatedKey)
+  assert.equal((await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup, { expectedServerRevision: 0 })).serverRevision, 1)
+  assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' })).backup, backup)
 })
 
 test('cloud authentication failures identify the originating session and preserve renewed credentials', async t => {

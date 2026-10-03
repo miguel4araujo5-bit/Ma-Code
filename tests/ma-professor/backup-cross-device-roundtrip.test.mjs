@@ -14,6 +14,7 @@ import {
 } from 'node:path'
 import { JSDOM } from 'jsdom'
 import 'fake-indexeddb/auto'
+import { createCloudBackupWorkerHarness } from './cloud-backup-worker-harness.mjs'
 
 const root =
   resolve(
@@ -58,6 +59,14 @@ const bundle =
           restoreMAProfessorBackup,
           validateMAProfessorBackup
         } from '${base}settings/backupRepository';
+        export {
+          uploadAndVerifyCompatibleMAProfessorCloudBackup,
+          downloadCompatibleMAProfessorCloudBackup
+        } from '${base}sync/cloudBackupService';
+        export {
+          saveMAProfessorOpaqueExportKey,
+          clearMAProfessorOpaqueExportKey
+        } from '${base}access/accessStorage';
       `,
       resolveDir:
         root
@@ -89,6 +98,7 @@ for (const key of [
   'Element',
   'HTMLElement',
   'Node',
+  'Event',
   'CustomEvent'
 ]) {
   globalThis[key] =
@@ -282,6 +292,37 @@ async function seedSourceDevice() {
       ...audit
     }
   ])
+
+  await db.students.add({
+    id: 'student-1', academicYearId: 'year-2026', groupId: 'group-10d',
+    number: '1', name: 'Aluno de teste', active: true, notes: '', ...audit
+  })
+  await db.assessmentSchemes.add({
+    id: 'scheme-ae', academicYearId: 'year-2026', teachingAssignmentId: 'assignment-ae-10d',
+    moduleId: 'module-10385', scope: 'module', name: 'Critérios de teste', active: true, ...audit
+  })
+  await db.assessmentCriteria.add({
+    id: 'criterion-practical', schemeId: 'scheme-ae', name: 'Trabalho prático', description: '',
+    weightPercent: 100, order: 1, active: true, ...audit
+  })
+  await db.lessonAttendance.add({
+    id: 'attendance-1', lessonId: 'lesson-a', studentId: 'student-1',
+    status: 'absent', code: 'F', note: 'Falta de teste', ...audit
+  })
+  await db.lessonAssessments.add({
+    id: 'assessment-1', academicYearId: 'year-2026', lessonId: 'lesson-b',
+    teachingAssignmentId: 'assignment-ae-10d', moduleId: 'module-10385', criterionId: 'criterion-practical',
+    title: 'Exercício prático', activityType: 'practical_work', description: '', absentScore: 0, exemptScore: 0, ...audit
+  })
+  await db.assessmentResults.add({
+    id: 'result-1', assessmentId: 'assessment-1', studentId: 'student-1',
+    status: 'evaluated', score: 17, note: 'Avaliação de teste', ...audit
+  })
+  await db.moduleFinalGrades.add({
+    id: 'grade-1', academicYearId: 'year-2026', teachingAssignmentId: 'assignment-ae-10d',
+    moduleId: 'module-10385', studentId: 'student-1', calculatedAverage: 17, suggestedGrade: 17,
+    selfAssessmentGrade: 16, finalGrade: 17, confirmedAt: timestamp, note: '', ...audit
+  })
 }
 
 after(
@@ -399,3 +440,41 @@ test(
     )
   }
 )
+
+test('V3 cloud upload, verified download and fresh-device IndexedDB restore preserve summaries, absences and grades after reopening', async t => {
+  const session = { email: 'roundtrip@example.test', token: 'roundtrip-token', deviceId: 'device-a' }
+  const exportKey = Buffer.from(crypto.getRandomValues(new Uint8Array(64))).toString('base64url')
+  const worker = await createCloudBackupWorkerHarness(session.email, session.token)
+  t.after(() => { runtime.clearMAProfessorOpaqueExportKey(); worker.close() })
+  t.mock.method(globalThis, 'fetch', (url, init) => worker.handle(new Request(new URL(url, 'https://ma-code.pt'), {
+    ...init, headers: { ...init.headers, Origin: 'https://ma-code.pt' }
+  })))
+  await seedSourceDevice()
+  const sourceBackup = await runtime.createMAProfessorBackup()
+  assert.equal(runtime.validateMAProfessorBackup(sourceBackup).valid, true)
+  runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
+  const saved = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, sourceBackup, { expectedServerRevision: 0 })
+  assert.equal(saved.serverRevision, 1)
+
+  runtime.clearMAProfessorOpaqueExportKey()
+  await db.delete()
+  await db.open()
+  assert.equal(await db.lessons.count(), 0)
+  assert.equal(await db.lessonAttendance.count(), 0)
+  assert.equal(await db.assessmentResults.count(), 0)
+  runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
+  const downloaded = await runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' })
+  assert.deepEqual(downloaded.backup, sourceBackup)
+  await runtime.restoreMAProfessorBackup(downloaded.backup)
+  db.close()
+  await db.open()
+
+  const restored = await runtime.createMAProfessorBackup()
+  for (const table of Object.keys(sourceBackup.data).filter(table => table !== 'settings')) {
+    assert.deepEqual(restored.data[table], sourceBackup.data[table], `${table} must survive the complete cloud round trip.`)
+  }
+  assert.equal((await db.lessonAttendance.get('attendance-1')).status, 'absent')
+  assert.equal((await db.assessmentResults.get('result-1')).score, 17)
+  assert.equal((await db.moduleFinalGrades.get('grade-1')).finalGrade, 17)
+  assert.equal((await db.lessons.get('lesson-a')).summary, 'Criação e apresentação de pequenas histórias.')
+})
