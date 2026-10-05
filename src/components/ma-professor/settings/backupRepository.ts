@@ -32,6 +32,7 @@ const DATA_KEYS: Array<keyof MAProfessorBackupData> = [
   'planificationItems',
   'weeklyScheduleSlots',
   'schoolCalendarEvents',
+  'paaActivities',
   'lessons',
   'summarySuggestions',
   'lessonAttendance',
@@ -87,7 +88,7 @@ function canonicalizeBackupCollection(
     ]
 ) {
   return [
-    ...(value as Array<{
+    ...((value ?? []) as Array<{
       id: string
     }>)
   ].sort(
@@ -199,6 +200,7 @@ export async function createMAProfessorBackup(): Promise<MAProfessorBackup> {
         planificationItems,
         weeklyScheduleSlots,
         schoolCalendarEvents,
+        paaActivities,
         lessons,
         summarySuggestions,
         lessonAttendance,
@@ -222,6 +224,7 @@ export async function createMAProfessorBackup(): Promise<MAProfessorBackup> {
         maProfessorDb.planificationItems.toArray(),
         maProfessorDb.weeklyScheduleSlots.toArray(),
         maProfessorDb.schoolCalendarEvents.toArray(),
+        maProfessorDb.paaActivities.toArray(),
         maProfessorDb.lessons.toArray(),
         maProfessorDb.summarySuggestions.toArray(),
         maProfessorDb.lessonAttendance.toArray(),
@@ -251,6 +254,7 @@ export async function createMAProfessorBackup(): Promise<MAProfessorBackup> {
           planificationItems,
           weeklyScheduleSlots,
           schoolCalendarEvents,
+          paaActivities,
           lessons,
           summarySuggestions,
           lessonAttendance,
@@ -326,7 +330,7 @@ export function validateMAProfessorBackup(
   const data = value.data as Partial<MAProfessorBackupData>
 
   for (const key of DATA_KEYS) {
-    if (!Array.isArray(data[key])) {
+    if (!Array.isArray(data[key]) && !(key === 'paaActivities' && data[key] === undefined)) {
       issues.push({
         path: `data.${key}`,
         message: `A coleção “${key}” está em falta ou é inválida.`,
@@ -338,7 +342,7 @@ export function validateMAProfessorBackup(
   if (
     DATA_KEYS.every(
       key =>
-        Array.isArray(
+        (key === 'paaActivities' && data[key] === undefined) || Array.isArray(
           data[key]
         )
     )
@@ -409,6 +413,7 @@ async function clearAllTables() {
     maProfessorDb.planificationItems.clear(),
     maProfessorDb.weeklyScheduleSlots.clear(),
     maProfessorDb.schoolCalendarEvents.clear(),
+    maProfessorDb.paaActivities.clear(),
     maProfessorDb.lessons.clear(),
     maProfessorDb.summarySuggestions.clear(),
     maProfessorDb.lessonAttendance.clear(),
@@ -447,6 +452,7 @@ async function putBackupData(data: MAProfessorBackupData) {
   await maProfessorDb.schoolCalendarEvents.bulkPut(
     data.schoolCalendarEvents
   )
+  await maProfessorDb.paaActivities.bulkPut(data.paaActivities ?? [])
   await maProfessorDb.lessons.bulkPut(data.lessons)
   await maProfessorDb.summarySuggestions.bulkPut(
     data.summarySuggestions

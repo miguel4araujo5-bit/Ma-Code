@@ -1,17 +1,21 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
 import type {
   AcademicYear,
   EntityId,
-  ISODate
+  ISODate,
+  PAAActivity
 } from '../types'
 
-const PAA_STORAGE_PREFIX =
-  'ma-professor:paa:'
+export type { PAAActivity } from '../types'
+
+import { maProfessorDb, openMAProfessorDatabase } from '../db'
+import { isPAAActivity } from './paaActivityMigration'
 
 const PORTUGUESE_MONTHS: Record<string, number> = {
   janeiro: 1,
@@ -26,17 +30,6 @@ const PORTUGUESE_MONTHS: Record<string, number> = {
   outubro: 10,
   novembro: 11,
   dezembro: 12
-}
-
-export interface PAAActivity {
-  id: EntityId
-  academicYearId: EntityId
-  title: string
-  date: ISODate
-  description: string
-  source: 'manual' | 'imported'
-  createdAt: string
-  updatedAt: string
 }
 
 interface PAAImportPreviewRow {
@@ -90,15 +83,6 @@ function createId() {
   )
 }
 
-function getStorageKey(
-  academicYearId: EntityId
-) {
-  return (
-    PAA_STORAGE_PREFIX +
-    academicYearId
-  )
-}
-
 function sortActivities(
   activities: PAAActivity[]
 ) {
@@ -122,119 +106,20 @@ function sortActivities(
   )
 }
 
-function isPAAActivity(
-  value: unknown,
-  academicYearId: EntityId
-): value is PAAActivity {
-  if (
-    typeof value !==
-      'object' ||
-    value ===
-      null
-  ) {
-    return false
-  }
-
-  const row =
-    value as Record<
-      string,
-      unknown
-    >
-
-  return (
-    typeof row.id ===
-      'string' &&
-    row.academicYearId ===
-      academicYearId &&
-    typeof row.title ===
-      'string' &&
-    typeof row.date ===
-      'string' &&
-    typeof row.description ===
-      'string' &&
-    (
-      row.source ===
-        'manual' ||
-      row.source ===
-        'imported'
-    ) &&
-    typeof row.createdAt ===
-      'string' &&
-    typeof row.updatedAt ===
-      'string'
-  )
+export async function loadPAAActivities(academicYearId: EntityId): Promise<PAAActivity[]> {
+  await openMAProfessorDatabase()
+  return sortActivities(await maProfessorDb.paaActivities.where('academicYearId').equals(academicYearId).toArray())
 }
 
-export function loadPAAActivities(
-  academicYearId: EntityId
-): PAAActivity[] {
-  if (
-    typeof window ===
-      'undefined'
-  ) {
-    return []
+async function persistPAAActivities(academicYearId: EntityId, activities: PAAActivity[]) {
+  await openMAProfessorDatabase()
+  if (!activities.every(activity => isPAAActivity(activity, academicYearId))) {
+    throw new Error('As atividades do PAA não correspondem ao ano letivo.')
   }
-
-  try {
-    const raw =
-      window.localStorage.getItem(
-        getStorageKey(
-          academicYearId
-        )
-      )
-
-    if (!raw) {
-      return []
-    }
-
-    const parsed =
-      JSON.parse(raw)
-
-    if (
-      !Array.isArray(
-        parsed
-      )
-    ) {
-      return []
-    }
-
-    return sortActivities(
-      parsed.filter(
-        item =>
-          isPAAActivity(
-            item,
-            academicYearId
-          )
-      )
-    )
-  } catch {
-    return []
-  }
-}
-
-function persistPAAActivities(
-  academicYearId: EntityId,
-  activities: PAAActivity[]
-) {
-  if (
-    typeof window ===
-      'undefined'
-  ) {
-    throw new Error(
-      'O armazenamento local não está disponível.'
-    )
-  }
-
-  window.localStorage.setItem(
-    getStorageKey(
-      academicYearId
-    ),
-    JSON.stringify(
-      sortActivities(
-        activities
-      )
-    )
-  )
+  await maProfessorDb.transaction('rw', maProfessorDb.paaActivities, async () => {
+    await maProfessorDb.paaActivities.where('academicYearId').equals(academicYearId).delete()
+    await maProfessorDb.paaActivities.bulkPut(sortActivities(activities))
+  })
 }
 
 function parseISODate(
@@ -761,6 +646,8 @@ export default function PAAActivitiesManager({
   onClose,
   onChange
 }: PAAActivitiesManagerProps) {
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [
     selectedIds,
     setSelectedIds
@@ -905,7 +792,7 @@ export default function PAAActivitiesManager({
     return null
   }
 
-  function applyActivities(
+  async function applyActivities(
     nextActivities: PAAActivity[]
   ) {
     const sorted =
@@ -913,14 +800,16 @@ export default function PAAActivitiesManager({
         nextActivities
       )
 
-    persistPAAActivities(
-      academicYear.id,
-      sorted
-    )
-
-    onChange(
-      sorted
-    )
+    if (savingRef.current) throw new Error('Aguarde que a atividade seja guardada.')
+    savingRef.current = true
+    setSaving(true)
+    try {
+      await persistPAAActivities(academicYear.id, sorted)
+      onChange(sorted)
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
   }
 
   function openNewActivity() {
@@ -986,7 +875,7 @@ export default function PAAActivitiesManager({
     setActionError('')
   }
 
-  function saveEditor() {
+  async function saveEditor() {
     const error =
       getRowError(
         draftTitle,
@@ -1007,7 +896,7 @@ export default function PAAActivitiesManager({
           .toISOString()
 
       if (editingId) {
-        applyActivities(
+        await applyActivities(
           activities.map(
             activity =>
               activity.id ===
@@ -1027,7 +916,7 @@ export default function PAAActivitiesManager({
           )
         )
       } else {
-        applyActivities([
+        await applyActivities([
           ...activities,
           {
             id:
@@ -1060,7 +949,7 @@ export default function PAAActivitiesManager({
     }
   }
 
-  function deleteActivity(
+  async function deleteActivity(
     activityId: EntityId
   ) {
     if (
@@ -1072,7 +961,7 @@ export default function PAAActivitiesManager({
     }
 
     try {
-      applyActivities(
+      await applyActivities(
         activities.filter(
           activity =>
             activity.id !==
@@ -1107,7 +996,7 @@ export default function PAAActivitiesManager({
     }
   }
 
-  function deleteSelected() {
+  async function deleteSelected() {
     if (
       selectedIds.size ===
         0
@@ -1126,7 +1015,7 @@ export default function PAAActivitiesManager({
     }
 
     try {
-      applyActivities(
+      await applyActivities(
         activities.filter(
           activity =>
             !selectedIds.has(
@@ -1214,7 +1103,7 @@ export default function PAAActivitiesManager({
     )
   }
 
-  function saveImport() {
+  async function saveImport() {
     const rows =
       importRows.filter(
         row =>
@@ -1304,7 +1193,7 @@ export default function PAAActivitiesManager({
     }
 
     try {
-      applyActivities([
+      await applyActivities([
         ...activities,
         ...imported
       ])
@@ -1327,6 +1216,7 @@ export default function PAAActivitiesManager({
       aria-labelledby="ma-professor-paa-title"
     >
       <section className="max-h-[94vh] w-full max-w-6xl overflow-y-auto rounded-[2rem] border border-fuchsia-300/20 bg-slate-950 p-5 text-white shadow-2xl shadow-black/60 sm:p-7">
+        <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0" aria-busy={saving}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-fuchsia-200">
@@ -1799,6 +1689,7 @@ export default function PAAActivitiesManager({
             </div>
           )}
         </section>
+        </fieldset>
       </section>
     </div>
   )

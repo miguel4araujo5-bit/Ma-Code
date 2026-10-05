@@ -353,6 +353,7 @@ export default function AutomaticCloudBackup() {
         {cooldown ? <p role="status" className="mt-3 text-xs text-amber-100">Aguarde 30 segundos entre envios de cópias online.</p> : null}
         {preparedBackup ? (
           <CloudBackupPreview
+            accountEmail={session.email}
             preparedBackup={preparedBackup}
             busy={busy}
             uploadBlocked={cooldown}

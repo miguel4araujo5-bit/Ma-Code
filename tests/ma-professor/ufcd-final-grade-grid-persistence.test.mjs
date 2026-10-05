@@ -51,11 +51,11 @@ const cloudBackupCryptoSource = await readFile(
 )
 
 test(
-  'UFCD final-grid metadata remains non-indexed and needs no Dexie schema migration',
+  'UFCD final-grid metadata remains non-indexed on the original table schema',
   () => {
     assert.match(
       dbSource,
-      /MA_PROFESSOR_DATABASE_VERSION\s*=\s*\n\s*1/
+      /this\.version\(1\)\.stores\(/
     )
     assert.doesNotMatch(
       dbSource,

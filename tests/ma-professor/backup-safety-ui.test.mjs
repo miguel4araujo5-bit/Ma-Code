@@ -411,11 +411,11 @@ test(
 )
 
 test(
-  'MA-Professor requests persistent browser storage without changing the Dexie schema',
+  'MA-Professor preserves persistent browser storage with the additive PAA migration',
   () => {
     assert.match(
       dbSource,
-      /MA_PROFESSOR_DATABASE_VERSION\s*=\s*\n\s*1/
+      /MA_PROFESSOR_DATABASE_VERSION\s*=\s*\n\s*2/
     )
     assert.match(
       dbSource,

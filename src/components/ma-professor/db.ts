@@ -7,6 +7,8 @@ import {
   reopenStudentMembership
 } from './students/studentMembership'
 
+import { readLegacyPAAActivities } from './calendar/paaActivityMigration'
+
 import type {
   AcademicYear,
   AssessmentCriterion,
@@ -21,6 +23,7 @@ import type {
   MAProfessorSettings,
   ModuleFinalGrade,
   ModuleUnit,
+  PAAActivity,
   Planification,
   PlanificationItem,
   SchoolCalendarEvent,
@@ -38,7 +41,7 @@ export const MA_PROFESSOR_DATABASE_NAME =
   'ma-professor'
 
 export const MA_PROFESSOR_DATABASE_VERSION =
-  1
+  2
 
 export const MA_PROFESSOR_DEFAULT_SETTINGS_ID =
   'default'
@@ -394,6 +397,8 @@ export class MAProfessorDatabase extends Dexie {
       EntityId
     >
 
+  paaActivities!: Table<PAAActivity, EntityId>
+
   lessons!:
     Table<
       Lesson,
@@ -453,9 +458,7 @@ export class MAProfessorDatabase extends Dexie {
       MA_PROFESSOR_DATABASE_NAME
     )
 
-    this.version(
-      MA_PROFESSOR_DATABASE_VERSION
-    ).stores({
+    this.version(1).stores({
       teacherProfiles:
         '&id',
 
@@ -521,6 +524,16 @@ export class MAProfessorDatabase extends Dexie {
 
       setupProgress:
         '&id, academicYearId, currentStep, completedAt'
+    })
+
+    this.version(MA_PROFESSOR_DATABASE_VERSION).stores({
+      paaActivities: '&id, academicYearId, [academicYearId+date]'
+    }).upgrade(async transaction => {
+      const years = await transaction.table<AcademicYear>('academicYears').toArray()
+      const activities = readLegacyPAAActivities(years.map(year => year.id))
+      if (activities.length) {
+        await transaction.table<PAAActivity>('paaActivities').bulkAdd(activities)
+      }
     })
 
     this.students.hook(

@@ -6,7 +6,11 @@ Data: 30/09/2026. Risco C. Complementa a correção da confirmação da password
 
 Já existia uma pré-visualização manual, mas exigia carregar em «Preparar cópia para a nuvem». Confirmar a password passa a preparar localmente esse quadro sem outro clique. Se uma cópia já estiver preparada após uma falha de autenticação, o quadro é conservado e exige nova confirmação.
 
-A tabela apresenta contagens das 22 coleções incluídas na cópia completa, mais os totais derivados de sumários, faltas e notas finais preenchidas. As quantidades pertencem ao snapshot efetivamente enviado, incluindo horário, calendário/PAA, planificações, critérios, assiduidade, avaliações, recuperações e definições. A preferência dos lembretes permanece acessível abaixo do quadro.
+A tabela apresenta contagens das 23 coleções incluídas na cópia completa, mais os totais derivados de sumários, faltas, lembretes semanais e notas finais preenchidas. Os eventos do calendário e as atividades do PAA têm contagens separadas. As quantidades pertencem ao snapshot efetivamente enviado, incluindo horário, PAA, planificações, critérios, assiduidade, avaliações, recuperações e definições. A preferência dos lembretes permanece acessível abaixo do quadro.
+
+Desde 05/10/2026, as atividades do PAA são guardadas numa tabela própria da base local, com transferência transacional do armazenamento anterior para todos os anos letivos existentes. A próxima gravação explícita substitui a cópia anterior por outra que já inclui essas atividades, sem alterar a cifra v3 ou os endpoints. O restauro inclui o PAA na mesma transação e verificação dos outros dados; as cópias anteriores sem essa coleção continuam aceites, mas não podem recuperar atividades que nunca incluíram. O armazenamento antigo não é reaplicado depois de um restauro ou reset.
+
+Os rascunhos por guardar continuam fora da cópia. Um aviso na descarga e no quadro de envio indica quantas aulas da conta atual têm alterações por guardar, sem revelar dados de outras contas nem iniciar envios. O aviso atualiza por eventos locais e ao regressar à janela, sem polling.
 
 Antes de enviar, o professor assinala «Confirmo o envio dos dados apresentados e a substituição da cópia online anterior» e carrega em «Confirmar e enviar para a nuvem». Preparar, atualizar, assinalar a confirmação ou cancelar não envia a cópia. Atualizar, cancelar, reautenticar ou iniciar uma tentativa de envio repõe a confirmação. Uma tentativa falhada não volta a enviar automaticamente.
 
@@ -17,6 +21,8 @@ O envio reutiliza o snapshot apresentado e o uploader v3 existente. Depois de ve
 Limites oficiais confirmados em 30/09/2026: [Workers](https://developers.cloudflare.com/workers/platform/limits/) — 100 000 pedidos/dia e 10 ms CPU/pedido; [D1](https://developers.cloudflare.com/d1/platform/pricing/) — 5 milhões de linhas lidas/dia, 100 000 escritas/dia e 5 GB totais.
 
 O quadro, a confirmação e a comparação posterior usam apenas dados locais. Acréscimo por professor e para vinte professores simultâneos: zero pedidos Worker, leituras/escritas D1, armazenamento ou tráfego de cópias. Mesmo com atualizações repetidas do quadro, o acréscimo remoto é zero. O envio confirmado mantém o percurso e consumo existentes, sem polling, retries automáticos, recursos novos ou plano pago.
+
+Gate da inclusão do PAA, revisto em 05/10/2026: mantêm-se os limites oficiais acima, com [500 MB por base D1 e 2 MB por linha](https://developers.cloudflare.com/d1/platform/limits/). Não há novos pedidos ou linhas D1 por cópia. Um cenário de 500 atividades de 1 KiB por professor acrescenta aproximadamente 10 MiB antes da compressão para 20 professores, ou 30 MiB contando as três gerações já existentes. A compressão/cifra permanece no dispositivo e o limite existente de 1 MB cifrado por cópia mantém-se. Nenhum recurso cloud, migration D1 ou plano é alterado.
 
 ## Validação
 

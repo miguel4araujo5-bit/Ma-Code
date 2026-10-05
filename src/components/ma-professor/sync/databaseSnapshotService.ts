@@ -33,6 +33,7 @@ const EXPECTED_TABLE_NAMES:
     'planificationItems',
     'weeklyScheduleSlots',
     'schoolCalendarEvents',
+    'paaActivities',
     'lessons',
     'summarySuggestions',
     'lessonAttendance',
@@ -45,10 +46,10 @@ const EXPECTED_TABLE_NAMES:
   ]
 
 export type MAProfessorSnapshotTables =
-  MAProfessorBackupData
+  Required<MAProfessorBackupData>
 
 export type MAProfessorSnapshotRecordCounts = {
-  [K in keyof MAProfessorBackupData]: number
+  [K in keyof MAProfessorBackupData]-?: number
 }
 
 export interface MAProfessorDatabaseSnapshot {
@@ -168,6 +169,7 @@ function createRecordCounts(
       tables.weeklyScheduleSlots.length,
     schoolCalendarEvents:
       tables.schoolCalendarEvents.length,
+    paaActivities: tables.paaActivities.length,
     lessons:
       tables.lessons.length,
     summarySuggestions:
@@ -221,7 +223,9 @@ function parseRecordCounts(
       EXPECTED_TABLE_NAMES
   ) {
     const count =
-      value[tableName]
+      tableName === 'paaActivities' && value[tableName] === undefined
+        ? 0
+        : value[tableName]
 
     if (
       typeof count !==
@@ -237,7 +241,7 @@ function parseRecordCounts(
     }
   }
 
-  return value as
+  return { ...value, paaActivities: value.paaActivities ?? 0 } as
     MAProfessorSnapshotRecordCounts
 }
 
@@ -273,8 +277,8 @@ function assertSnapshot(
       FORMAT_VERSION ||
     value.databaseName !==
       MA_PROFESSOR_DATABASE_NAME ||
-    value.databaseVersion !==
-      MA_PROFESSOR_DATABASE_VERSION ||
+    (value.databaseVersion !== 1 &&
+      value.databaseVersion !== MA_PROFESSOR_DATABASE_VERSION) ||
     typeof value.createdAt !==
       'string' ||
     !value.createdAt ||
@@ -298,9 +302,9 @@ function assertSnapshot(
   ) {
     if (
       !isRecordArray(
-        value.tables[
-          tableName
-        ]
+        tableName === 'paaActivities' && value.tables[tableName] === undefined
+          ? []
+          : value.tables[tableName]
       )
     ) {
       throw new Error(
@@ -310,7 +314,7 @@ function assertSnapshot(
   }
 
   const tables =
-    value.tables as unknown as
+    { ...value.tables, paaActivities: value.tables.paaActivities ?? [] } as unknown as
       MAProfessorSnapshotTables
 
   const recordCounts =
@@ -367,6 +371,7 @@ export async function createMAProfessorDatabaseSnapshot(): Promise<
         planificationItems,
         weeklyScheduleSlots,
         schoolCalendarEvents,
+        paaActivities,
         lessons,
         summarySuggestions,
         lessonAttendance,
@@ -391,6 +396,7 @@ export async function createMAProfessorDatabaseSnapshot(): Promise<
           database.planificationItems.toArray(),
           database.weeklyScheduleSlots.toArray(),
           database.schoolCalendarEvents.toArray(),
+          database.paaActivities.toArray(),
           database.lessons.toArray(),
           database.summarySuggestions.toArray(),
           database.lessonAttendance.toArray(),
@@ -456,6 +462,7 @@ export async function createMAProfessorDatabaseSnapshot(): Promise<
           sortById(
             schoolCalendarEvents
           ),
+        paaActivities: sortById(paaActivities),
         lessons:
           sortById(
             lessons
@@ -545,6 +552,7 @@ export async function restoreMAProfessorDatabaseSnapshot(
       await database.planificationItems.clear()
       await database.weeklyScheduleSlots.clear()
       await database.schoolCalendarEvents.clear()
+      await database.paaActivities.clear()
       await database.lessons.clear()
       await database.summarySuggestions.clear()
       await database.lessonAttendance.clear()
@@ -680,6 +688,8 @@ export async function restoreMAProfessorDatabaseSnapshot(
           snapshot.tables.schoolCalendarEvents
         )
       }
+
+      await database.paaActivities.bulkPut(snapshot.tables.paaActivities)
 
       if (
         snapshot.tables.lessons

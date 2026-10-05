@@ -462,6 +462,7 @@ export function validateMAProfessorBackupDataIntegrity(
       'planificationItems',
       'weeklyScheduleSlots',
       'schoolCalendarEvents',
+      'paaActivities',
       'lessons',
       'summarySuggestions',
       'lessonAttendance',
@@ -505,6 +506,14 @@ export function validateMAProfessorBackupDataIntegrity(
     )
   }
 
+  for (const { index, value } of collections.paaActivities.records) {
+    const path = `data.paaActivities[${index}]`
+    if (!isNonEmptyString(value.title)) addIssue(`${path}.title`, 'O título da atividade do PAA está em falta.')
+    if (!isIsoDate(value.date)) addIssue(`${path}.date`, 'A data da atividade do PAA é inválida.')
+    if (typeof value.description !== 'string') addIssue(`${path}.description`, 'A descrição da atividade do PAA é inválida.')
+    if (value.source !== 'manual' && value.source !== 'imported') addIssue(`${path}.source`, 'A origem da atividade do PAA é inválida.')
+  }
+
   const referenceRules: Array<{
     key: DataKey
     field: string
@@ -533,6 +542,7 @@ export function validateMAProfessorBackupDataIntegrity(
     { key: 'weeklyScheduleSlots', field: 'academicYearId', target: 'academicYears', label: 'anos letivos' },
     { key: 'weeklyScheduleSlots', field: 'teachingAssignmentId', target: 'teachingAssignments', label: 'atribuições letivas' },
     { key: 'schoolCalendarEvents', field: 'academicYearId', target: 'academicYears', label: 'anos letivos' },
+    { key: 'paaActivities', field: 'academicYearId', target: 'academicYears', label: 'anos letivos' },
     { key: 'schoolCalendarEvents', field: 'groupId', target: 'groups', label: 'turmas', optional: true },
     { key: 'schoolCalendarEvents', field: 'teachingAssignmentId', target: 'teachingAssignments', label: 'atribuições letivas', optional: true },
     { key: 'lessons', field: 'academicYearId', target: 'academicYears', label: 'anos letivos' },

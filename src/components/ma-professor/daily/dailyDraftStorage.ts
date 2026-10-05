@@ -10,6 +10,14 @@ const DAILY_DRAFT_STORE_NAME =
 const DAILY_DRAFT_SCHEMA_VERSION =
   1 as const
 
+export const MA_PROFESSOR_DAILY_DRAFT_CHANGED_EVENT = 'ma-professor-daily-draft-changed'
+
+function notifyDailyDraftChanged() {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new window.Event(MA_PROFESSOR_DAILY_DRAFT_CHANGED_EVENT))
+  }
+}
+
 export interface MAProfessorDailyDraftLesson {
   status:
     | 'planned'
@@ -720,6 +728,7 @@ export async function saveMAProfessorDailyDraft(
 
     await completed
 
+    notifyDailyDraftChanged()
     return draft
   } finally {
     database.close()
@@ -764,6 +773,7 @@ export async function deleteMAProfessorDailyDraft(
     )
 
     await completed
+    notifyDailyDraftChanged()
   } finally {
     database.close()
   }
@@ -784,6 +794,7 @@ export async function clearMAProfessorDailyDrafts(): Promise<void> {
       throw new Error('Não foi possível confirmar a eliminação dos rascunhos locais.')
     }
     await completed
+    notifyDailyDraftChanged()
   } finally {
     database.close()
   }
@@ -809,4 +820,20 @@ export async function removeStudentFromMAProfessorDailyDrafts(studentId: string)
     }
     await completed
   } finally { database.close() }
+}
+
+export async function countMAProfessorDailyDrafts(accountEmail: string): Promise<number> {
+  const email = normalizeEmail(accountEmail)
+  if (!email) return 0
+  const database = await openDailyDraftDatabase()
+  try {
+    const transaction = database.transaction(DAILY_DRAFT_STORE_NAME, 'readonly')
+    const records = await requestToPromise(transaction.objectStore(DAILY_DRAFT_STORE_NAME).getAll())
+    return records.filter(value => {
+      const draft = parseStoredDraft(value, value?.id)
+      return draft && draft.accountEmail === email && draft.baseSavedSignature !== draft.draftSignature
+    }).length
+  } finally {
+    database.close()
+  }
 }

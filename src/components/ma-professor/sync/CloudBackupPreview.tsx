@@ -1,4 +1,5 @@
 import type { MAProfessorBackup } from '../types'
+import BackupDraftNotice from '../settings/BackupDraftNotice'
 
 function getPreparedBackupStats(
   backup: MAProfessorBackup
@@ -40,8 +41,16 @@ function getPreparedBackupStats(
       value: data.weeklyScheduleSlots.length
     },
     {
-      label: 'Calendário / PAA',
+      label: 'Eventos do calendário',
       value: data.schoolCalendarEvents.length
+    },
+    {
+      label: 'Atividades do PAA',
+      value: data.paaActivities?.length ?? 0
+    },
+    {
+      label: 'Lembretes semanais',
+      value: data.weeklyScheduleSlots.filter(slot => Boolean(slot.summaryReminderText?.trim())).length
     },
     {
       label: 'Planificações',
@@ -126,6 +135,7 @@ function getPreparedBackupStats(
 }
 
 interface Props {
+  accountEmail?: string
   preparedBackup: MAProfessorBackup
   busy: boolean
   uploadBlocked?: boolean
@@ -137,7 +147,7 @@ interface Props {
 }
 
 // Quadro comum à cópia manual e ao lembrete: apresenta o snapshot que será enviado.
-export default function CloudBackupPreview({ preparedBackup, busy, uploadBlocked = false, uploadConfirmed,
+export default function CloudBackupPreview({ accountEmail, preparedBackup, busy, uploadBlocked = false, uploadConfirmed,
   onConfirmationChange, onConfirm, onRefresh, onCancel }: Props) {
   const preparedStats = getPreparedBackupStats(preparedBackup)
   return (
@@ -175,8 +185,10 @@ export default function CloudBackupPreview({ preparedBackup, busy, uploadBlocked
               </table>
 
               <p className="mt-4 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.05] px-3 py-2 text-xs leading-5 text-cyan-100">
-                Inclui os dados já guardados no MA-Professor. Para incluir alterações posteriores, atualize o quadro antes de confirmar.
+                Inclui os dados já guardados no MA-Professor. Os rascunhos não entram nesta cópia. Guarde as aulas e atualize o quadro antes de confirmar para incluir essas alterações.
               </p>
+
+              {accountEmail ? <BackupDraftNotice accountEmail={accountEmail} /> : null}
 
               <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-3 text-sm">
                 <p className="font-bold text-amber-100">Confirmação do envio</p>

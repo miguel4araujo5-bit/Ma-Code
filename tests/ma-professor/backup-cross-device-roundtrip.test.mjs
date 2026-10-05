@@ -14,6 +14,9 @@ import {
 } from 'node:path'
 import { JSDOM } from 'jsdom'
 import 'fake-indexeddb/auto'
+import Dexie from 'dexie'
+import React, { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { createCloudBackupWorkerHarness } from './cloud-backup-worker-harness.mjs'
 
 const root =
@@ -54,8 +57,15 @@ const bundle =
     stdin: {
       contents: `
         export { maProfessorDb } from '${base}db';
+        export { scheduleWorkspaceRepository } from '${base}schedule/scheduleWorkspaceRepository';
+        export { loadPAAActivities } from '${base}calendar/PAAActivitiesLayer';
+        export { createMAProfessorDatabaseSnapshot } from '${base}sync/databaseSnapshotService';
+        export { previewMAProfessorCloudRestore, restoreMAProfessorCloudRestore } from '${base}sync/cloudBackupRestoreService';
+        export { default as BackupDraftNotice } from '${base}settings/BackupDraftNotice';
+        export { saveMAProfessorDailyDraft, deleteMAProfessorDailyDraft, clearMAProfessorDailyDrafts, countMAProfessorDailyDrafts } from '${base}daily/dailyDraftStorage';
         export {
           createMAProfessorBackup,
+          createMAProfessorLocalBackupSignature,
           restoreMAProfessorBackup,
           validateMAProfessorBackup
         } from '${base}settings/backupRepository';
@@ -72,6 +82,7 @@ const bundle =
         root
     },
     bundle: true,
+    jsx: 'automatic',
     write: false,
     platform: 'node',
     format: 'cjs',
@@ -142,6 +153,12 @@ const audit = {
   updatedAt:
     timestamp
 }
+
+const REMINDER_TEXT = 'Trazer materiais para expressão dramática.\nConfirmar a preparação semanal.'
+const paa = [
+  { id: 'paa-manual', academicYearId: 'year-2026', title: 'Atividade manual', date: '2026-10-05', description: 'Descrição manual', source: 'manual', ...audit },
+  { id: 'paa-imported', academicYearId: 'year-2026', title: 'Atividade importada', date: '2026-10-06', description: 'Descrição importada', source: 'imported', ...audit }
+]
 
 async function seedSourceDevice() {
   await db.delete()
@@ -323,6 +340,8 @@ async function seedSourceDevice() {
     moduleId: 'module-10385', studentId: 'student-1', calculatedAverage: 17, suggestedGrade: 17,
     selfAssessmentGrade: 16, finalGrade: 17, confirmedAt: timestamp, note: '', ...audit
   })
+  await runtime.scheduleWorkspaceRepository.updateSummaryReminder('slot-monday', REMINDER_TEXT)
+  await db.paaActivities.bulkAdd(paa)
 }
 
 after(
@@ -362,6 +381,10 @@ test(
       sourceBackup.data.lessons.length,
       2
     )
+
+    assert.deepEqual(Object.keys(sourceBackup.data).sort(), db.tables.map(table => table.name).sort())
+    assert.equal(sourceBackup.data.weeklyScheduleSlots[0].summaryReminderText, REMINDER_TEXT)
+    assert.equal(sourceBackup.data.paaActivities.length, 2)
 
     const transferredBackup =
       JSON.parse(
@@ -419,6 +442,8 @@ test(
       ]
     )
 
+    assert.deepEqual(await runtime.loadPAAActivities('year-2026'), paa)
+    assert.equal((await db.weeklyScheduleSlots.get('slot-monday')).summaryReminderText, REMINDER_TEXT)
     const restoredBackup =
       await runtime.createMAProfessorBackup()
 
@@ -441,7 +466,7 @@ test(
   }
 )
 
-test('V3 cloud upload, verified download and fresh-device IndexedDB restore preserve summaries, absences and grades after reopening', async t => {
+test('replacing an older V3 copy includes PAA and weekly reminders; guarded fresh-device restore preserves all data after reopening', async t => {
   const session = { email: 'roundtrip@example.test', token: 'roundtrip-token', deviceId: 'device-a' }
   const exportKey = Buffer.from(crypto.getRandomValues(new Uint8Array(64))).toString('base64url')
   const worker = await createCloudBackupWorkerHarness(session.email, session.token)
@@ -453,8 +478,17 @@ test('V3 cloud upload, verified download and fresh-device IndexedDB restore pres
   const sourceBackup = await runtime.createMAProfessorBackup()
   assert.equal(runtime.validateMAProfessorBackup(sourceBackup).valid, true)
   runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
-  const saved = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, sourceBackup, { expectedServerRevision: 0 })
-  assert.equal(saved.serverRevision, 1)
+  const previousBackup = structuredClone(sourceBackup)
+  delete previousBackup.data.paaActivities
+  const first = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, previousBackup, { expectedServerRevision: 0 })
+  assert.equal(first.serverRevision, 1)
+  const previousDownload = await runtime.downloadCompatibleMAProfessorCloudBackup(session)
+  assert.equal(previousDownload.backup.data.paaActivities, undefined)
+  worker.advance(31_000)
+  const nextClientTime = Date.now() + 31_000
+  t.mock.method(Date, 'now', () => nextClientTime)
+  const saved = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, sourceBackup, { expectedServerRevision: 1 })
+  assert.equal(saved.serverRevision, 2)
 
   runtime.clearMAProfessorOpaqueExportKey()
   await db.delete()
@@ -465,7 +499,14 @@ test('V3 cloud upload, verified download and fresh-device IndexedDB restore pres
   runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
   const downloaded = await runtime.downloadCompatibleMAProfessorCloudBackup({ ...session, deviceId: 'device-b' })
   assert.deepEqual(downloaded.backup, sourceBackup)
-  await runtime.restoreMAProfessorBackup(downloaded.backup)
+  const preview = await runtime.previewMAProfessorCloudRestore({ ...session, deviceId: 'device-b' })
+  await runtime.restoreMAProfessorCloudRestore({ ...session, deviceId: 'device-b' }, {
+    expectedServerRevision: preview.serverRevision,
+    expectedRecordRevision: preview.recordRevision,
+    expectedCiphertextHash: preview.ciphertextHash,
+    expectedPlaintextHash: preview.plaintextHash,
+    expectedLocalContentSignature: preview.localContentSignature
+  })
   db.close()
   await db.open()
 
@@ -477,4 +518,107 @@ test('V3 cloud upload, verified download and fresh-device IndexedDB restore pres
   assert.equal((await db.assessmentResults.get('result-1')).score, 17)
   assert.equal((await db.moduleFinalGrades.get('grade-1')).finalGrade, 17)
   assert.equal((await db.lessons.get('lesson-a')).summary, 'Criação e apresentação de pequenas histórias.')
+})
+
+
+async function seedPreviousDatabase() {
+  await seedSourceDevice()
+  const backup = await runtime.createMAProfessorBackup()
+  const schema = Object.fromEntries(db.tables.filter(table => table.name !== 'paaActivities').map(table => [table.name, [table.schema.primKey.src, ...table.schema.indexes.map(index => index.src)].join(', ')]))
+  await db.delete()
+  const previous = new Dexie('ma-professor')
+  previous.version(1).stores(schema)
+  await previous.open()
+  for (const table of previous.tables) await table.bulkPut(backup.data[table.name])
+  await previous.table('academicYears').add({ ...backup.data.academicYears[0], id: 'year-2025', name: '2025/2026', startDate: '2025-09-01', endDate: '2026-08-31', active: false })
+  previous.close()
+  window.localStorage.clear()
+  window.localStorage.setItem('ma-professor:paa:year-2026', JSON.stringify(paa))
+  window.localStorage.setItem('ma-professor:paa:year-2025', JSON.stringify([{ ...paa[0], id: 'paa-old-year', academicYearId: 'year-2025', date: '2025-10-06' }]))
+  return { previous, backup }
+}
+
+test('the additive database migration imports manual and imported PAA for every year without changing lessons or summaries', async () => {
+  const { backup } = await seedPreviousDatabase()
+  await db.open()
+  assert.equal(db.verno, 2)
+  assert.deepEqual(await runtime.loadPAAActivities('year-2026'), paa)
+  assert.equal((await runtime.loadPAAActivities('year-2025')).length, 1)
+  assert.deepEqual(await db.lessons.toArray(), backup.data.lessons)
+  assert.deepEqual(await db.weeklyScheduleSlots.toArray(), backup.data.weeklyScheduleSlots)
+  assert.equal(await db.schoolCalendarEvents.count(), 0)
+  const nextCopy = await runtime.createMAProfessorBackup()
+  assert.equal(nextCopy.data.paaActivities.length, 3)
+  assert.equal(runtime.validateMAProfessorBackup(nextCopy).valid, true)
+  await db.delete()
+  await db.open()
+  await runtime.restoreMAProfessorBackup(JSON.parse(JSON.stringify(nextCopy)))
+  assert.equal(await db.paaActivities.count(), 3)
+  const snapshot = await runtime.createMAProfessorDatabaseSnapshot()
+  assert.equal(snapshot.recordCounts.paaActivities, 3)
+})
+
+test('a failed PAA migration rolls back and retains the original activities and existing school data', async () => {
+  const { previous, backup } = await seedPreviousDatabase()
+  window.localStorage.setItem('ma-professor:paa:year-2026', '{invalid json')
+  await assert.rejects(db.open(), /Os dados anteriores não foram apagados/)
+  await previous.open()
+  assert.equal(previous.verno, 1)
+  assert.deepEqual(await previous.table('lessons').toArray(), backup.data.lessons)
+  previous.close()
+  assert.equal(window.localStorage.getItem('ma-professor:paa:year-2026'), '{invalid json')
+  window.localStorage.setItem('ma-professor:paa:year-2026', JSON.stringify(paa))
+  await db.open()
+  assert.deepEqual(await runtime.loadPAAActivities('year-2026'), paa)
+})
+
+test('old JSON copies still restore and stale localStorage PAA is never reapplied after restore', async () => {
+  await seedSourceDevice()
+  const old = await runtime.createMAProfessorBackup()
+  delete old.data.paaActivities
+  window.localStorage.setItem('ma-professor:paa:year-2026', JSON.stringify(paa))
+  await runtime.restoreMAProfessorBackup(old)
+  db.close()
+  await db.open()
+  assert.deepEqual(await runtime.loadPAAActivities('year-2026'), [])
+  assert.equal((await db.weeklyScheduleSlots.get('slot-monday')).summaryReminderText, REMINDER_TEXT)
+  assert.equal((await db.lessons.get('lesson-a')).summary, old.data.lessons[0].summary)
+})
+
+test('PAA changes after preview are protected by the existing local restore signature', async () => {
+  await seedSourceDevice()
+  const original = await runtime.createMAProfessorBackup()
+  await db.paaActivities.update('paa-manual', { title: 'Atividade atualizada' })
+  await assert.rejects(runtime.restoreMAProfessorBackup(original, runtime.createMAProfessorLocalBackupSignature(original)), /dados deste dispositivo foram alterados/i)
+  assert.equal((await db.paaActivities.get('paa-manual')).title, 'Atividade atualizada')
+})
+
+async function waitFor(check) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (check()) return
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)) })
+  }
+  assert.ok(check(), 'O aviso deve atualizar após a operação local.')
+}
+
+test('the draft warning counts only the current account, updates after save/delete and never includes drafts in the backup', async t => {
+  await seedSourceDevice()
+  await runtime.clearMAProfessorDailyDrafts()
+  const draft = { accountEmail: 'roundtrip@example.test', academicYearId: 'year-2026', lessonId: 'lesson-a', date: '2026-09-21', baseSavedSignature: 'base', draftSignature: 'edited', assessmentIdToDelete: null, lesson: { status: 'taught', startTime: '09:00', endTime: '09:50', periodCount: '1', countTowardProgress: true, plannedActivity: '', summary: 'Rascunho por guardar', summarySource: 'manual', planificationItemIds: [], notes: '', giaeStatus: 'pending' }, assessment: { choice: 'none', criterionId: '', title: '', activityType: 'other', description: '' }, students: [] }
+  await runtime.saveMAProfessorDailyDraft({ ...draft, accountEmail: 'other@example.test' })
+  await runtime.saveMAProfessorDailyDraft(draft)
+  assert.equal(await runtime.countMAProfessorDailyDrafts('roundtrip@example.test'), 1)
+  const element = document.createElement('div')
+  document.body.append(element)
+  const reactRoot = createRoot(element)
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  t.after(async () => { await act(async () => reactRoot.unmount()); element.remove(); await runtime.clearMAProfessorDailyDrafts(); delete globalThis.IS_REACT_ACT_ENVIRONMENT })
+  await act(async () => reactRoot.render(React.createElement(runtime.BackupDraftNotice, { accountEmail: 'roundtrip@example.test' })))
+  await waitFor(() => element.textContent.includes('1 aula com alterações por guardar'))
+  assert.ok(element.textContent.includes('Os rascunhos não entram nesta cópia'))
+  const backup = await runtime.createMAProfessorBackup()
+  assert.equal(JSON.stringify(backup).includes('Rascunho por guardar'), false)
+  await act(async () => runtime.deleteMAProfessorDailyDraft('roundtrip@example.test', 'year-2026', 'lesson-a'))
+  await waitFor(() => element.textContent === '')
+  assert.equal(await runtime.countMAProfessorDailyDrafts('other@example.test'), 1)
 })

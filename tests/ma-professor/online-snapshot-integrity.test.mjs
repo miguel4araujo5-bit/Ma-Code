@@ -302,7 +302,7 @@ test(
     )
     assert.match(
       conversion,
-      /Object\.entries\(\s*backup\.data\s*\)/
+      /Object\.entries\([\s\S]*backup\.data[\s\S]*paaActivities[\s\S]*\)\.map/
     )
     assert.match(
       conversion,

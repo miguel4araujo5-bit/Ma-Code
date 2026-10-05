@@ -53,6 +53,7 @@ async function stage(
         'utf8'
       )
 
+    source = source.replaceAll("'../settings/BackupDraftNotice'", "'./draft-notice.mjs'")
     source = source.replaceAll("'../settings/backupRepository'", "'./backup.mjs'")
 
     for (
@@ -90,6 +91,9 @@ async function stage(
       output.outputText
     )
   }
+
+  await compile('daily/dailyDraftStorage.ts', 'daily-drafts.mjs', {})
+  await compile('settings/BackupDraftNotice.tsx', 'draft-notice.mjs', { '../daily/dailyDraftStorage': './daily-drafts.mjs' })
 
   await compile(
     sourceName,

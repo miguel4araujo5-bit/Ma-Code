@@ -160,13 +160,7 @@ export function CalendarProductWorkspace({
   const [eventText, setEventText] = useState('')
   const [eventSaving, setEventSaving] = useState(false)
   const [eventError, setEventError] = useState('')
-  const [paaActivities, setPAAActivities] =
-    useState<PAAActivity[]>(
-      () =>
-        loadPAAActivities(
-          academicYearId
-        )
-    )
+  const [paaActivities, setPAAActivities] = useState<PAAActivity[]>([])
   const [paaManagerOpen, setPAAManagerOpen] =
     useState(false)
   const [
@@ -217,6 +211,7 @@ export function CalendarProductWorkspace({
           baseSnapshot
         )
 
+      setPAAActivities(await loadPAAActivities(academicYearId))
       setSnapshot(nextSnapshot)
     } catch (loadError) {
       setError(getErrorMessage(loadError))
@@ -226,11 +221,7 @@ export function CalendarProductWorkspace({
   }, [academicYearId, anchorDate, filters, mode])
 
   useEffect(() => {
-    setPAAActivities(
-      loadPAAActivities(
-        academicYearId
-      )
-    )
+    setPAAActivities([])
     setPAAManagerOpen(false)
     setSelectedPAAActivityId(null)
   }, [academicYearId])

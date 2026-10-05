@@ -603,6 +603,7 @@ export function EncryptedSyncPanel() {
 
           {preparedBackup ? (
             <CloudBackupPreview
+              accountEmail={session.email}
               preparedBackup={preparedBackup}
               busy={busy}
               uploadBlocked={cooldown}

@@ -6,6 +6,7 @@ import {
 import { useMAProfessorAccess } from '../access/AccessGate'
 import { writeCloudBackupPreference } from '../sync/cloudBackupPreference'
 import { clearMAProfessorCloudBackupTrust } from '../sync/cloudBackupTrust'
+import BackupDraftNotice from './BackupDraftNotice'
 
 import {
   createMAProfessorBackup,
@@ -316,12 +317,14 @@ export function BackupSettingsPanel({
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Cria um ficheiro completo com anos letivos, turmas, alunos, planificações, aulas, sumários, faltas, avaliações e definições para guardar onde quiser.
+                Cria um ficheiro completo com anos letivos, turmas, alunos, planificações, PAA, lembretes semanais, aulas, sumários, faltas, avaliações e definições para guardar onde quiser. Inclui apenas dados já guardados; guarde as aulas antes de fazer a cópia.
               </p>
 
               <p className="mt-2 text-xs leading-5 text-amber-200/80">
                 Esta cópia local não está cifrada. Guarde-a apenas num local seguro.
               </p>
+
+              <BackupDraftNotice accountEmail={session.email} />
 
               <button
                 type="button"

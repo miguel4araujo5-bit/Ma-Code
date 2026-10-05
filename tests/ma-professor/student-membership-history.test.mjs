@@ -88,7 +88,7 @@ function transpile(source) {
 }
 
 test(
-  'Student has optional temporal membership periods without a database schema bump',
+  'Student keeps optional temporal membership periods on the original table schema',
   () => {
     assert.match(
       typesSource,
@@ -102,7 +102,7 @@ test(
 
     assert.match(
       dbSource,
-      /MA_PROFESSOR_DATABASE_VERSION\s*=\s*1/
+      /this\.version\(1\)\.stores\(/
     )
   }
 )

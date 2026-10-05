@@ -77,6 +77,7 @@ const dbStubUrl = transpile(`
     'planificationItems',
     'weeklyScheduleSlots',
     'schoolCalendarEvents',
+    'paaActivities',
     'lessons',
     'summarySuggestions',
     'lessonAttendance',
@@ -286,6 +287,7 @@ const tableNames = [
   'planificationItems',
   'weeklyScheduleSlots',
   'schoolCalendarEvents',
+    'paaActivities',
   'lessons',
   'summarySuggestions',
   'lessonAttendance',
@@ -413,6 +415,7 @@ function createValidData() {
     planificationItems: [],
     weeklyScheduleSlots: [],
     schoolCalendarEvents: [],
+    paaActivities: [],
     lessons: [
       {
         id: 'lesson-1',
@@ -980,3 +983,16 @@ test(
     )
   }
 )
+
+
+test('previous backups without PAA remain valid; invalid PAA references and dates block restore', () => {
+  const old = createBackup()
+  delete old.data.paaActivities
+  assert.equal(repository.validateMAProfessorBackup(old).valid, true)
+  const current = createBackup()
+  current.data.paaActivities = [{ id: 'paa', academicYearId: 'missing-year', title: 'Atividade', date: '2026-02-31', description: '', source: 'manual', ...audit() }]
+  const result = repository.validateMAProfessorBackup(current)
+  assert.equal(result.valid, false)
+  assert.ok(result.issues.some(issue => issue.path === 'data.paaActivities[0].academicYearId'))
+  assert.ok(result.issues.some(issue => issue.path === 'data.paaActivities[0].date'))
+})

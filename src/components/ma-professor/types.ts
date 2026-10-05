@@ -205,6 +205,15 @@ export interface SchoolCalendarEvent extends AuditFields {
   blocksLessons: boolean
 }
 
+export interface PAAActivity extends AuditFields {
+  id: EntityId
+  academicYearId: EntityId
+  title: string
+  date: ISODate
+  description: string
+  source: 'manual' | 'imported'
+}
+
 export type LessonOrigin =
   | 'scheduled'
   | 'extra'
@@ -484,6 +493,8 @@ export interface MAProfessorBackupData {
   planificationItems: PlanificationItem[]
   weeklyScheduleSlots: WeeklyScheduleSlot[]
   schoolCalendarEvents: SchoolCalendarEvent[]
+  // Ausente nas cópias anteriores à inclusão do PAA.
+  paaActivities?: PAAActivity[]
   lessons: Lesson[]
   summarySuggestions: SummarySuggestion[]
   lessonAttendance: LessonAttendance[]

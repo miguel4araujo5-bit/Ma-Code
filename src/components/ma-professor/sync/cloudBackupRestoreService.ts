@@ -74,7 +74,7 @@ function backupToDatabaseSnapshot(
   const tables =
     Object.fromEntries(
       Object.entries(
-        backup.data
+        { ...backup.data, paaActivities: backup.data.paaActivities ?? [] }
       ).map(
         ([
           tableName,
