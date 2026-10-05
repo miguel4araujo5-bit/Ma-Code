@@ -19,6 +19,10 @@
   color-scheme: light;
 }
 
+.ma-professor-product[data-theme='light'] .ma-professor-summary-submitted {
+  color: #047857;
+}
+
 .ma-professor-product[data-theme='light'] ::selection {
   background: rgba(37, 99, 235, 0.2);
   color: #0f172a;

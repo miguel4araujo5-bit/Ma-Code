@@ -1128,6 +1128,19 @@ export default function DailyUnifiedWeekOverview({
                                     const cancelled =
                                       row.lesson.status ===
                                         'cancelled'
+                                    const summaryWritten =
+                                      !cancelled &&
+                                      Boolean(row.lesson.summary.trim())
+                                    const summarySubmitted =
+                                      summaryWritten &&
+                                      row.lesson.giaeStatus === 'submitted'
+                                    const summaryStatusLabel = cancelled
+                                      ? 'Aula cancelada'
+                                      : summarySubmitted
+                                        ? 'Sumário assinalado como submetido no programa oficial'
+                                        : summaryWritten
+                                          ? 'Sumário guardado, por assinalar no programa oficial'
+                                          : 'Sem sumário guardado'
 
                                     return (
                                       <button
@@ -1139,7 +1152,7 @@ export default function DailyUnifiedWeekOverview({
                                             row.lesson.id
                                           )
                                         }
-                                        title={`${row.group.name} · ${getSubjectLabel(row)}`}
+                                        title={`${row.group.name} · ${getSubjectLabel(row)} · ${summaryStatusLabel}`}
                                         className={`w-full rounded-lg border px-2 py-1.5 text-left transition ${
                                           active
                                             ? 'border-cyan-300/60 bg-cyan-300/15'
@@ -1158,8 +1171,37 @@ export default function DailyUnifiedWeekOverview({
                                             row.module.name}
                                         </span>
 
-                                        <span className="mt-1 block text-[0.52rem] font-black uppercase tracking-[0.08em] text-cyan-200/75">
-                                          Componente letiva
+                                        <span className="mt-1 flex items-center justify-between gap-1 text-[0.52rem] font-black uppercase tracking-[0.08em] text-cyan-200/75">
+                                          <span>Componente letiva</span>
+
+                                          {summaryWritten ? (
+                                            <svg
+                                              className={`h-3.5 w-4 shrink-0 ${
+                                                summarySubmitted
+                                                  ? 'ma-professor-summary-submitted text-emerald-400'
+                                                  : 'text-white'
+                                              }`}
+                                              viewBox="0 0 24 24"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              strokeWidth="2.5"
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              aria-hidden="true"
+                                              focusable="false"
+                                            >
+                                              <path d={summarySubmitted
+                                                ? 'M18 6 7 17l-5-5'
+                                                : 'M20 6 9 17l-5-5'} />
+                                              {summarySubmitted ? (
+                                                <path d="m22 10-7.5 7.5L13 16" />
+                                              ) : null}
+                                            </svg>
+                                          ) : null}
+
+                                          <span className="sr-only">
+                                            {summaryStatusLabel}
+                                          </span>
                                         </span>
                                       </button>
                                     )
