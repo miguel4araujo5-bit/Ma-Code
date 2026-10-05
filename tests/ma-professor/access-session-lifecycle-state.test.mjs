@@ -118,7 +118,8 @@ const moduleUrl =
 
 const {
   createMAProfessorSessionLifecycleState,
-  MA_PROFESSOR_SESSION_ABSOLUTE_MAX_AGE_DAYS
+  MA_PROFESSOR_SESSION_ABSOLUTE_MAX_AGE_DAYS,
+  MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS
 } = await import(moduleUrl)
 
 function storedSession({
@@ -152,6 +153,64 @@ function accessState(sessions) {
     createdAt: now,
     updatedAt: now
   }
+}
+
+for (const mode of ['single', 'batch']) {
+  test(`new sessions expire at 29 days while existing sessions keep 180 days (${mode} cold write)`, async t => {
+    assert.equal(MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS, 29)
+    const issuedAt = Date.now()
+    let now = issuedAt
+    t.mock.method(Date, 'now', () => now)
+
+    const existing = storedSession({
+      tokenHash: 'existing',
+      createdAt: issuedAt - 40 * DAY_MS,
+      lastSeenAt: issuedAt,
+      deviceId: 'existing-device'
+    })
+    const initial = accessState({ existing })
+    initial.licenses = { 'teacher@example.com': { marker: 'preserved-license' } }
+    const storage = new MemoryStorage({ [ACCESS_KEY]: initial })
+    const guarded = createMAProfessorSessionLifecycleState({ storage })
+    const value = clone(initial)
+    value.sessions.fresh = storedSession({
+      tokenHash: 'fresh',
+      email: mode === 'single' ? 'teacher@example.com' : 'future@example.com',
+      createdAt: issuedAt,
+      deviceId: 'new-device'
+    })
+
+    // Deliberately write before reading to exercise a cold DO with existing sessions.
+    if (mode === 'single') {
+      await guarded.storage.put(ACCESS_KEY, value)
+    } else {
+      await guarded.storage.put({ [ACCESS_KEY]: value, unrelated: { marker: 'preserved' } })
+      assert.equal(storage.putCalls[0].kind, 'batch')
+      assert.deepEqual(storage.snapshot('unrelated'), { marker: 'preserved' })
+    }
+    assert.equal(storage.putCalls.length, 1)
+    const deadline = issuedAt + 29 * DAY_MS
+    assert.equal(storage.snapshot(ACCESS_KEY).sessions.fresh.absoluteMaxAgeDays, 29)
+    assert.deepEqual(storage.snapshot(ACCESS_KEY).sessions.existing, existing)
+
+    const restarted = createMAProfessorSessionLifecycleState({ storage })
+    now = deadline - 1
+    const active = await restarted.storage.get(ACCESS_KEY)
+    assert.ok(active.sessions.fresh, 'A sessão deve funcionar até ao último milissegundo do prazo.')
+    active.sessions.fresh.lastSeenAt = now
+    active.sessions.fresh.absoluteMaxAgeDays = 180
+    await restarted.storage.put(ACCESS_KEY, active)
+    assert.equal(storage.snapshot(ACCESS_KEY).sessions.fresh.absoluteMaxAgeDays, 29,
+      'Uma atualização não pode prolongar a validade atribuída no login.')
+
+    now = deadline
+    const expired = await restarted.storage.get(ACCESS_KEY)
+    assert.equal(expired.sessions.fresh, undefined, 'A sessão expira exatamente aos 29 dias, apesar da atividade recente.')
+    assert.deepEqual(expired.sessions.existing, existing, 'As sessões abertas antes da alteração conservam o prazo anterior.')
+    assert.deepEqual(expired.licenses, initial.licenses)
+    now = existing.createdAt + 180 * DAY_MS
+    assert.equal((await restarted.storage.get(ACCESS_KEY)).sessions.existing, undefined)
+  })
 }
 
 test(

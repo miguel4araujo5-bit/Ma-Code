@@ -34,11 +34,15 @@ O entrypoint de produção continua a expor `MaProfessorAccessDurableObject` atr
 
 ## Ciclo de vida das sessões
 
-`createMAProfessorSessionLifecycleState` não cria armazenamento próprio. Opera sobre o `AccessState` já recomposto e aplica um limite absoluto server-side de 180 dias desde `createdAt`, mesmo que `lastSeenAt` continue a ser atualizado. Sessões já revogadas são também removidas quando passam por esta camada.
+`createMAProfessorSessionLifecycleState` não cria armazenamento próprio. Opera sobre o `AccessState` já recomposto. Desde a alteração aprovada em 05/10/2026, novas sessões recebem `absoluteMaxAgeDays = 29`, em todos os próximos logins de contas existentes ou futuras. O prazo conta desde `createdAt`; a atividade não o prolonga. Sessões já revogadas são também removidas quando passam por esta camada.
 
-Os 180 dias preservam o valor de longa duração que já existia para limpeza por inatividade; esta fase apenas impede que atividade contínua transforme a sessão numa sessão sem limite absoluto.
+Sessões já abertas, sem a marca de 29 dias, conservam o limite absoluto anterior de 180 dias desde `createdAt` e a limpeza por inatividade existente. Não há corte retroativo. A camada distingue novas identidades das persistidas antes de escrever, inclusive na primeira escrita após reinício, e conserva o prazo atribuído ao atualizar uma sessão. O prazo é aplicado nas verificações server-side existentes; não acrescenta timers nem altera a política local/offline, licenças, confirmação mensal, OPAQUE, Web3Forms ou notificações.
+
+Gate Free (05/10/2026, antes do código): reaproveita a chave de sessões e as escritas existentes, sem novos recursos ou chamadas externas. Apenas uma primeira escrita sem leitura prévia exige ler o estado persistido; o login normal já lê esse estado. Com vinte professores e quatro sessões por conta, são até oitenta campos numéricos adicionais (cerca de 2,1 KB de JSON). A renovação de oitenta sessões a cada 29 dias equivale, em média, a 2,76 logins/dia, contra 0,44 no prazo anterior; a distribuição real depende da utilização. Mesmo com margem de cinco vezes, permanece muito abaixo dos 100 000 pedidos/escritas e cinco milhões de leituras diários do DO Free, verificados na [documentação oficial](https://developers.cloudflare.com/durable-objects/platform/pricing/). O limite por IP existente continua a reger os picos. Isto é uma estimativa desta alteração, não uma medição do consumo agregado de produção.
 
 A rotação de tokens do mesmo dispositivo fica fora desta alteração. Antes de a implementar, a emissão deve substituir a sessão do mesmo dispositivo antes de aplicar o limite global, para não terminar indevidamente a sessão de outro dispositivo.
+
+Validação local desta alteração: build TypeScript/Worker/Vite concluído; 19 testes de ciclo de vida, substituição, armazenamento e revogação de sessões, três percursos OPAQUE reais para contas pendentes/ativadas e 1 116 testes restantes passaram, sem falhas. Os testes de fronteira confirmam validade até ao último milissegundo e expiração aos 29 dias, persistência após reinício, prazo antigo das sessões já abertas e preservação de licenças e escritas atómicas.
 
 ## Retenção dos pedidos de acesso
 

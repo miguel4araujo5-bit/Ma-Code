@@ -86,6 +86,13 @@ function setup() {
   return { storage, requests, post, fetch, approve, readAccess, restart }
 }
 
+async function assertNewSessionLifetime(fixture, email, deviceId) {
+  const session = Object.values((await fixture.readAccess()).sessions)
+    .find(candidate => candidate.email === email && candidate.deviceId === deviceId)
+  assert.ok(session)
+  assert.equal(session.absoluteMaxAgeDays, 29)
+}
+
 // Prepare a real client proof while pausing before the server consumes it.
 async function setupPendingLogin(t, email) {
   const fixture = setup()
@@ -237,6 +244,7 @@ for (const plan of ['free', 'paid_30_days', 'school_year']) {
     const pending = await client.loginMAProfessorOpaqueOnly(email, password, deviceId)
     assert.ok(pending.response.token)
     assert.equal(pending.response.license, null)
+    await assertNewSessionLifetime(fixture, email, deviceId)
     const auth = { token: pending.response.token, deviceId }
     assert.equal((await fixture.post('/api/ma-professor/access/status', auth)).status, 200)
     assert.equal((await fixture.post('/api/ma-professor/access/verify', auth)).status, 401)
@@ -257,6 +265,7 @@ for (const plan of ['free', 'paid_30_days', 'school_year']) {
     const reopened = await client.loginMAProfessorOpaqueOnly(email, password, `${deviceId}-reopened`)
     assert.equal(reopened.exportKey, pending.exportKey)
     assert.ok(reopened.response.license)
+    await assertNewSessionLifetime(fixture, email, `${deviceId}-reopened`)
     assert.equal((await fixture.readAccess()).accessRequests[email].termsVersionAccepted, api.MA_PROFESSOR_TERMS_VERSION)
     for (const { body } of fixture.requests) {
       assert.equal(Object.hasOwn(body, 'password'), false)

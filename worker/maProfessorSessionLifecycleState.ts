@@ -143,10 +143,18 @@ function markNewSessionsWithCurrentLifetime(
       value.sessions
     )
   ) {
-    if (
-      previous.has(key) ||
-      !isActiveSession(candidate)
-    ) {
+    if (!isActiveSession(candidate)) {
+      continue
+    }
+
+    const prior = previous.get(key)
+    if (prior) {
+      // Preserve the policy assigned at login even when a stale copy is written.
+      if (prior.value.absoluteMaxAgeDays === MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS) {
+        candidate.absoluteMaxAgeDays = MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS
+      } else {
+        delete candidate.absoluteMaxAgeDays
+      }
       continue
     }
 
@@ -509,6 +517,16 @@ export function createMAProfessorSessionLifecycleState(
     Map<string, ActiveSessionSnapshot> |
     null = null
 
+  async function ensurePreviousSessions() {
+    if (previousActiveSessions === null) {
+      // A first write after restart must distinguish persisted sessions from new logins.
+      previousActiveSessions = scanSessions(
+        await storage.get(ACCESS_STORAGE_KEY),
+        Date.now()
+      ).snapshot
+    }
+  }
+
   const lifecycleStorage:
     DurableObjectStorageLike = {
       async get<T>(
@@ -562,6 +580,8 @@ export function createMAProfessorSessionLifecycleState(
             return
           }
 
+          await ensurePreviousSessions()
+
           markNewSessionsWithCurrentLifetime(
             value,
             previousActiveSessions
@@ -601,6 +621,8 @@ export function createMAProfessorSessionLifecycleState(
             keyOrEntries[
               ACCESS_STORAGE_KEY
             ]
+
+          await ensurePreviousSessions()
 
           markNewSessionsWithCurrentLifetime(
             accessState,
