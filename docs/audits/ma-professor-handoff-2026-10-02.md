@@ -47,3 +47,15 @@ Resultado: os 220 ficheiros da bateria MA-Professor passaram, incluindo os 18 ca
 - A projeção além do período configurado prolonga o último horário ativo. É uma previsão e não cria aulas reais fora do ano.
 - A validação de persistência foi automatizada com IndexedDB; a revisão visual realizada foi a do PDF gerado. Não foi feita uma sessão manual completa no navegador.
 - Nenhum push ou deploy foi executado.
+
+## Esclarecimento da previsão — 05/10/2026
+
+Depois de reproduzir com o repositório real a diferença entre seis e dois sumários confirmados no GIAE, o utilizador escolheu manter as aulas passadas no planeamento. A previsão cronológica passa a abranger as ocorrências desde o início do ano/validade do horário, incluindo as passadas ainda por confirmar. A passagem do tempo ou a confirmação dos sumários pendentes não transfere essas ocorrências para datas futuras. As datas reais de UFCD já concluídas continuam baseadas nas submissões.
+
+O progresso real, a UFCD atual, a numeração, a assiduidade e as avaliações mantêm a regra de submissão explícita; a previsão não valida nem grava aulas. Mantêm-se os cancelamentos, exclusões explícitas, interrupções/feriados e alterações de horário com validade própria. A extrapolação do último horário para além do ano continua a ser uma previsão, sem criar aulas persistidas.
+
+A data da disciplina passa a ser a mais tardia entre as conclusões reais/previstas de todas as UFCD. Se alguma UFCD não tiver data de conclusão previsível, a disciplina também fica sem data. Concluir antecipadamente uma UFCD posterior não conclui as anteriores.
+
+Gate Cloudflare: estas alterações são cálculos locais com as mesmas leituras IndexedDB. Acréscimo por professor e para 20 professores: zero pedidos Worker, leituras/escritas D1, armazenamento remoto ou tráfego. Não acrescentam polling, jobs, recursos cloud ou alterações de contratos/persistência.
+
+Validação nova com repositório real e IndexedDB: variação do visto GIAE; passagem de uma semana; ocorrências ainda não registadas; cancelamento; exclusão explícita; interrupções passadas/futuras; mudança de horário; continuidade para além do ano; UFCD posterior concluída antecipadamente; UFCD anterior sem data previsível. Em todos os cenários aplicáveis, a projeção é comparada com o snapshot persistido para confirmar que não altera os dados escolares.

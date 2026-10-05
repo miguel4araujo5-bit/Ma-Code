@@ -578,11 +578,10 @@ export class UfcdProgressRepository {
         )
       )
 
-    const dateFrom =
-      referenceToday <
-      data.academicYear.startDate
-        ? data.academicYear.startDate
-        : referenceToday
+    // A previsão conserva as ocorrências previstas desde o início do ano.
+    // O visto GIAE valida o progresso real; a sua ausência não apaga uma
+    // aula passada do planeamento nem transfere esses tempos para o futuro.
+    const dateFrom = data.academicYear.startDate
 
     const remainingPeriods = progress.reduce((sum, row) => sum + row.periodsRemaining, 0)
     const lastSlotEnd = data.slots.filter(slot => slot.active).reduce((end, slot) => slot.validUntil > end ? slot.validUntil : end, '') || data.academicYear.endDate
@@ -623,7 +622,7 @@ export class UfcdProgressRepository {
         reconciliation.deleteLessonIds
       )
 
-    const existingFutureLessons =
+    const existingProjectedLessons =
       data.lessons
         .filter(
           lesson =>
@@ -667,7 +666,7 @@ export class UfcdProgressRepository {
           })
         )
 
-    const projectedFutureLessons =
+    const generatedProjectedLessons =
       reconciliation.createLessons
         .filter(
           lesson =>
@@ -691,8 +690,8 @@ export class UfcdProgressRepository {
       progress,
       actualCompletionDateByModuleId,
       futureLessons: [
-        ...existingFutureLessons,
-        ...projectedFutureLessons
+        ...existingProjectedLessons,
+        ...generatedProjectedLessons
       ]
     })
   }

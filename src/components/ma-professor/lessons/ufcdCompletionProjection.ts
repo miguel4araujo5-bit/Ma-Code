@@ -159,11 +159,22 @@ export function projectSequentialUfcdCompletionDates(
       })
     )
 
+  let disciplineCompletionDate: ISODate | null = null
+  for (const module of modules) {
+    if (module.estimatedCompletionDate === null) {
+      disciplineCompletionDate = null
+      break
+    }
+    if (
+      disciplineCompletionDate === null ||
+      module.estimatedCompletionDate > disciplineCompletionDate
+    ) {
+      disciplineCompletionDate = module.estimatedCompletionDate
+    }
+  }
+
   return {
     modules,
-    disciplineCompletionDate:
-      modules.slice(-1)[0]
-        ?.estimatedCompletionDate ??
-      null
+    disciplineCompletionDate
   }
 }
