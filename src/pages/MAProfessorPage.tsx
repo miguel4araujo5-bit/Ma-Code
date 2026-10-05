@@ -1,5 +1,6 @@
 import {
-  useEffect
+  useEffect,
+  useState
 } from 'react'
 
 import {
@@ -99,6 +100,8 @@ function updateCanonical(
 }
 
 export default function MAProfessorPage() {
+  const [loginEmail, setLoginEmail] = useState<string>()
+
   useEffect(
     () => {
       document.title =
@@ -182,8 +185,11 @@ export default function MAProfessorPage() {
   )
 
   return (
-    <MAProfessorActivationLinkGate>
-      <MAProfessorAuthGate>
+    <MAProfessorActivationLinkGate onLoginRequested={setLoginEmail}>
+      <MAProfessorAuthGate
+        initialMode={loginEmail ? 'login' : 'intro'}
+        initialEmail={loginEmail}
+      >
         <>
           <AccessVerificationNotice />
           <MAProfessorProduct />

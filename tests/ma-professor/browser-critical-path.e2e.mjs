@@ -859,9 +859,10 @@ try {
 
   assert.equal(await page.locator('input').count(), 0)
   assert.equal(await page.evaluate(() => window.localStorage.getItem('ma-professor-access-v1')), null)
-  await page.getByRole('button', { name: 'Abrir o MA-Professor', exact: true }).click()
-  await page.getByRole('button', { name: 'Já tenho acesso', exact: true }).first().click()
-  await page.getByLabel('Email', { exact: true }).fill(EMAIL)
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await waitHeading(page, 'Aceder à sua conta MA-Professor')
+  assert.equal(await page.getByLabel('Email', { exact: true }).inputValue(), EMAIL)
+  assert.equal(await page.locator('input[type=password]').count(), 1)
 
   await page
     .getByLabel(

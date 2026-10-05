@@ -7,7 +7,8 @@ import {
 } from 'react'
 
 import {
-  activateMAProfessorAccessLink
+  activateMAProfessorAccessLink,
+  MAProfessorAccessApiError
 } from './accessApi'
 
 import {
@@ -34,9 +35,11 @@ function getErrorMessage(
 }
 
 export default function MAProfessorActivationLinkGate({
-  children
+  children,
+  onLoginRequested
 }: {
   children: ReactNode
+  onLoginRequested?: (email: string) => void
 }) {
   const activationLink =
     useMemo(
@@ -68,8 +71,27 @@ export default function MAProfessorActivationLinkGate({
     setError
   ] = useState('')
 
+  const [activationConflict, setActivationConflict] = useState(false)
+
   const started =
     useRef(false)
+
+  const storedAccess = readMAProfessorStoredAccess()
+  const hasMatchingSession = Boolean(
+    activationLink && storedAccess &&
+    storedAccess.email.trim().toLowerCase() === activationLink.email
+  )
+
+  const continueToAccount = () => {
+    const stored = readMAProfessorStoredAccess()
+    if (
+      activationLink &&
+      (!stored || stored.email.trim().toLowerCase() !== activationLink.email)
+    ) {
+      onLoginRequested?.(activationLink.email)
+    }
+    setState('idle')
+  }
 
   const activate =
     async () => {
@@ -85,6 +107,7 @@ export default function MAProfessorActivationLinkGate({
 
       setState('activating')
       setError('')
+      setActivationConflict(false)
 
       try {
         const response =
@@ -118,10 +141,13 @@ export default function MAProfessorActivationLinkGate({
       ) {
         started.current =
           false
+        const conflict = activationError instanceof MAProfessorAccessApiError &&
+          activationError.status === 409
+        setActivationConflict(conflict)
         setError(
-          getErrorMessage(
-            activationError
-          )
+          conflict
+            ? 'Se já ativou este acesso, entre com o seu email e a sua password.'
+            : getErrorMessage(activationError)
         )
         setState('failed')
       }
@@ -191,25 +217,37 @@ export default function MAProfessorActivationLinkGate({
               </p>
               <button
                 type="button"
-                onClick={() => setState('idle')}
+                onClick={continueToAccount}
                 className="mt-6 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
               >
-                Abrir o MA-Professor
+                {hasMatchingSession ? 'Abrir o MA-Professor' : 'Entrar'}
               </button>
             </>
           ) : (
             <>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-300">
-                Não foi possível ativar automaticamente
+                {activationConflict ? 'MA-Professor' : 'Não foi possível ativar automaticamente'}
               </p>
               <h1 className="mt-3 text-2xl font-black tracking-tight text-white">
-                O link foi reconhecido, mas a ativação falhou.
+                {activationConflict
+                  ? 'Não foi possível confirmar a ativação.'
+                  : 'O link foi reconhecido, mas a ativação falhou.'}
               </h1>
               <p className="mt-3 text-sm leading-7 text-slate-400">
                 {error}
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                {activationConflict ? (
+                  <button
+                    type="button"
+                    onClick={continueToAccount}
+                    className="rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+                  >
+                    {hasMatchingSession ? 'Abrir o MA-Professor' : 'Entrar'}
+                  </button>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={() => {

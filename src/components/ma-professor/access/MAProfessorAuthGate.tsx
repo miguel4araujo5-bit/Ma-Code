@@ -45,6 +45,8 @@ type Mode =
 
 interface MAProfessorAuthGateProps {
   children: ReactNode
+  initialMode?: 'intro' | 'login'
+  initialEmail?: string
 }
 
 const PERSONAL_PASSWORD_MIN_LENGTH =
@@ -145,7 +147,9 @@ function PasswordWarningIcon() {
 }
 
 export default function MAProfessorAuthGate({
-  children
+  children,
+  initialMode = 'intro',
+  initialEmail = ''
 }: MAProfessorAuthGateProps) {
   const [
     storedAccess,
@@ -157,12 +161,18 @@ export default function MAProfessorAuthGate({
   const [
     mode,
     setMode
-  ] = useState<Mode>('intro')
+  ] = useState<Mode>(initialMode)
 
   const [
     email,
     setEmail
-  ] = useState('')
+  ] = useState(initialEmail)
+
+  const [requestedLoginComplete, setRequestedLoginComplete] = useState(false)
+  const hasOtherStoredAccount = Boolean(
+    initialMode === 'login' && initialEmail && storedAccess &&
+    storedAccess.email.trim().toLowerCase() !== initialEmail.trim().toLowerCase()
+  )
 
   const [
     personalPassword,
@@ -336,7 +346,7 @@ export default function MAProfessorAuthGate({
     [storedAccess]
   )
 
-  if (storedAccess) {
+  if (storedAccess && (!hasOtherStoredAccount || requestedLoginComplete)) {
     return <>{children}</>
   }
 
@@ -501,6 +511,7 @@ export default function MAProfessorAuthGate({
       }
 
       setBusy(true)
+      const previousAccess = readMAProfessorStoredAccess()
 
       try {
         const deviceId =
@@ -530,10 +541,11 @@ export default function MAProfessorAuthGate({
         setStoredAccess(
           readMAProfessorStoredAccess()
         )
+        setRequestedLoginComplete(true)
       } catch (
         loginError
       ) {
-        clearMAProfessorStoredAccess()
+        if (!previousAccess) clearMAProfessorStoredAccess()
         setError(
           getErrorMessage(
             loginError
@@ -935,6 +947,21 @@ export default function MAProfessorAuthGate({
           <p className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-4 py-3 text-xs leading-6 text-cyan-100">
             A senha que começa por <strong>MP-</strong> não é utilizada para entrar. Serve apenas para ativar um período de acesso às ferramentas.
           </p>
+
+          {hasOtherStoredAccount && storedAccess ? (
+            <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-xs leading-6 text-amber-100">
+              <p>
+                Está aberta a conta <strong>{storedAccess.email}</strong>. A sessão mantém-se até entrar noutra conta.
+              </p>
+              <button
+                type="button"
+                onClick={() => setRequestedLoginComplete(true)}
+                className="mt-2 font-bold underline underline-offset-4"
+              >
+                Continuar na conta aberta
+              </button>
+            </div>
+          ) : null}
 
           <form
             onSubmit={handleLogin}
