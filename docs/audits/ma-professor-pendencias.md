@@ -35,6 +35,22 @@ A classe A/B/C indica o risco da intervenção segundo o workflow do projeto: A 
 
 AUD-01 a AUD-12 foram implementados nos pontos canónicos. V-01 a V-03 continuam abertos; a estimativa arquitetural Free está documentada, mas faltam as medições reais. Para AUD-08, falta ainda confirmar a importação em Excel e LibreOffice reais: a neutralização está testada no ficheiro gerado.
 
+## Auditoria externa de 05/10/2026 — autenticação
+
+Reverificada na main `9e6c884f6ac9d6672025ae52dbde16f832fe3ec9`, posterior à base externa `4452509`. As duas correções aprovadas pelo utilizador estão no commit [`a59836a00608dc1e56238ce7062a7ba988adb987`](https://github.com/miguel4araujo5-bit/Ma-Code/commit/a59836a00608dc1e56238ce7062a7ba988adb987). Âmbito, consumo Free e resultados completos no [gate de autenticação](ma-professor-auth-guard-gate.md).
+
+| Estado | ID | Resultado e evidência |
+| --- | --- | --- |
+| [x] Corrigido no código | F-01 | Guard de 25 inícios OPAQUE por **dois minutos**, por IP Cloudflare em hash. Teto global existente de 64 passa a rejeitar novos inícios com HTTP 429/Retry-After, sem expulsar os anteriores. Testes reais cobrem reinício, fim da janela, outra origem, ausência de novas escritas numa rejeição e conclusão de uma prova válida enquanto o sistema está cheio. Os limites são de autenticação; não se aplicam à gravação local de sumários, faltas ou avaliações. |
+| [x] Corrigido no código | F-02 | Exceção pública depende de `/access/account/verify`, dispositivo e email próprio. Um token inventado, revogado, expirado, de outro dispositivo ou de outra conta não dispensa a resposta genérica nem o limite público de pedidos. Via pública retira o token não autorizado antes de delegar. Teste da cadeia real cobre esses casos e a preservação da escolha de plano com uma sessão válida, mesmo sem licença ativa. |
+| [ ] Avaliação pendente | F-03 | O crescimento de mapas por chave continua a exigir dimensionamento e medições. Não é resolvido pelo limite de login. Avaliar tamanhos serializados, retenção e limites seguros antes de redesenhar armazenamento; preservar Free e o cenário-base de vinte professores. |
+| [ ] Avaliação pendente | F-04 | Separar o `serverSetup` OPAQUE do armazenamento dos registos é uma defesa adicional a avaliar. Esta correção não roda nem desloca essa chave; uma intervenção futura deve preservar credenciais e chaves de cópias existentes. |
+| [ ] Manutenção pendente | F-05 | A cadeia de wrappers exige cuidado nos percursos sobrepostos. As correções atuais usam os pontos existentes e testes com a cadeia completa. Uma reorganização ampla fica fora deste âmbito mínimo. |
+
+Validação local: 33 testes dirigidos e três novos testes da cadeia real passaram; build TypeScript/Worker/Vite e 16 rotas passaram. A execução completa MA-Professor fez 1 148 testes: 1 146 passaram e dois testes antigos pressupunham comportamentos alterados pela correção. Após ajustar a simulação para devolver identidade de sessão validada e retirar uma exigência literal do argumento de delegação, os 14 testes desses dois ficheiros passaram. O código de produção não mudou entre essas execuções; nenhuma falha executada ficou pendente. A execução inicial não deve ser descrita como tendo zero falhas.
+
+Verificação adicional: **Terminar sessões já existe no admin**, em `MAProfessorAdminAccountDetail.tsx`, com a rota própria `/sessions/revoke` implementada no Worker. Não confundir essa ação com revogar a licença. Os restantes pontos antigos da auditoria externa não foram reabertos sem nova evidência. V-01, V-02 e V-03 continuam a exigir evidência operacional.
+
 ## Âmbito e validação efetuada
 
 Foram revistos os percursos de acesso e isolamento de conta, OPAQUE e proteção v3, Worker/admin/apoio, persistência e rascunhos, backups/restauro, navegação e gravação, calendário/horários/UFCD/GIAE, assiduidade/recuperações, avaliações/critérios, importações e exportações. A profundidade concentrou-se nas dependências que podem perder dados, produzir valores inconsistentes ou consumir recursos sem limite.
