@@ -16,8 +16,10 @@ import {
 } from '../calendar/calendarWorkspaceRepository'
 import {
   getDutyEventDetails,
+  isDutySummaryCopied,
   type DutyEventDetails
 } from '../calendar/dutyEvent'
+import { copyTextToClipboard } from './copyTextToClipboard'
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
@@ -57,6 +59,36 @@ interface WeekTimeSlot {
 
 const DUTY_DISCARD_MESSAGE =
   'Existem alterações por guardar neste sumário de Cargo. Se continuar, essas alterações serão perdidas. Pretende continuar?'
+
+function SummaryStatusIcon({ written, submitted }: { written: boolean; submitted: boolean }) {
+  if (!written) return null
+  return (
+    <svg
+      className={`h-3.5 w-4 shrink-0 ${submitted
+        ? 'ma-professor-summary-submitted text-emerald-400'
+        : 'text-white'}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={submitted ? 'M18 6 7 17l-5-5' : 'M20 6 9 17l-5-5'} />
+      {submitted ? <path d="m22 10-7.5 7.5L13 16" /> : null}
+    </svg>
+  )
+}
+
+function getDutySummaryStatusLabel(event: SchoolCalendarEvent) {
+  return isDutySummaryCopied(event)
+    ? 'Sumário copiado para o programa oficial'
+    : event.description.trim()
+      ? 'Sumário guardado, por copiar para o programa oficial'
+      : 'Sem sumário guardado'
+}
 
 function todayISO(): ISODate {
   const date = new Date()
@@ -427,6 +459,9 @@ export default function DailyUnifiedWeekOverview({
   ] = useState('')
   const editorRef =
     useRef<HTMLDivElement>(null)
+  const savingDutyRef = useRef(false)
+  const [copyingDuty, setCopyingDuty] = useState(false)
+  const [editorSuccess, setEditorSuccess] = useState('')
 
   const hasUnsavedSummary =
     Boolean(
@@ -690,7 +725,7 @@ export default function DailyUnifiedWeekOverview({
   function openDuty(
     duty: DutyOccurrence
   ) {
-    if (savingDuty) {
+    if (savingDutyRef.current) {
       return
     }
 
@@ -701,10 +736,11 @@ export default function DailyUnifiedWeekOverview({
       duty.event.description
     )
     setEditorError('')
+    setEditorSuccess('')
   }
 
   function closeDuty() {
-    if (savingDuty) {
+    if (savingDutyRef.current) {
       return
     }
 
@@ -725,13 +761,15 @@ export default function DailyUnifiedWeekOverview({
   async function saveDutySummary() {
     if (
       !selectedDuty ||
-      savingDuty
+      savingDutyRef.current
     ) {
       return
     }
 
+    savingDutyRef.current = true
     setSavingDuty(true)
     setEditorError('')
+    setEditorSuccess('')
 
     try {
       const current =
@@ -762,7 +800,8 @@ export default function DailyUnifiedWeekOverview({
           {
             description:
               summary
-          }
+          },
+          selectedDuty.event
         )
 
       setDuties(
@@ -793,14 +832,56 @@ export default function DailyUnifiedWeekOverview({
         getErrorMessage(error)
       )
     } finally {
+      savingDutyRef.current = false
       setSavingDuty(false)
+    }
+  }
+
+  async function copyDutySummary() {
+    if (!selectedDuty || savingDutyRef.current || !summary.trim()) return
+
+    savingDutyRef.current = true
+    setSavingDuty(true)
+    setCopyingDuty(true)
+    setEditorError('')
+    setEditorSuccess('')
+    let copied = false
+
+    try {
+      await copyTextToClipboard(summary)
+      copied = true
+      const updated = await calendarRepository.updateEvent(
+        selectedDuty.event.id,
+        { description: summary, dutySummaryCopiedAt: new Date().toISOString() },
+        selectedDuty.event
+      )
+
+      setDuties(rows => rows.map(row => row.event.id === updated.id ? { ...row, event: updated } : row))
+      setSelectedDuty({ ...selectedDuty, event: updated })
+      setSummary(updated.description)
+      setEditorSuccess('Sumário copiado. Cole-o no programa oficial.')
+
+      try {
+        await onSaved?.()
+      } catch {
+        // A cópia e o visto já foram guardados nesta ocorrência.
+      }
+    } catch (error) {
+      const message = getErrorMessage(error)
+      setEditorError(copied
+        ? `O sumário foi copiado, mas não foi possível guardar o visto. ${message}`
+        : `Não foi possível copiar o sumário. ${message}`)
+    } finally {
+      savingDutyRef.current = false
+      setSavingDuty(false)
+      setCopyingDuty(false)
     }
   }
 
   function moveToDate(
     nextDate: ISODate | null
   ) {
-    if (!nextDate) {
+    if (!nextDate || savingDutyRef.current) {
       return
     }
 
@@ -1174,30 +1255,7 @@ export default function DailyUnifiedWeekOverview({
                                         <span className="mt-1 flex items-center justify-between gap-1 text-[0.52rem] font-black uppercase tracking-[0.08em] text-cyan-200/75">
                                           <span>Componente letiva</span>
 
-                                          {summaryWritten ? (
-                                            <svg
-                                              className={`h-3.5 w-4 shrink-0 ${
-                                                summarySubmitted
-                                                  ? 'ma-professor-summary-submitted text-emerald-400'
-                                                  : 'text-white'
-                                              }`}
-                                              viewBox="0 0 24 24"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              strokeWidth="2.5"
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              aria-hidden="true"
-                                              focusable="false"
-                                            >
-                                              <path d={summarySubmitted
-                                                ? 'M18 6 7 17l-5-5'
-                                                : 'M20 6 9 17l-5-5'} />
-                                              {summarySubmitted ? (
-                                                <path d="m22 10-7.5 7.5L13 16" />
-                                              ) : null}
-                                            </svg>
-                                          ) : null}
+                                          <SummaryStatusIcon written={summaryWritten} submitted={summarySubmitted} />
 
                                           <span className="sr-only">
                                             {summaryStatusLabel}
@@ -1209,7 +1267,10 @@ export default function DailyUnifiedWeekOverview({
                                 )}
 
                                 {cellDuties.map(
-                                  duty => (
+                                  duty => {
+                                    const written = Boolean(duty.event.description.trim())
+                                    const copied = isDutySummaryCopied(duty.event)
+                                    return (
                                     <button
                                       key={duty.event.id}
                                       type="button"
@@ -1218,7 +1279,7 @@ export default function DailyUnifiedWeekOverview({
                                           duty
                                         )
                                       }
-                                      title={duty.details.name}
+                                      title={`${duty.details.name} · ${getDutySummaryStatusLabel(duty.event)}`}
                                       className="w-full rounded-lg border border-violet-300/20 bg-violet-300/[0.07] px-2 py-1.5 text-left transition hover:border-violet-300/45 hover:bg-violet-300/[0.11]"
                                     >
                                       <span className="block truncate text-[0.62rem] font-black text-white">
@@ -1226,20 +1287,20 @@ export default function DailyUnifiedWeekOverview({
                                       </span>
 
                                       <span className={`mt-1 block text-[0.54rem] font-black ${
-                                        duty.event.description.trim()
-                                          ? 'text-emerald-200'
-                                          : 'text-amber-200'
+                                        copied
+                                          ? 'ma-professor-summary-submitted text-emerald-400'
+                                          : written ? 'text-white' : 'text-amber-200'
                                       }`}>
-                                        {duty.event.description.trim()
-                                          ? 'Sumário preenchido'
-                                          : 'Sumário por preencher'}
+                                        {copied ? 'Sumário copiado' : written ? 'Sumário preenchido' : 'Sumário por preencher'}
                                       </span>
 
-                                      <span className="mt-0.5 block text-[0.52rem] font-black uppercase tracking-[0.08em] text-violet-200/80">
-                                        Cargo
+                                      <span className="mt-0.5 flex items-center justify-between gap-1 text-[0.52rem] font-black uppercase tracking-[0.08em] text-violet-200/80">
+                                        <span>Cargo</span>
+                                        <SummaryStatusIcon written={written} submitted={copied} />
                                       </span>
                                     </button>
                                   )
+                                  }
                                 )}
                               </div>
                             </div>
@@ -1273,6 +1334,7 @@ export default function DailyUnifiedWeekOverview({
                     onClick={() =>
                       openDuty(duty)
                     }
+                    title={`${duty.details.name} · ${getDutySummaryStatusLabel(duty.event)}`}
                     className="shrink-0 rounded-lg border border-violet-300/20 bg-violet-300/[0.07] px-3 py-2 text-left"
                   >
                     <span className="block text-xs font-black text-white">
@@ -1282,6 +1344,11 @@ export default function DailyUnifiedWeekOverview({
                       {formatShortWeekday(
                         duty.event.startDate
                       )}
+                    </span>
+                    <span className="mt-1 flex items-center justify-between gap-2 text-[0.52rem] font-black uppercase text-violet-200/80">
+                      <span>Cargo</span>
+                      <SummaryStatusIcon written={Boolean(duty.event.description.trim())} submitted={isDutySummaryCopied(duty.event)} />
+                      <span className="sr-only">{getDutySummaryStatusLabel(duty.event)}</span>
                     </span>
                   </button>
                 )
@@ -1339,11 +1406,12 @@ export default function DailyUnifiedWeekOverview({
 
               <textarea
                 value={summary}
-                onChange={event =>
+                onChange={event => {
                   setSummary(
                     event.target.value
                   )
-                }
+                  setEditorSuccess('')
+                }}
                 disabled={savingDuty}
                 rows={7}
                 autoFocus
@@ -1358,6 +1426,12 @@ export default function DailyUnifiedWeekOverview({
               </div>
             ) : null}
 
+            {editorSuccess ? (
+              <p role="status" className="ma-professor-summary-submitted mt-4 text-sm font-semibold text-emerald-400">
+                {editorSuccess}
+              </p>
+            ) : null}
+
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
@@ -1366,6 +1440,15 @@ export default function DailyUnifiedWeekOverview({
                 className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-slate-300 disabled:opacity-40"
               >
                 Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void copyDutySummary()}
+                disabled={savingDuty || !summary.trim()}
+                className="rounded-xl border border-violet-300/30 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {copyingDuty ? 'A copiar…' : 'Copiar para o programa oficial'}
               </button>
 
               <button

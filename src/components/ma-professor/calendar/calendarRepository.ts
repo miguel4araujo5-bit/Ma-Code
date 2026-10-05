@@ -2,6 +2,7 @@ import {
   maProfessorDb,
   openMAProfessorDatabase
 } from '../db'
+import { isDutyEvent } from './dutyEvent'
 
 import type {
   EntityId,
@@ -33,6 +34,7 @@ export interface SchoolCalendarEventChanges {
   teachingAssignmentId?: EntityId | null
   title?: string
   description?: string
+  dutySummaryCopiedAt?: string | null
   startDate?: ISODate
   endDate?: ISODate
   blocksLessons?: boolean
@@ -872,7 +874,7 @@ function applyEventChanges(
         : changes.teachingAssignmentId
     )
 
-  return {
+  const updated: SchoolCalendarEvent = {
     ...current,
     type:
       changes.type ??
@@ -914,6 +916,29 @@ function applyEventChanges(
     updatedAt:
       now()
   }
+
+  if (current.dutySummaryCopiedAt && (
+    updated.description !== current.description ||
+    updated.title !== current.title ||
+    updated.startDate !== current.startDate ||
+    updated.endDate !== current.endDate ||
+    updated.type !== current.type ||
+    updated.scope !== current.scope
+  )) {
+    updated.dutySummaryCopiedAt = null
+  }
+
+  if (changes.dutySummaryCopiedAt !== undefined) {
+    if (changes.dutySummaryCopiedAt && (
+      !isDutyEvent(updated) || !updated.description.trim() ||
+      Number.isNaN(Date.parse(changes.dutySummaryCopiedAt))
+    )) {
+      throw new Error('Só é possível assinalar a cópia de um Cargo com sumário preenchido.')
+    }
+    updated.dutySummaryCopiedAt = changes.dutySummaryCopiedAt
+  }
+
+  return updated
 }
 
 async function getAssignmentForFilter(
@@ -1334,7 +1359,8 @@ export class CalendarRepository {
     id:
       EntityId,
     changes:
-      SchoolCalendarEventChanges
+      SchoolCalendarEventChanges,
+    expectedCurrent?: Pick<SchoolCalendarEvent, 'updatedAt' | 'description'>
   ) {
     await this.initialize()
 
@@ -1367,6 +1393,20 @@ export class CalendarRepository {
       updated,
       current.id
     )
+
+    if (expectedCurrent) {
+      return maProfessorDb.transaction('rw', maProfessorDb.schoolCalendarEvents, async () => {
+        const latest = await maProfessorDb.schoolCalendarEvents.get(id)
+        if (!latest ||
+          latest.updatedAt !== expectedCurrent.updatedAt ||
+          latest.description !== expectedCurrent.description
+        ) {
+          throw new Error('Este sumário foi alterado noutra aba ou janela. Feche e volte a abrir o Cargo antes de guardar.')
+        }
+        await maProfessorDb.schoolCalendarEvents.put(updated)
+        return updated
+      })
+    }
 
     await maProfessorDb
       .schoolCalendarEvents

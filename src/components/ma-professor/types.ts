@@ -200,6 +200,7 @@ export interface SchoolCalendarEvent extends AuditFields {
   teachingAssignmentId: EntityId | null
   title: string
   description: string
+  dutySummaryCopiedAt?: string | null
   startDate: ISODate
   endDate: ISODate
   blocksLessons: boolean

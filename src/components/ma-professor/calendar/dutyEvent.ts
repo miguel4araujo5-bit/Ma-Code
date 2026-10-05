@@ -93,3 +93,10 @@ export function isDutyEvent(
     )
   )
 }
+
+export function isDutySummaryCopied(event: SchoolCalendarEvent) {
+  return isDutyEvent(event) &&
+    Boolean(event.description.trim()) &&
+    typeof event.dutySummaryCopiedAt === 'string' &&
+    !Number.isNaN(Date.parse(event.dutySummaryCopiedAt))
+}
