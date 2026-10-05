@@ -1073,10 +1073,25 @@ export default function StudentsSetupStep({
       const nextSnapshot =
         await refreshSnapshot()
 
+      const nextGroupId =
+        activeGroups.find(
+          group =>
+            !nextSnapshot.students.some(
+              student =>
+                student.active &&
+                student.groupId ===
+                  group.id
+            )
+        )?.id ?? selectedGroupId
+
+      setSelectedGroupId(
+        nextGroupId
+      )
+
       setRows(
         buildRowsForGroup(
           nextSnapshot,
-          selectedGroupId
+          nextGroupId
         )
       )
 
