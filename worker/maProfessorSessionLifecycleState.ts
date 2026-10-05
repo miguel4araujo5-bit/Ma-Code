@@ -4,8 +4,18 @@ const ACCESS_STORAGE_KEY =
 export const MA_PROFESSOR_SESSION_ABSOLUTE_MAX_AGE_DAYS =
   180
 
+export const MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS =
+  29
+
 const SESSION_ABSOLUTE_MAX_AGE_MS =
   MA_PROFESSOR_SESSION_ABSOLUTE_MAX_AGE_DAYS *
+  24 *
+  60 *
+  60 *
+  1000
+
+const NEW_SESSION_ABSOLUTE_MAX_AGE_MS =
+  MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS *
   24 *
   60 *
   60 *
@@ -102,6 +112,49 @@ function isActiveSession(
   )
 }
 
+function getSessionAbsoluteMaxAgeMs(
+  value: JsonObject
+) {
+  return value.absoluteMaxAgeDays ===
+    MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS
+    ? NEW_SESSION_ABSOLUTE_MAX_AGE_MS
+    : SESSION_ABSOLUTE_MAX_AGE_MS
+}
+
+function markNewSessionsWithCurrentLifetime(
+  value: unknown,
+  previous:
+    Map<string, ActiveSessionSnapshot> |
+    null
+) {
+  if (
+    previous === null ||
+    !isRecord(value) ||
+    !isRecord(value.sessions)
+  ) {
+    return
+  }
+
+  for (
+    const [
+      key,
+      candidate
+    ] of Object.entries(
+      value.sessions
+    )
+  ) {
+    if (
+      previous.has(key) ||
+      !isActiveSession(candidate)
+    ) {
+      continue
+    }
+
+    candidate.absoluteMaxAgeDays =
+      MA_PROFESSOR_NEW_SESSION_ABSOLUTE_MAX_AGE_DAYS
+  }
+}
+
 function scanSessions(
   value: unknown,
   now: number
@@ -151,7 +204,9 @@ function scanSessions(
     if (
       createdAt !== null &&
       now - createdAt >=
-        SESSION_ABSOLUTE_MAX_AGE_MS
+        getSessionAbsoluteMaxAgeMs(
+          candidate
+        )
     ) {
       delete sessions[key]
       changed = true
@@ -507,6 +562,11 @@ export function createMAProfessorSessionLifecycleState(
             return
           }
 
+          markNewSessionsWithCurrentLifetime(
+            value,
+            previousActiveSessions
+          )
+
           reconcileSessionReplacement(
             value,
             previousActiveSessions
@@ -541,6 +601,11 @@ export function createMAProfessorSessionLifecycleState(
             keyOrEntries[
               ACCESS_STORAGE_KEY
             ]
+
+          markNewSessionsWithCurrentLifetime(
+            accessState,
+            previousActiveSessions
+          )
 
           reconcileSessionReplacement(
             accessState,
