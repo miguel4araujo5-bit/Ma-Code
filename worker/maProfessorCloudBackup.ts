@@ -1338,12 +1338,14 @@ async function handlePushV3(
         )
     ])
 
+  // D1 counts trigger writes too: archiving/pruning previous ciphertext can
+  // produce more than one change for this single-record conditional update.
   const recordChanged =
     results[0]?.success === true &&
-    results[0]?.meta?.changes === 1
+    (results[0]?.meta?.changes ?? 0) > 0
   const profileChanged =
     results[1]?.success === true &&
-    results[1]?.meta?.changes === 1
+    (results[1]?.meta?.changes ?? 0) > 0
 
   if (
     !recordChanged ||

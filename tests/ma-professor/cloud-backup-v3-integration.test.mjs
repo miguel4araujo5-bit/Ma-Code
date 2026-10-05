@@ -39,7 +39,7 @@ async function accountIdFor(email) {
 let fixtureTime = Date.parse('2026-10-03T12:00:00Z')
 
 async function fixture(t, { cutover = true } = {}) {
-  t.mock.timers.enable({ apis: ['Date'], now: fixtureTime += 120_000 })
+  t.mock.timers.enable({ apis: ['Date'], now: fixtureTime += 300_000 })
   const db = new DatabaseSync(':memory:')
   t.after(() => db.close())
   const migrations = new URL('../../migrations/ma-professor/', import.meta.url)
@@ -48,6 +48,7 @@ async function fixture(t, { cutover = true } = {}) {
     db.exec(await readFile(new URL(name, migrations), 'utf8'))
   }
   const requests = []
+  const writeChanges = []
   let failRecord = false
   let beforeBatch = null
   const binding = {
@@ -58,7 +59,12 @@ async function fixture(t, { cutover = true } = {}) {
         async first() { return db.prepare(sql).get(...values) ?? null },
         async run() {
           if (failRecord && /INSERT INTO ma_professor_encrypted_records/.test(sql)) throw new Error('injected disk failure')
-          return { success: true, meta: { changes: Number(db.prepare(sql).run(...values).changes) } }
+          // D1 reports sqlite3_total_changes(), including archive/pruning triggers.
+          const before = db.prepare('SELECT total_changes() AS count').get().count
+          db.prepare(sql).run(...values)
+          const changes = db.prepare('SELECT total_changes() AS count').get().count - before
+          writeChanges.push(Number(changes))
+          return { success: true, meta: { changes: Number(changes) } }
         }
       }
     },
@@ -88,12 +94,35 @@ async function fixture(t, { cutover = true } = {}) {
   })
   runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
   t.after(() => runtime.clearMAProfessorOpaqueExportKey())
-  return { db, env, requests, post, advance: (ms = 30_000) => t.mock.timers.tick(ms), failRecord: value => { failRecord = value }, beforeBatch: callback => { beforeBatch = callback } }
+  return { db, env, requests, writeChanges, post, advance: (ms = 30_000) => t.mock.timers.tick(ms), failRecord: value => { failRecord = value }, beforeBatch: callback => { beforeBatch = callback } }
 }
 
 function initialization(prepared) {
   return { token: session.token, deviceId: session.deviceId, recordId: 'database-v1', expectedServerRevision: 0, expectedRecordRevision: 0, profile: prepared.profile, encrypted: prepared.encrypted }
 }
+
+test('D1 trigger counts confirm every replacement, including history pruning, without a false revision conflict', async t => {
+  const f = await fixture(t)
+  for (let revision = 1; revision <= 5; revision += 1) {
+    if (revision > 1) f.advance()
+    const nextBackup = { ...backup, exportedAt: new Date().toISOString() }
+    let result
+    try {
+      result = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, nextBackup, { expectedServerRevision: revision - 1 })
+    } catch (error) {
+      const stored = await runtime.downloadCompatibleMAProfessorCloudBackup(session)
+      t.diagnostic(`Attempt ${revision}: stored revision ${stored?.recordRevision}; exact attempted backup saved: ${JSON.stringify(stored?.backup) === JSON.stringify(nextBackup)}`)
+      throw error
+    }
+    assert.equal(result.serverRevision, revision)
+    assert.equal(result.recordRevision, revision)
+    assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).backup.recordRevision, revision)
+    assert.deepEqual((await runtime.downloadCompatibleMAProfessorCloudBackup(session)).backup, nextBackup)
+    assert.equal(f.db.prepare('SELECT COUNT(*) AS count FROM ma_professor_encrypted_record_history').get().count, Math.min(revision - 1, 2))
+  }
+  assert.ok(f.writeChanges.includes(2), 'Archiving adds a second modified row to D1 metadata.')
+  assert.ok(f.writeChanges.includes(3), 'Pruning adds a third modified row to D1 metadata.')
+})
 
 test('new account: read-only empty status, first v3 backup, real Worker update and new-device recovery', async t => {
   const f = await fixture(t)

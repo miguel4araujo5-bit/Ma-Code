@@ -509,7 +509,7 @@ export function EncryptedSyncPanel() {
         setFeedback({
           tone: 'error',
           message:
-            `Não foi possível confirmar que a nova cópia ficou guardada. Não considere a operação concluída. ${getErrorMessage(error)}`
+            `Este envio não ficou confirmado. O estado da cópia no servidor, indicado acima, não confirma esta tentativa. ${getErrorMessage(error)}`
         })
 
         await refreshStatus()
@@ -625,7 +625,7 @@ export function EncryptedSyncPanel() {
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400">
               <span>
                 <strong className="text-slate-200">
-                  Estado:
+                  Cópia no servidor:
                 </strong>{' '}
                 {checking
                   ? 'A verificar…'
@@ -638,7 +638,7 @@ export function EncryptedSyncPanel() {
 
               <span>
                 <strong className="text-slate-200">
-                  Última cópia:
+                  Data da cópia:
                 </strong>{' '}
                 {checking || !status
                   ? '—'

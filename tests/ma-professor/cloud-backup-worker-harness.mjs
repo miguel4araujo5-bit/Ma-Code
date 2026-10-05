@@ -20,7 +20,13 @@ export async function createCloudBackupWorkerHarness(email, token) {
       let values = []
       return { bind(...args) { values = args; return this },
         async first() { return db.prepare(sql).get(...values) ?? null },
-        async run() { return { success: true, meta: { changes: Number(db.prepare(sql).run(...values).changes) } } }
+        async run() {
+          // Match D1 metadata, including ciphertext archive/pruning triggers.
+          const before = db.prepare('SELECT total_changes() AS count').get().count
+          db.prepare(sql).run(...values)
+          const changes = db.prepare('SELECT total_changes() AS count').get().count - before
+          return { success: true, meta: { changes: Number(changes) } }
+        }
       }
     },
     batch(statements) {
