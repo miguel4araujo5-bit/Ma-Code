@@ -265,7 +265,7 @@ test(
     )
     assert.match(
       method,
-      /await this\.existing\.fetch\(\s*request\s*\)/
+      /await this\.existing\.fetch\(/
     )
     assert.match(
       method,

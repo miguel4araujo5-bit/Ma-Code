@@ -15,6 +15,9 @@ const REQUEST_GUARD_STORAGE_KEY =
 const PUBLIC_ACCESS_REQUEST_PATH =
   '/api/ma-professor/access/request'
 
+const PUBLIC_ACCOUNT_VERIFY_PATH =
+  '/api/ma-professor/access/account/verify'
+
 const PUBLIC_OPAQUE_ENROLL_START_PATH =
   '/api/ma-professor/access/opaque/enroll/start'
 
@@ -538,15 +541,6 @@ async function readEmail(
   )
 }
 
-function hasSessionToken(
-  body: JsonObject
-) {
-  return typeof body.token ===
-      'string' &&
-    body.token.trim().length >
-      0
-}
-
 export class MaProfessorAccessDurableObject {
   private readonly state:
     DurableObjectStateLike
@@ -597,8 +591,49 @@ export class MaProfessorAccessDurableObject {
     return response
   }
 
+  private async hasValidAccessRequestSession(
+    request: Request,
+    body: JsonObject | null
+  ) {
+    if (
+      !body ||
+      typeof body.token !== 'string' ||
+      !body.token.trim() ||
+      typeof body.deviceId !== 'string' ||
+      !body.deviceId.trim()
+    ) {
+      return false
+    }
+
+    const email = normalizeEmail(body.email)
+
+    if (!email) return false
+
+    const response = await this.existing.fetch(
+      new Request(
+        new URL(PUBLIC_ACCOUNT_VERIFY_PATH, request.url),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: body.token,
+            deviceId: body.deviceId
+          })
+        }
+      )
+    )
+
+    if (!response.ok) return false
+
+    const verified = await response.json().catch(() => null) as JsonObject | null
+
+    return verified?.success === true &&
+      normalizeEmail(verified.email) === email
+  }
+
   private async enforceAccessRequestRateLimit(
-    request: Request
+    request: Request,
+    authenticated = false
   ) {
     const accountEnrollment = new URL(request.url).pathname === PUBLIC_OPAQUE_ENROLL_START_PATH
     if (
@@ -618,9 +653,7 @@ export class MaProfessorAccessDurableObject {
 
     if (
       !body ||
-      (!accountEnrollment && hasSessionToken(
-        body
-      ))
+      (!accountEnrollment && authenticated)
     ) {
       return null
     }
@@ -770,7 +803,8 @@ export class MaProfessorAccessDurableObject {
   }
 
   private async handlePublicAccessRequest(
-    request: Request
+    request: Request,
+    authenticated = false
   ) {
     if (
       request.method !==
@@ -792,11 +826,7 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    if (
-      hasSessionToken(
-        body
-      )
-    ) {
+    if (authenticated) {
       return this.existing.fetch(
         request
       )
@@ -837,9 +867,14 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
+    const publicBody = { ...body }
+    delete publicBody.token
+
     const response =
       await this.existing.fetch(
-        request
+        'token' in body
+          ? new Request(request, { body: JSON.stringify(publicBody) })
+          : request
       )
 
     if (
@@ -876,9 +911,16 @@ export class MaProfessorAccessDurableObject {
       pathname ===
         PUBLIC_ACCESS_REQUEST_PATH
     ) {
+      const authenticated = request.method === 'POST' &&
+        await this.hasValidAccessRequestSession(
+          request,
+          await readRequestBody(request)
+        )
+
       const limited =
         await this.enforceAccessRequestRateLimit(
-          request
+          request,
+          authenticated
         )
 
       if (limited) {
@@ -886,7 +928,8 @@ export class MaProfessorAccessDurableObject {
       }
 
       return this.handlePublicAccessRequest(
-        request
+        request,
+        authenticated
       )
     }
 

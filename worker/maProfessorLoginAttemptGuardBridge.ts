@@ -12,8 +12,17 @@ const LOGIN_GUARD_STORAGE_KEY =
 const PUBLIC_LOGIN_PATH =
   '/api/ma-professor/access/login'
 
+const PUBLIC_OPAQUE_LOGIN_START_PATH =
+  '/api/ma-professor/access/opaque/login/start'
+
 const PUBLIC_OPAQUE_LOGIN_FINISH_PATH =
   '/api/ma-professor/access/opaque/login/finish'
+
+const LOGIN_START_WINDOW_MS =
+  2 * 60 * 1000
+
+const LOGIN_START_MAX_ATTEMPTS =
+  25
 
 const LOGIN_GUARD_WINDOW_MS =
   10 * 60 * 1000
@@ -151,7 +160,7 @@ function bytesToHex(
 }
 
 async function hashLoginGuardKey(
-  scope: 'origin' | 'pair',
+  scope: 'origin' | 'pair' | 'start-origin',
   value: string
 ) {
   const digest =
@@ -428,6 +437,66 @@ export class MaProfessorAccessDurableObject {
     return response
   }
 
+  private async handleLoginStart(
+    request: Request
+  ) {
+    const connectingIp =
+      getConnectingIp(request)
+
+    if (!connectingIp) {
+      return this.existing.fetch(request)
+    }
+
+    const key =
+      await hashLoginGuardKey(
+        'start-origin',
+        connectingIp
+      )
+    const now = Date.now()
+    const guardState =
+      normalizeLoginGuardState(
+        await this.state.storage.get<LoginGuardState>(
+          LOGIN_GUARD_STORAGE_KEY
+        )
+      )
+
+    pruneLoginGuardState(guardState, now)
+
+    let bucket = guardState.buckets[key]
+
+    if (
+      !bucket ||
+      now - bucket.windowStartedAt >= LOGIN_START_WINDOW_MS
+    ) {
+      makeRoomForLoginGuardBucket(guardState, key)
+      bucket = {
+        windowStartedAt: now,
+        count: 0,
+        blockedUntil: null,
+        lastSeenAt: now
+      }
+    }
+
+    if (bucket.count >= LOGIN_START_MAX_ATTEMPTS) {
+      return createLoginRateLimitResponse(
+        bucket.windowStartedAt + LOGIN_START_WINDOW_MS,
+        now
+      )
+    }
+
+    bucket.count += 1
+    bucket.lastSeenAt = now
+    guardState.buckets[key] = bucket
+    guardState.updatedAt = now
+
+    await this.state.storage.put(
+      LOGIN_GUARD_STORAGE_KEY,
+      guardState
+    )
+
+    return this.existing.fetch(request)
+  }
+
   private async handleLogin(
     request: Request
   ) {
@@ -564,6 +633,13 @@ export class MaProfessorAccessDurableObject {
   ) {
     const url =
       new URL(request.url)
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === PUBLIC_OPAQUE_LOGIN_START_PATH
+    ) {
+      return this.handleLoginStart(request)
+    }
 
     if (
       request.method === 'POST' &&

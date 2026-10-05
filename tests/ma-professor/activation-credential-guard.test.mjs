@@ -150,6 +150,18 @@ async function stageGuard() {
             body: await request.clone().text()
           })
 
+          if (new URL(request.url).pathname.endsWith('/access/account/verify')) {
+            const body = await request.clone().json()
+            const valid = body.token === 'verified-token' && body.deviceId === 'device'
+            return new Response(JSON.stringify({
+              success: valid,
+              email: valid ? 'docente@example.com' : undefined
+            }), {
+              status: valid ? 200 : 401,
+              headers: { 'Content-Type': 'application/json' }
+            })
+          }
+
           return new Response(
             JSON.stringify({
               success: true,
@@ -546,7 +558,7 @@ test(
 )
 
 test(
-  'blocked access request origins do not keep writing and non-signup request flows are not throttled',
+  'blocked signup origins still allow canonically verified own-account requests',
   async t => {
     const {
       guard,
@@ -626,7 +638,7 @@ test(
             plan:
               'paid_30_days',
             token:
-              'token',
+              'verified-token',
             deviceId:
               'device'
           },
@@ -641,8 +653,8 @@ test(
     )
     assert.equal(
       lower.delegatedRequests.length,
-      31,
-      'Os 30 pedidos iniciais email-only e o fluxo autenticado devem continuar a ser delegados.'
+      32,
+      'Os 30 pedidos iniciais, a verificação canónica e o pedido autenticado devem continuar a ser delegados.'
     )
   }
 )

@@ -536,7 +536,7 @@ test(
 )
 
 test(
-  'blocked origins do not keep delegating and session-token requests bypass the public signup guard',
+  'blocked origins cannot bypass the public signup guard with a forged session token',
   async t => {
     const {
       guard,
@@ -617,11 +617,15 @@ test(
 
     assert.equal(
       sessionRequest.status,
-      401
+      429
     )
     assert.equal(
       lower.delegatedRequests.length,
       delegatedAtBlock + 1
+    )
+    assert.ok(
+      lower.delegatedRequests.at(-1).url.endsWith('/access/account/verify'),
+      'Only canonical session verification is delegated; the blocked signup is not.'
     )
   }
 )

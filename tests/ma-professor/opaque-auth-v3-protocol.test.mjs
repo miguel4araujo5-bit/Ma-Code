@@ -105,6 +105,38 @@ const opaque =
     protocolUrl
   )
 
+test('a full pending-login store preserves the oldest login and does not run another cryptographic start', () => {
+  const state = opaque.createFreshOpaqueAuthState(100)
+  const runtime = fakeRuntime()
+  enroll(state, runtime, 'teacher@example.com', 'teacher-record', 110)
+  const input = {
+    email: 'teacher@example.com', deviceId: 'login-device', startLoginRequest: 'login-request'
+  }
+  const first = opaque.startOpaqueLogin(state, runtime, input, 200)
+  for (let index = 1; index < 64; index++) {
+    opaque.startOpaqueLogin(state, runtime, { ...input, email: `unknown-${index}@example.com` }, 200 + index)
+  }
+  const before = structuredClone(state.pendingLogins)
+  assert.throws(() => opaque.startOpaqueLogin(state, runtime, input, 300), /OPAQUE_LOGIN_CAPACITY_REACHED/)
+  assert.deepEqual(state.pendingLogins, before)
+  assert.deepEqual(opaque.finishOpaqueLogin(state, runtime, {
+    email: input.email, deviceId: input.deviceId, loginId: first.loginId,
+    finishLoginRequest: 'proof:teacher-record'
+  }, 301), { email: input.email, deviceId: input.deviceId })
+  assert.equal(opaque.startOpaqueLogin(state, runtime, input, 302).loginResponse, 'login-response:65')
+  assert.equal(Object.keys(state.pendingLogins).length, 64)
+})
+
+test('expired pending logins release capacity without evicting live logins', () => {
+  const state = opaque.createFreshOpaqueAuthState(100)
+  const runtime = fakeRuntime()
+  const input = { email: 'unknown@example.com', deviceId: 'login-device', startLoginRequest: 'login-request' }
+  for (let index = 0; index < 64; index++) opaque.startOpaqueLogin(state, runtime, input, 1000)
+  assert.throws(() => opaque.startOpaqueLogin(state, runtime, input, 120999), /OPAQUE_LOGIN_CAPACITY_REACHED/)
+  const started = opaque.startOpaqueLogin(state, runtime, input, 121000)
+  assert.deepEqual(Object.keys(state.pendingLogins), [started.loginId])
+})
+
 function enroll(
   state,
   runtime,

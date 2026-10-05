@@ -1617,7 +1617,34 @@ export class MaProfessorAccessDurableObject {
             started.expiresAt
           ).toISOString()
       })
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'OPAQUE_LOGIN_CAPACITY_REACHED'
+      ) {
+        const retryAfter = Math.max(
+          1,
+          Math.ceil(
+            (
+              Math.min(
+                ...Object.values(opaqueState.pendingLogins)
+                  .map(pending => pending.expiresAt)
+              ) - Date.now()
+            ) / 1000
+          )
+        )
+
+        return json(
+          {
+            success: false,
+            message:
+              'Existem muitos pedidos de início de sessão em curso. Aguarde um pouco antes de tentar novamente.'
+          },
+          429,
+          { 'Retry-After': String(retryAfter) }
+        )
+      }
+
       return json(
         {
           success:

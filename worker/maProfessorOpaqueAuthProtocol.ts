@@ -197,42 +197,6 @@ function prunePendingLogins(
         ]
     }
   }
-
-  const entries =
-    Object.entries(
-      state.pendingLogins
-    )
-
-  if (
-    entries.length <
-      MAX_PENDING_LOGINS
-  ) {
-    return
-  }
-
-  entries
-    .sort(
-      (
-        left,
-        right
-      ) =>
-        left[1].createdAt -
-        right[1].createdAt
-    )
-    .slice(
-      0,
-      entries.length -
-        MAX_PENDING_LOGINS +
-        1
-    )
-    .forEach(
-      ([id]) => {
-        delete state
-          .pendingLogins[
-            id
-          ]
-      }
-    )
 }
 
 function ensureServerSetup(
@@ -530,6 +494,12 @@ export function startOpaqueLogin(
     state,
     now
   )
+
+  if (
+    Object.keys(state.pendingLogins).length >= MAX_PENDING_LOGINS
+  ) {
+    throw new Error('OPAQUE_LOGIN_CAPACITY_REACHED')
+  }
 
   const serverSetup =
     ensureServerSetup(

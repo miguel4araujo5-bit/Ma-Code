@@ -41,9 +41,11 @@ const [worker, client, api] = await Promise.all([
 
 class MemoryStorage {
   values = new Map()
+  putKeys = []
   async get(key) { return structuredClone(this.values.get(key)) }
   async put(key, value) {
     for (const [name, entry] of typeof key === 'string' ? [[key, value]] : Object.entries(key)) {
+      this.putKeys.push(name)
       this.values.set(name, structuredClone(entry))
     }
   }
@@ -52,7 +54,7 @@ class MemoryStorage {
 function setup() {
   const storage = new MemoryStorage()
   const state = { storage, blockConcurrencyWhile: callback => callback() }
-  const object = new worker.MaProfessorAccessDurableObject(state, {})
+  let object = new worker.MaProfessorAccessDurableObject(state, {})
   const requests = []
   const post = (path, body, ip = '203.0.113.80') => object.fetch(new Request(`https://ma-code.pt${path}`, {
     method: 'POST',
@@ -80,8 +82,140 @@ function setup() {
     }
     return access
   }
-  return { storage, requests, post, fetch, approve, readAccess }
+  const restart = () => { object = new worker.MaProfessorAccessDurableObject(state, {}) }
+  return { storage, requests, post, fetch, approve, readAccess, restart }
 }
+
+// Prepare a real client proof while pausing before the server consumes it.
+async function setupPendingLogin(t, email) {
+  const fixture = setup()
+  let finishBody
+  t.mock.method(globalThis, 'fetch', (path, init) => {
+    if (path.endsWith('/opaque/login/finish')) {
+      finishBody = JSON.parse(init.body)
+      return Promise.resolve(new Response(JSON.stringify({ success: false, message: 'Login em pausa para teste.' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' }
+      }))
+    }
+    return fixture.fetch(path, init)
+  })
+  const password = 'password fictícia para teste de limites'
+  const deviceId = 'pending-guard-device'
+  await api.submitMAProfessorAccessRequest(email)
+  await client.registerMAProfessorOpaqueAccount(email, password, deviceId)
+  await assert.rejects(client.loginMAProfessorOpaqueOnly(email, password, deviceId))
+  assert.ok(finishBody)
+  const startBody = fixture.requests.find(item => item.path.endsWith('/opaque/login/start')).body
+  return { ...fixture, finishBody, startBody }
+}
+
+test('login-start guard admits 25 per two-minute origin window, preserves finishes and survives restart', async t => {
+  let now = Date.now()
+  t.mock.method(Date, 'now', () => now)
+  const fixture = await setupPendingLogin(t, 'start-window@example.com')
+  const path = '/api/ma-professor/access/opaque/login/start'
+  // The paused real login is the first attempt from the school origin.
+  for (let index = 1; index < 25; index++) {
+    assert.equal((await fixture.post(path, fixture.startBody)).status, 200)
+  }
+  const before = fixture.storage.putKeys.length
+  const limited = await fixture.post(path, fixture.startBody)
+  assert.equal(limited.status, 429)
+  assert.equal(limited.headers.get('Retry-After'), '120')
+  assert.equal(fixture.storage.putKeys.length, before, 'Rejected starts add no storage writes')
+  assert.equal((await fixture.post(path, fixture.startBody, '198.51.100.7')).status, 200)
+  assert.equal((await fixture.post('/api/ma-professor/access/opaque/login/finish', fixture.finishBody)).status, 200,
+    'A valid proof can finish even when new starts from its origin are blocked')
+  fixture.restart()
+  assert.equal((await fixture.post(path, fixture.startBody)).status, 429)
+  now += 119999
+  const stillLimited = await fixture.post(path, fixture.startBody)
+  assert.equal(stillLimited.status, 429)
+  assert.equal(stillLimited.headers.get('Retry-After'), '1')
+  now += 1
+  assert.equal((await fixture.post(path, fixture.startBody)).status, 200)
+  const storedGuard = await fixture.storage.get('ma-professor-login-guard-v1')
+  assert.doesNotMatch(JSON.stringify(storedGuard), /203\.0\.113\.80|198\.51\.100\.7/)
+})
+
+test('global login saturation returns 429 while the first real OPAQUE proof still succeeds', async t => {
+  const fixture = await setupPendingLogin(t, 'global-capacity@example.com')
+  const path = '/api/ma-professor/access/opaque/login/start'
+  for (let index = 1; index < 64; index++) {
+    assert.equal((await fixture.post(path, fixture.startBody, `198.51.100.${index}`)).status, 200)
+  }
+  const before = await fixture.storage.get(OPAQUE_KEY)
+  assert.equal(Object.keys(before.pendingLogins).length, 64)
+  const rejected = await fixture.post(path, fixture.startBody, '198.51.100.200')
+  assert.equal(rejected.status, 429)
+  assert.ok(Number(rejected.headers.get('Retry-After')) > 0)
+  assert.deepEqual(await fixture.storage.get(OPAQUE_KEY), before)
+  const finished = await fixture.post('/api/ma-professor/access/opaque/login/finish', fixture.finishBody)
+  assert.equal(finished.status, 200)
+  assert.ok((await finished.json()).token)
+  assert.equal((await fixture.post(path, fixture.startBody, '198.51.100.201')).status, 200)
+})
+
+test('signup privacy requires a live own-account session; forged, foreign and expired tokens remain public and limited', async () => {
+  const fixture = setup()
+  const email = 'session-owner@example.com'
+  const approvedEmail = 'approved-privacy@example.com'
+  await fixture.post('/api/ma-professor/access/request', { email })
+  await fixture.post('/api/ma-professor/access/request', { email: approvedEmail })
+  await fixture.approve(approvedEmail)
+  const now = Date.now()
+  const deviceId = 'privacy-session-device'
+  const sessions = {}
+  for (const [token, owner, overrides] of [
+    ['own-valid-token', email, {}],
+    ['foreign-valid-token', 'other-owner@example.com', {}],
+    ['revoked-token', email, { revokedAt: now }],
+    ['expired-token', email, { createdAt: now - 181 * 24 * 60 * 60 * 1000 }]
+  ]) {
+    const hash = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))).toString('base64')
+    sessions[hash] = { tokenHash: hash, email: owner, deviceId, createdAt: now, lastSeenAt: now, revokedAt: null, ...overrides }
+  }
+  await fixture.storage.put('ma-professor-access-sessions-v1', { schemaVersion: 1, sessions, updatedAt: now })
+  fixture.restart()
+  for (const [token, candidateDevice] of [
+    ['invented-token', deviceId], ['own-valid-token', 'wrong-device'],
+    ['foreign-valid-token', deviceId], ['revoked-token', deviceId], ['expired-token', deviceId]
+  ]) {
+    for (const candidateEmail of [email, approvedEmail, 'unknown-privacy@example.com']) {
+      const response = await fixture.post('/api/ma-professor/access/request', {
+        email: candidateEmail, token, deviceId: candidateDevice
+      }, '203.0.113.180')
+      assert.equal(response.status, 200)
+      const body = await response.json()
+      assert.deepEqual(body.request, {
+        email: candidateEmail, status: 'pending', requestedAt: null,
+        approvedAt: null, rejectedAt: null, activatedAt: null
+      })
+      assert.equal(body.canActivate, false)
+    }
+  }
+  const origin = '203.0.113.181'
+  for (let index = 0; index < 30; index++) {
+    assert.equal((await fixture.post('/api/ma-professor/access/request', {
+      email, token: `invented-${index}`, deviceId
+    }, origin)).status, 200)
+  }
+  assert.equal((await fixture.post('/api/ma-professor/access/request', {
+    email, token: 'invented-31', deviceId
+  }, origin)).status, 429)
+  assert.equal((await fixture.post('/api/ma-professor/access/request', {
+    email: approvedEmail, token: 'own-valid-token', deviceId
+  }, origin)).status, 429, 'A valid token for a different email cannot bypass the public limit')
+  const legitimate = await fixture.post('/api/ma-professor/access/request', {
+    email, token: 'own-valid-token', deviceId, plan: 'paid_30_days'
+  }, origin)
+  assert.equal(legitimate.status, 200)
+  const ownBody = await legitimate.json()
+  assert.ok(ownBody.request.requestedAt, 'The authenticated own-account route preserves its real response')
+  const access = await fixture.readAccess()
+  assert.equal(access.accessRequests[approvedEmail].status, 'approved')
+  assert.equal(access.licenses[email], undefined, 'Choosing a plan does not activate a licence')
+})
 
 for (const plan of ['free', 'paid_30_days', 'school_year']) {
   test(`pending OPAQUE account can sign in and choose ${plan}, while tools require approval and activation`, async t => {
