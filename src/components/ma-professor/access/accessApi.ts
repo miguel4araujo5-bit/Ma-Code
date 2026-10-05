@@ -247,6 +247,20 @@ export async function activateMAProfessorAccessPeriod(
   )
 }
 
+export async function activateMAProfessorAccessLink(
+  email: string,
+  activationPassword: string
+) {
+  return postJson<MAProfessorLicenseResponse>(
+    '/activate',
+    {
+      email,
+      activationPassword,
+      activationOnly: true
+    }
+  )
+}
+
 export interface MAProfessorOpaqueEnrollmentStartResponse {
   success: true
   enrollmentId: string

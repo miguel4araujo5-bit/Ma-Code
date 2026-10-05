@@ -817,6 +817,9 @@ export class MaProfessorAccessDurableObject {
         body.activationPassword
       )
 
+    const activationOnly =
+      body.activationOnly === true
+
     const deviceId =
       normalizeDeviceId(
         body.deviceId
@@ -864,6 +867,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     if (
+      !activationOnly &&
       !deviceId
     ) {
       return json(
@@ -927,6 +931,9 @@ export class MaProfessorAccessDurableObject {
               email,
               activationPassword,
               deviceId,
+              ...(activationOnly
+                ? { activationOnly: true }
+                : {}),
               ...(termsVersion
                 ? {
                     termsVersion
@@ -990,6 +997,15 @@ export class MaProfessorAccessDurableObject {
       STORAGE_KEY,
       accessState
     )
+
+    if (activationOnly) {
+      return json({
+        success: true,
+        email,
+        license: delegatedBody.license,
+        message: 'Acesso ativado.'
+      })
+    }
 
     return json({
       ...delegatedBody,

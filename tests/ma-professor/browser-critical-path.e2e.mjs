@@ -323,16 +323,15 @@ async function installOfflineApi(page) {
       )
 
       activated = true
-      activeToken = TOKEN
-      cloudWorker.setToken(
-        activeToken
-      )
+      if (body.activationOnly !== true) {
+        activeToken = TOKEN
+        cloudWorker.setToken(activeToken)
+      }
 
       return fulfilJson(route, {
         success:
           true,
-        token:
-          activeToken,
+        ...(body.activationOnly === true ? {} : { token: activeToken }),
         email:
           EMAIL,
         license
@@ -855,8 +854,14 @@ try {
 
   await waitHeading(
     page,
-    'Ativar período de acesso'
+    'Acesso ativado'
   )
+
+  assert.equal(await page.locator('input').count(), 0)
+  assert.equal(await page.evaluate(() => window.localStorage.getItem('ma-professor-access-v1')), null)
+  await page.getByRole('button', { name: 'Abrir o MA-Professor', exact: true }).click()
+  await page.getByRole('button', { name: 'Já tenho acesso', exact: true }).first().click()
+  await page.getByLabel('Email', { exact: true }).fill(EMAIL)
 
   await page
     .getByLabel(
@@ -871,29 +876,11 @@ try {
     )
 
   await page
-    .getByLabel(
-      'Confirmar password pessoal',
-      {
-        exact:
-          true
-      }
-    )
-    .fill(
-      PERSONAL_PASSWORD
-    )
-
-  await page
-    .getByRole(
-      'checkbox'
-    )
-    .check()
-
-  await page
     .getByRole(
       'button',
       {
         name:
-          'Ativar período',
+          'Entrar',
         exact:
           true
       }

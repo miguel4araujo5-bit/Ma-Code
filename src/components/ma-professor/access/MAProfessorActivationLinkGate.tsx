@@ -7,11 +7,10 @@ import {
 } from 'react'
 
 import {
-  activateMAProfessorAccessPeriod
+  activateMAProfessorAccessLink
 } from './accessApi'
 
 import {
-  getOrCreateMAProfessorDeviceId,
   readMAProfessorStoredAccess,
   saveMAProfessorStoredAccess
 } from './accessStorage'
@@ -50,42 +49,16 @@ export default function MAProfessorActivationLinkGate({
       []
     )
 
-  /*
-   * Sem sessão local correspondente, este gate não consome nem limpa
-   * o link MP: o MAProfessorAuthGate precisa dele para criar primeiro
-   * a password local e concluir o enrollment OPAQUE.
-   */
-  const hasMatchingStoredAccess =
-    useMemo(
-      () => {
-        if (!activationLink) {
-          return false
-        }
-
-        const stored =
-          readMAProfessorStoredAccess()
-
-        return Boolean(
-          stored &&
-          stored.email
-            .trim()
-            .toLowerCase() ===
-            activationLink.email
-        )
-      },
-      [activationLink]
-    )
-
   const [
     state,
     setState
   ] = useState<
     | 'idle'
     | 'activating'
+    | 'activated'
     | 'failed'
   >(
-    activationLink &&
-    hasMatchingStoredAccess
+    activationLink
       ? 'activating'
       : 'idle'
   )
@@ -113,60 +86,33 @@ export default function MAProfessorActivationLinkGate({
       setState('activating')
       setError('')
 
-      const stored =
-        readMAProfessorStoredAccess()
-
-      if (
-        stored &&
-        stored.email
-          .trim()
-          .toLowerCase() ===
-          activationLink.email &&
-        isLicenseUsable(
-          stored.license
-        )
-      ) {
-        setState('idle')
-        return
-      }
-
       try {
-        const deviceId =
-          getOrCreateMAProfessorDeviceId()
-
         const response =
-          await activateMAProfessorAccessPeriod(
+          await activateMAProfessorAccessLink(
             activationLink.email,
-            activationLink.activationPassword,
-            deviceId
+            activationLink.activationPassword
           )
 
-        if (!response.license) {
+        if (!isLicenseUsable(response.license)) {
           throw new Error(
             'A ativação foi concluída sem uma licença válida. Contacte a MA-CODE.'
           )
         }
 
-        saveMAProfessorStoredAccess({
-          token:
-            response.token,
-          email:
-            (
-              response.email ||
-              response.license.email ||
-              activationLink.email
-            )
-              .trim()
-              .toLowerCase(),
-          deviceId,
-          license:
-            response.license,
-          checkedAt:
-            new Date()
-              .toISOString()
-        })
+        const stored = readMAProfessorStoredAccess()
 
-        setState('idle')
+        if (
+          stored &&
+          stored.email.trim().toLowerCase() === activationLink.email
+        ) {
+          saveMAProfessorStoredAccess({
+            ...stored,
+            license: response.license,
+            checkedAt: new Date().toISOString()
+          })
+        }
+
+        setState('activated')
       } catch (
         activationError
       ) {
@@ -184,8 +130,7 @@ export default function MAProfessorActivationLinkGate({
   useEffect(
     () => {
       if (
-        !activationLink ||
-        !hasMatchingStoredAccess
+        !activationLink
       ) {
         return
       }
@@ -202,17 +147,13 @@ export default function MAProfessorActivationLinkGate({
       )
 
       void activate()
-    // O link sem sessão existente fica intacto para o MAProfessorAuthGate
-    // criar primeiro a password local e concluir o enrollment OPAQUE.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-      activationLink,
-      hasMatchingStoredAccess
+      activationLink
     ])
 
   if (
     !activationLink ||
-    !hasMatchingStoredAccess ||
     state === 'idle'
   ) {
     return <>{children}</>
@@ -234,8 +175,27 @@ export default function MAProfessorActivationLinkGate({
                 Só um momento…
               </h1>
               <p className="mt-3 text-sm leading-7 text-slate-400">
-                Estamos a validar a senha recebida por email e a iniciar o seu período de acesso.
+                Estamos a validar o código recebido por email e a ativar o acesso da sua conta.
               </p>
+            </>
+          ) : state === 'activated' ? (
+            <>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                MA-Professor
+              </p>
+              <h1 className="mt-3 text-2xl font-black tracking-tight text-white">
+                Acesso ativado
+              </h1>
+              <p className="mt-3 text-sm leading-7 text-slate-400">
+                O acesso da sua conta está ativo. Pode entrar no MA-Professor com o seu email e a password que definiu na inscrição.
+              </p>
+              <button
+                type="button"
+                onClick={() => setState('idle')}
+                className="mt-6 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+              >
+                Abrir o MA-Professor
+              </button>
             </>
           ) : (
             <>

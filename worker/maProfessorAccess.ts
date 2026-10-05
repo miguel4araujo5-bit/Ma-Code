@@ -2093,6 +2093,9 @@ export class MaProfessorAccessDurableObject {
         body.activationPassword
       )
 
+    const activationOnly =
+      body.activationOnly === true
+
     const deviceId =
       normalizeId(
         body.deviceId
@@ -2139,6 +2142,7 @@ export class MaProfessorAccessDurableObject {
     }
 
     if (
+      !activationOnly &&
       deviceId.length <
       12
     ) {
@@ -2358,9 +2362,10 @@ export class MaProfessorAccessDurableObject {
         renewalRequestedPlan:
           null,
 
-        deviceIds: [
-          deviceId
-        ],
+        deviceIds:
+          activationOnly
+            ? []
+            : [deviceId],
 
         createdAt:
           now,
@@ -2400,6 +2405,7 @@ export class MaProfessorAccessDurableObject {
        * os dados cifrados nesse novo dispositivo.
        */
       if (
+        !activationOnly &&
         !license
           .deviceIds
           .includes(
@@ -2430,6 +2436,16 @@ export class MaProfessorAccessDurableObject {
             deviceId
           )
       }
+    }
+
+    if (activationOnly) {
+      license.updatedAt = now
+      await this.save()
+
+      return json({
+        success: true,
+        license: buildLicenseSummary(license, now)
+      })
     }
 
     const token =

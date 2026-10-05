@@ -131,7 +131,91 @@ for (const plan of ['free', 'paid_30_days', 'school_year']) {
       assert.equal(JSON.stringify(body).includes(pending.exportKey), false)
     }
   })
+
+  test(`email link activates ${plan} without a login or device session; another device uses the original OPAQUE password`, async t => {
+    const fixture = setup()
+    t.mock.method(globalThis, 'fetch', fixture.fetch)
+    const email = `email-link-${plan}@example.com`
+    const password = 'password criada uma vez durante a inscrição'
+
+    await api.submitMAProfessorAccessRequest(email)
+    await client.registerMAProfessorOpaqueAccount(email, password, 'signup-device')
+    const registration = (await fixture.storage.get(OPAQUE_KEY)).registrations[email]
+    const activationPassword = await fixture.approve(email, plan)
+    const before = await fixture.readAccess()
+    assert.deepEqual(before.sessions, {})
+    assert.equal(before.licenses[email], undefined)
+
+    const firstActivationRequest = fixture.requests.length
+    const activated = await api.activateMAProfessorAccessLink(email, activationPassword)
+    assert.equal(activated.license.status, 'active')
+    assert.equal(activated.license.plan, plan === 'free' ? 'beta_30_days' : plan)
+    assert.equal(activated.token, undefined, 'The email code activates access, but cannot sign in')
+    assert.deepEqual(fixture.requests.slice(firstActivationRequest), [{
+      path: '/api/ma-professor/access/activate',
+      body: { email, activationPassword, activationOnly: true }
+    }])
+
+    const after = await fixture.readAccess()
+    assert.ok(after.accessRequests[email].activatedAt)
+    assert.deepEqual(after.sessions, {})
+    assert.deepEqual(after.licenses[email].deviceIds, [])
+    assert.deepEqual((await fixture.storage.get(OPAQUE_KEY)).registrations[email], registration)
+    assert.equal(after.credentials[email], undefined, 'The emailed activation code is consumed')
+
+    await assert.rejects(client.loginMAProfessorOpaqueOnly(email, 'outra password incorreta', 'second-device'))
+    const login = await client.loginMAProfessorOpaqueOnly(email, password, 'second-device')
+    assert.ok(login.response.token)
+    for (const key of ['email', 'plan', 'status', 'validFrom', 'validUntil']) {
+      assert.equal(login.response.license[key], activated.license[key])
+    }
+    const verified = await api.verifyMAProfessorAccountSession(login.response.token, 'second-device')
+    assert.equal(verified.email, email)
+    assert.deepEqual(verified.license, login.response.license)
+    assert.equal((await fixture.post('/api/ma-professor/access/verify', {
+      token: login.response.token, deviceId: 'second-device'
+    })).status, 200)
+    assert.deepEqual((await fixture.storage.get(OPAQUE_KEY)).registrations[email], registration)
+    for (const { body } of fixture.requests) {
+      assert.equal(JSON.stringify(body).includes(password), false)
+      assert.equal(Object.hasOwn(body, 'personalPassword'), false)
+    }
+  })
 }
+
+test('activation-only preserves existing sessions and requires a valid code and completed OPAQUE registration', async t => {
+  const fixture = setup()
+  t.mock.method(globalThis, 'fetch', fixture.fetch)
+  const email = 'existing-session-email-link@example.com'
+  const password = 'a mesma password pessoal antes e depois'
+  await api.submitMAProfessorAccessRequest(email)
+  await client.registerMAProfessorOpaqueAccount(email, password, 'existing-device')
+  const login = await client.loginMAProfessorOpaqueOnly(email, password, 'existing-device')
+  const activationPassword = await fixture.approve(email)
+  const before = await fixture.readAccess()
+
+  await assert.rejects(api.activateMAProfessorAccessLink(email, 'MP-INCORRECT'))
+  assert.equal((await fixture.readAccess()).licenses[email], undefined)
+  const wrongMode = await fixture.post('/api/ma-professor/access/activate', {
+    email, activationPassword, activationOnly: 'true'
+  })
+  assert.equal(wrongMode.status, 400)
+
+  await api.activateMAProfessorAccessLink(email, activationPassword)
+  const after = await fixture.readAccess()
+  assert.deepEqual(after.sessions, before.sessions)
+  assert.equal((await api.verifyMAProfessorAccountSession(login.response.token, 'existing-device')).license.status, 'active')
+
+  // A consumed code cannot create another session or reset the access period.
+  await assert.rejects(api.activateMAProfessorAccessLink(email, activationPassword))
+  assert.deepEqual((await fixture.readAccess()).licenses[email], after.licenses[email])
+
+  const missingRegistration = 'missing-registration-email-link@example.com'
+  await api.submitMAProfessorAccessRequest(missingRegistration)
+  const missingRegistrationCode = await fixture.approve(missingRegistration)
+  await assert.rejects(api.activateMAProfessorAccessLink(missingRegistration, missingRegistrationCode))
+  assert.equal((await fixture.readAccess()).licenses[missingRegistration], undefined)
+})
 
 test('anonymous signup retries neither enumerate nor replace pending, approved or existing accounts', async t => {
   const fixture = setup()

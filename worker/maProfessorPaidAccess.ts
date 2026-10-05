@@ -1575,7 +1575,7 @@ async function handlePaidActivation(
             ? baseBody.token
             : '';
 
-    if (!token) {
+    if (!token && body.activationOnly !== true) {
         return json(
             {
                 success: false,
@@ -1743,7 +1743,7 @@ async function handlePaidActivation(
 
     return json({
         success: true,
-        token,
+        ...(body.activationOnly === true ? {} : { token }),
         license:
             buildLicenseSummary(
                 license,

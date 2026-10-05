@@ -54,7 +54,7 @@ const accessSteps = [
         number: '3',
         title: 'Começar a utilizar',
         description:
-            'Se o acesso for aprovado, recebe por email a senha de ativação e utiliza a password pessoal que escolheu no pedido para concluir a ativação protegida. A senha MP não substitui a password pessoal.'
+            'Se o acesso for aprovado, clique em «Ativar acesso» no email recebido. A conta fica ativada sem iniciar sessão. Depois, entre no MA-Professor com o seu email e a password pessoal que escolheu no pedido.'
     }
 ];
 
