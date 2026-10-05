@@ -101,8 +101,8 @@ test('v3 push keeps profile and record revisions under symmetric CAS', () => {
   assert.match(push, /record_revision = \?/)
   assert.match(push, /UPDATE ma_professor_sync_profiles/)
   assert.match(push, /AND EXISTS \(/)
-  assert.match(push, /results\[0\]\?\.meta\?\.changes === 1/)
-  assert.match(push, /results\[1\]\?\.meta\?\.changes === 1/)
+  assert.match(push, /\(results\[0\]\?\.meta\?\.changes \?\? 0\) > 0/)
+  assert.match(push, /\(results\[1\]\?\.meta\?\.changes \?\? 0\) > 0/)
 })
 
 test('status rejects stored profiles that are not valid v3 profiles', () => {
