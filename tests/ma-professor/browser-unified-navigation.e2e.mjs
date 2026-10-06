@@ -567,13 +567,18 @@ try {
   const pupilEditor = page.locator('article').filter({ has: page.getByLabel('Aluno com critérios ACS', { exact: true }) })
   await pupilEditor.getByLabel('Aluno com critérios ACS', { exact: true }).check()
   await pupilEditor.getByText('Este aluno passa a usar critérios ACS. As avaliações concluídas mantêm-se.', { exact: true }).waitFor()
+  // Saving produces a new snapshot timestamp, as it does with a running clock.
+  await page.clock.setFixedTime(new Date('2026-09-21T09:30:01+01:00'))
   await pupilEditor.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.getByText('Os dados de Aluno ACS E2E foram guardados.', { exact: true }).waitFor()
+  await pupilEditor.waitFor({ state: 'hidden' })
   await page.waitForFunction(async () => {
     const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
     const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
     return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.usesAcs === true
   })
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
+  await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
   const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
   await scheduledLesson.click()
   assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
