@@ -574,6 +574,9 @@ try {
     return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.usesAcs === true
   })
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
+  const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
+  await scheduledLesson.click()
+  assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
   const details = page.getByRole('button', { name: /^(Detalhes|Ocultar detalhes)$/ })
   await details.waitFor()
   if (await details.textContent() === 'Detalhes') await details.click()
@@ -596,6 +599,7 @@ try {
   })
   await page.reload()
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
+  await scheduledLesson.click()
   await details.waitFor()
   if (await details.textContent() === 'Detalhes') await details.click()
   await page.getByLabel('Interação de Aluno ACS E2E', { exact: true }).waitFor()
