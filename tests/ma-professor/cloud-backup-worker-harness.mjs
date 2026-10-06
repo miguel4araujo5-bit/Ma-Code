@@ -6,6 +6,7 @@ import { build } from 'esbuild'
 // Run the production Worker and SQL in browser tests; only D1/DO bindings are local.
 export async function createCloudBackupWorkerHarness(email, token) {
   let acceptedToken = token
+  let accessStatus = 200
 
   const source = await readFile(new URL('../../worker/maProfessorCloudBackup.ts', import.meta.url), 'utf8')
   const timedSource = source.replaceAll('Date.now()', 'testNow()') + '\nlet testClock = Date.now(); function testNow() { return testClock } export function advanceTestClock(ms) { testClock += ms }'
@@ -42,12 +43,14 @@ export async function createCloudBackupWorkerHarness(email, token) {
   const env = { MA_PROFESSOR_DB: binding, MA_PROFESSOR_ACCESS: {
     idFromName: name => name, get: () => ({ fetch: async request => {
       const body = await request.json()
+      if (accessStatus !== 200) return Response.json({ success: false, message: 'Serviço de acesso temporariamente indisponível.' }, { status: accessStatus })
       return Response.json(body.token === acceptedToken ? { success: true, license: { email, status: 'active' } } : { success: false }, { status: body.token === acceptedToken ? 200 : 401 })
     } })
   } }
   return {
     handle: request => worker.handleMAProfessorCloudBackupApiRequest(request, env),
     setToken: value => { acceptedToken = value },
+    setAccessStatus: value => { accessStatus = value },
     advance: milliseconds => worker.advanceTestClock(milliseconds),
     close: () => db.close()
   }
