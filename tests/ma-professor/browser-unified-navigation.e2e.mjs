@@ -573,7 +573,7 @@ try {
     const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
     return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.usesAcs === true
   })
-  await primary(page).getByRole('button', { name: 'Diário', exact: false }).click()
+  await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   const details = page.getByRole('button', { name: /^(Detalhes|Ocultar detalhes)$/ })
   await details.waitFor()
   if (await details.textContent() === 'Detalhes') await details.click()
@@ -595,7 +595,7 @@ try {
       snapshot.studentRows.find(row => row.student.id === fixture.normalId)?.gradeSummary.provisionalAverage === 14
   })
   await page.reload()
-  await primary(page).getByRole('button', { name: 'Diário', exact: false }).click()
+  await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   await details.waitFor()
   if (await details.textContent() === 'Detalhes') await details.click()
   await page.getByLabel('Interação de Aluno ACS E2E', { exact: true }).waitFor()
