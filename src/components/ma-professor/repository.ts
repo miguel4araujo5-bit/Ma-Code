@@ -1,3 +1,4 @@
+import { persistStudentsWithAssessmentProfiles } from './students/studentAssessmentProfileRepository'
 import {
   ensureDefaultMAProfessorSettings,
   maProfessorDb,
@@ -49,6 +50,7 @@ export interface StudentDraft {
   number: string
   name: string
   notes?: string
+  usesAcs?: boolean
 }
 
 export interface AssessmentCriterionDraft {
@@ -1827,11 +1829,7 @@ export class MAProfessorRepository {
         }
       )
 
-    await maProfessorDb.students.bulkPut(
-      records
-    )
-
-    return records
+    return persistStudentsWithAssessmentProfiles(records, drafts.map(draft => draft.usesAcs))
   }
 
   async listStudents(

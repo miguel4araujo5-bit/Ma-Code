@@ -220,7 +220,7 @@ function hasCriteriaCoverage(snapshot: SetupSnapshot) {
       .map(criterion => criterion.schemeId)
   )
   const schemes = snapshot.assessmentSchemes.filter(scheme =>
-    scheme.active && schemesWithCriteria.has(scheme.id)
+    scheme.active && scheme.profile !== 'acs' && schemesWithCriteria.has(scheme.id)
   )
   const modules = snapshot.modules.filter(module => module.active)
 

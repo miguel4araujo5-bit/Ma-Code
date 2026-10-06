@@ -28,6 +28,9 @@ export interface DailyCriteriaGridSnapshot {
     EntityId,
     Record<EntityId, Score>
   >
+  criterionIdsByStudentId?: Record<EntityId, EntityId[]>
+  acsCriterionIds?: EntityId[]
+  acsStudentIds?: EntityId[]
   activity: string
 }
 
@@ -288,6 +291,9 @@ export class DailyCriteriaGridRepository {
       criteria:
         workspace.criteria,
       scoresByStudentId,
+      criterionIdsByStudentId: workspace.criterionIdsByStudentId,
+      acsCriterionIds: workspace.acsCriterionIds,
+      acsStudentIds: workspace.acsStudentIds,
       activity
     }
   }
@@ -318,6 +324,9 @@ export class DailyCriteriaGridRepository {
         )
       )
 
+    const isApplicable = (studentId: EntityId, criterionId: EntityId) =>
+      workspace.criterionIdsByStudentId?.[studentId]?.includes(criterionId) ?? true
+
     for (const row of input.rows) {
       if (
         !workspaceStudentIds.has(
@@ -339,6 +348,7 @@ export class DailyCriteriaGridRepository {
       }
 
       for (const criterion of workspace.criteria) {
+        if (!isApplicable(row.studentId, criterion.id)) continue
         if (!row.scores[criterion.id]?.trim()) {
           continue
         }
@@ -352,8 +362,10 @@ export class DailyCriteriaGridRepository {
     }
 
     for (const criterion of workspace.criteria) {
+      const eligibleRows = input.rows.filter(row => isApplicable(row.studentId, criterion.id))
+      if (eligibleRows.length === 0) continue
       const entries =
-        input.rows.flatMap<
+        eligibleRows.flatMap<
           AssessmentResultDraft
         >(
           row => {

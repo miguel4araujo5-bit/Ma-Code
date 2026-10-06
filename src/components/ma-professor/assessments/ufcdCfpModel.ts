@@ -203,8 +203,7 @@ export function buildUfcdCfpModel(
   const rows = snapshot.studentRows.map(
     row => {
       const usesAcs =
-        row.finalGradeRecord
-          ?.usesAcs ?? false
+        row.assessmentProfile === 'acs' || row.finalGradeRecord?.usesAcs === true
 
       const criterionScores =
         criteria.map(

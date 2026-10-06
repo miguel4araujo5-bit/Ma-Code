@@ -50,7 +50,7 @@ test('advanced criteria import preserves manual subject and UFCD destination con
 test('advanced destination suggestions use the same resolver without forcing a save target', () => {
   assert.match(
     advanced,
-    /const destinationResolution = useMemo\([\s\S]*resolveAssessmentCriteriaDestinations\(snapshot, detectedSubject\)/
+    /const destinationResolution = useMemo\([\s\S]*resolveAssessmentCriteriaDestinations\(snapshot, detectedSubject, profile\)/
   )
   assert.match(
     advanced,

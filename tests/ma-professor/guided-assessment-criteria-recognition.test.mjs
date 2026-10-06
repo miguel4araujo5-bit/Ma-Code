@@ -69,6 +69,7 @@ const DetailedPanel = require(join(output, base, 'setup/AssessmentCriteriaPdfImp
 const { resolveAssessmentCriteriaDestinations: destinations } = require(join(output, base, 'setup/assessmentCriteriaDestinations.js'))
 const { maProfessorDb: db } = require(join(output, base, 'db.js'))
 const { maProfessorRepository: repository } = require(join(output, base, 'repository.js'))
+const { assessmentCriteriaBatchRepository: criteriaBatch } = require(join(output, base, 'assessmentCriteriaBatchRepository.js'))
 
 const audit = { active: true, academicYearId: 'year', createdAt: '2026-01-01', updatedAt: '2026-01-01' }
 function state() {
@@ -238,6 +239,30 @@ test('Word drop automatically prepares all years, a single apply saves identical
     assert.match(ui.host.textContent, /já estão configurados/)
     assert.deepEqual(await db.assessmentSchemes.toArray(), schemes)
     assert.deepEqual(await db.assessmentCriteria.toArray(), criteria)
+  } finally { await ui.close() }
+})
+
+test('marking an imported document as ACS creates independent criteria for every selected class', async () => {
+  await seed()
+  await criteriaBatch.createSubjectSchemes({ academicYearId: 'year', teachingAssignmentIds: ['a10', 'a11', 'a12'], name: 'Gerais', criteria: [{ name: 'Desempenho', weightPercent: 100 }] })
+  const originalSchemes = await db.assessmentSchemes.toArray()
+  const originalCriteria = await db.assessmentCriteria.toArray()
+  const ui = await mount(GuidedPanel, await repository.getSetupSnapshot('year'))
+  try {
+    const label = [...ui.host.querySelectorAll('label')].find(item => item.textContent.includes('Este documento contém critérios ACS'))
+    await ui.click(label.querySelector('input'))
+    await ui.drop(wordFile('Área de Expressões', [30, 30, 40]))
+    await ui.settle(() => Boolean(ui.button('Aplicar critérios')))
+    assert.equal(ui.button('Aplicar critérios').disabled, false)
+    await ui.click(ui.button('Aplicar critérios'))
+    await ui.settle(() => ui.refreshes() === 1)
+    const schemes = await db.assessmentSchemes.toArray()
+    const adapted = schemes.filter(item => item.profile === 'acs')
+    assert.deepEqual(adapted.map(item => item.teachingAssignmentId).sort(), ['a10', 'a11', 'a12'])
+    assert.deepEqual(schemes.filter(item => item.profile !== 'acs'), originalSchemes)
+    const criteria = await db.assessmentCriteria.toArray()
+    assert.deepEqual(criteria.filter(item => originalCriteria.some(original => original.id === item.id)), originalCriteria)
+    for (const scheme of adapted) assert.deepEqual(criteria.filter(item => item.schemeId === scheme.id).sort((a, b) => a.order - b.order).map(item => item.weightPercent), [30, 30, 40])
   } finally { await ui.close() }
 })
 

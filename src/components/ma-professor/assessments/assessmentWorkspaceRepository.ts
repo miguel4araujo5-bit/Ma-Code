@@ -5,7 +5,8 @@ import {
 
 import {
   listStudentRecoveryAssessmentGrades,
-  listStudentRecoveryCriterionScores
+  listStudentRecoveryCriterionScores,
+  type LearningRecoveryAssessmentRecord
 } from '../attendance/recoveryAssessmentRepository'
 
 import type {
@@ -150,7 +151,7 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
     const recoveries = await maProfessorDb.learningRecoveries.where('moduleId').equals(snapshot.selectedModule.id).toArray()
     if (recoveries.length === 0) return snapshot
     const studentRows = snapshot.studentRows.map(row => {
-      const history = recoveries.filter(recovery => recovery.studentId === row.student.id)
+      const history = recoveries.filter(recovery => recovery.studentId === row.student.id && (recovery.status !== 'completed' || row.assessmentProfile !== 'acs' || !row.student.acsEnabledAt || recovery.createdAt >= row.student.acsEnabledAt))
       const pending = history.some(recovery => recovery.status !== 'completed')
       const completed = history.filter(recovery => recovery.status === 'completed' && recovery.recoveryGrade != null).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
       if (!pending && !completed) return row
@@ -174,7 +175,7 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
 
     if (
       !snapshot.selectedModule ||
-      snapshot.criteria.length === 0 ||
+      (snapshot.criteria.length === 0 && (snapshot.acsCriteria?.length ?? 0) === 0) ||
       snapshot.activities.length === 0 ||
       snapshot.studentRows.length === 0
     ) {
@@ -268,23 +269,28 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
     const studentRows =
       snapshot.studentRows.map(
         row => {
+          const studentCriteria = row.assessmentProfile === 'acs' ? snapshot.acsCriteria ?? [] : snapshot.criteria
+          const studentRecoveries = row.assessmentProfile === 'acs' && row.student.acsEnabledAt
+            ? recoveries.filter(recovery =>
+                ((recovery as LearningRecoveryAssessmentRecord).assessmentRecordedAt ?? recovery.createdAt) >= row.student.acsEnabledAt!
+              ) : recoveries
           const recoveryGrades =
             listStudentRecoveryAssessmentGrades(
-              recoveries,
-              snapshot.criteria,
+              studentRecoveries,
+              studentCriteria,
               row.student.id
             )
 
           const recoveryCriterionScores =
             listStudentRecoveryCriterionScores(
-              recoveries,
-              snapshot.criteria,
+              studentRecoveries,
+              studentCriteria,
               row.student.id
             )
 
           const calculation =
             calculateStudentLessonGradeSummary(
-              snapshot.criteria,
+              studentCriteria,
               assessments,
               results,
               row.student.id,
@@ -293,7 +299,7 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
 
           const criteria =
             calculateStudentCriterionGradeBreakdown(
-              snapshot.criteria,
+              studentCriteria,
               assessments,
               results,
               row.student.id,
@@ -574,7 +580,7 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
         existing?.suggestedGrade ?? 0,
       selfAssessmentGrade: null,
       usesAcs:
-        existing?.usesAcs ?? false,
+        studentRow?.assessmentProfile === 'acs' || existing?.usesAcs === true,
       finalGrade: null,
       qualitativeFinalGrade,
       descriptiveAssessment,

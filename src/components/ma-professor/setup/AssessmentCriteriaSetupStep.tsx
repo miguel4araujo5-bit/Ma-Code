@@ -1,3 +1,5 @@
+import { schemeAssessmentProfile } from '../assessments/assessmentProfiles'
+import type { AssessmentProfile } from '../types'
 import { type FormEvent, useMemo, useRef, useState } from 'react'
 
 import { assessmentCriteriaBatchRepository } from '../assessmentCriteriaBatchRepository'
@@ -24,6 +26,7 @@ type CriterionFormRow = {
 }
 
 type CriteriaFormState = {
+  profile: AssessmentProfile
   teachingAssignmentIds: EntityId[]
   scope: AssessmentSchemeScope
   moduleTeachingAssignmentId: EntityId
@@ -32,6 +35,7 @@ type CriteriaFormState = {
 }
 
 const emptyForm: CriteriaFormState = {
+  profile: 'general',
   teachingAssignmentIds: [],
   scope: 'subject',
   moduleTeachingAssignmentId: '',
@@ -194,7 +198,7 @@ export default function AssessmentCriteriaSetupStep({
       const schemes = schemesByAssignment.get(assignment.id) ?? []
       if (
         schemes.some(
-          scheme => scheme.active && scheme.scope === 'subject'
+          scheme => scheme.active && scheme.scope === 'subject' && schemeAssessmentProfile(scheme) === form.profile
         )
       ) {
         result.add(assignment.id)
@@ -202,14 +206,14 @@ export default function AssessmentCriteriaSetupStep({
     })
 
     return result
-  }, [assignments, schemesByAssignment])
+  }, [assignments, schemesByAssignment, form.profile])
 
   const uncoveredAssignments = useMemo(
     () =>
       assignments.filter(assignment => {
         const schemes = schemesByAssignment.get(assignment.id) ?? []
         const hasSubjectScheme = schemes.some(
-          scheme => scheme.active && scheme.scope === 'subject'
+          scheme => scheme.active && scheme.scope === 'subject' && schemeAssessmentProfile(scheme) === 'general'
         )
 
         if (hasSubjectScheme) return false
@@ -227,7 +231,7 @@ export default function AssessmentCriteriaSetupStep({
             !schemes.some(
               scheme =>
                 scheme.active &&
-                scheme.scope === 'module' &&
+                scheme.scope === 'module' && schemeAssessmentProfile(scheme) === 'general' &&
                 scheme.moduleId === module.id
             )
         )
@@ -247,6 +251,7 @@ export default function AssessmentCriteriaSetupStep({
   const weightIsValid = Math.abs(weightTotal - 100) < 0.001
 
   const hasUnsavedCriteriaDraft =
+    form.profile !== emptyForm.profile ||
     form.scope !== emptyForm.scope ||
     form.teachingAssignmentIds.length > 0 ||
     Boolean(form.moduleTeachingAssignmentId || form.moduleId) ||
@@ -303,6 +308,7 @@ export default function AssessmentCriteriaSetupStep({
     setForm(current => ({
       ...current,
       scope,
+      profile: 'general',
       teachingAssignmentIds: [],
       moduleTeachingAssignmentId: '',
       moduleId: ''
@@ -495,6 +501,7 @@ export default function AssessmentCriteriaSetupStep({
     setSuccess('')
 
     try {
+      if (form.profile === 'acs' && form.scope !== 'subject') throw new Error('Os critérios ACS devem ser definidos por disciplina.')
       const criterionDrafts = validateCriteria()
       const submittedScope = form.scope
 
@@ -508,6 +515,7 @@ export default function AssessmentCriteriaSetupStep({
         await assessmentCriteriaBatchRepository.createSubjectSchemes({
           academicYearId: snapshot.academicYear.id,
           teachingAssignmentIds: form.teachingAssignmentIds,
+          profile: form.profile,
           name: form.schemeName,
           criteria: criterionDrafts,
           active: true
@@ -611,6 +619,12 @@ export default function AssessmentCriteriaSetupStep({
           ponderações. Depois escolha as disciplinas onde o pretende
           aplicar.
         </p>
+
+        <label className="mt-5 flex items-center gap-2 text-sm font-bold text-emerald-100">
+          <input type="checkbox" checked={form.profile === 'acs'} disabled={busy}
+            onChange={event => setForm(current => ({ ...current, profile: event.target.checked ? 'acs' : 'general', scope: 'subject', teachingAssignmentIds: [] }))} className="h-4 w-4 rounded" />
+          Critérios de avaliação ACS
+        </label>
 
         <div className="mt-7 space-y-5">
           <label className="block">
@@ -1032,7 +1046,7 @@ export default function AssessmentCriteriaSetupStep({
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <p className="font-bold text-white">
-                                {scheme.name}
+                                {scheme.name}{scheme.profile === 'acs' ? ' · ACS' : ''}
                               </p>
                               <p className="mt-1 text-xs leading-5 text-slate-500">
                                 {scheme.scope === 'subject'

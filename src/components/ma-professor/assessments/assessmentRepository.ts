@@ -1,3 +1,4 @@
+import { schemeAssessmentProfile, studentAssessmentProfile } from './assessmentProfiles'
 import {
   ensureDefaultMAProfessorSettings,
   maProfessorDb,
@@ -11,6 +12,7 @@ import {
 import type {
   AssessmentActivityType,
   AssessmentCriterion,
+  AssessmentProfile,
   AssessmentResult,
   AssessmentResultStatus,
   AssessmentScheme,
@@ -68,6 +70,9 @@ export interface LessonAssessmentWorkspace {
   module: ModuleUnit
   scheme: AssessmentScheme | null
   criteria: AssessmentCriterion[]
+  criterionIdsByStudentId?: Record<EntityId, EntityId[]>
+  acsCriterionIds?: EntityId[]
+  acsStudentIds?: EntityId[]
   students: Student[]
   assessments: LessonAssessmentWorkspaceItem[]
 }
@@ -513,7 +518,8 @@ async function resolveActiveScheme(
   teachingAssignmentId:
     EntityId,
   moduleId:
-    EntityId
+    EntityId,
+  profile: AssessmentProfile = 'general'
 ): Promise<{
   scheme: AssessmentScheme | null
   criteria: AssessmentCriterion[]
@@ -534,7 +540,7 @@ async function resolveActiveScheme(
       (
         scheme
       ) =>
-        scheme.active
+        scheme.active && schemeAssessmentProfile(scheme) === profile
     )
 
   const moduleSchemes =
@@ -665,13 +671,15 @@ async function assertCriterionAvailable(
   moduleId:
     EntityId
 ) {
+  const original = await getCriterionAndScheme(criterionId)
   const {
     scheme,
     criteria
   } =
     await resolveActiveScheme(
       teachingAssignmentId,
-      moduleId
+      moduleId,
+      schemeAssessmentProfile(original.scheme)
     )
 
   if (
@@ -826,6 +834,7 @@ export class AssessmentRepository {
 
     const [
       schemeContext,
+      acsContext,
       assessments
     ] =
       await Promise.all([
@@ -834,6 +843,7 @@ export class AssessmentRepository {
           module.id
         ),
 
+        resolveActiveScheme(assignment.id, module.id, 'acs'),
         maProfessorDb
           .lessonAssessments
           .where(
@@ -886,6 +896,13 @@ export class AssessmentRepository {
         evidenceStudentIds
       )
 
+    const hasAcsStudents = students.some(student => studentAssessmentProfile(student, module.id) === 'acs')
+    const acsCriteria = hasAcsStudents ? acsContext.criteria : []
+    const allCriteria = [...schemeContext.criteria, ...acsCriteria]
+    const criterionIdsByStudentId = Object.fromEntries(students.map(student => [student.id,
+      (studentAssessmentProfile(student, module.id) === 'acs' ? acsCriteria : schemeContext.criteria).map(criterion => criterion.id)
+    ]))
+
     const assessmentItems =
       await Promise.all(
         sortAssessments(
@@ -907,6 +924,8 @@ export class AssessmentRepository {
                 assessment.id
               ) ??
               []
+            const eligibleIds = new Set(students.filter(student => studentAssessmentProfile(student, module.id) === schemeAssessmentProfile(scheme)).map(student => student.id))
+            const applicableResults = results.filter(result => eligibleIds.has(result.studentId))
 
             if (
               scheme.teachingAssignmentId !==
@@ -919,7 +938,7 @@ export class AssessmentRepository {
 
             const resultStudentIds =
               new Set(
-                results.map(
+                applicableResults.map(
                   (
                     result
                   ) =>
@@ -932,10 +951,10 @@ export class AssessmentRepository {
               criterion,
 
               resultCount:
-                results.length,
+                applicableResults.length,
 
               evaluatedCount:
-                results.filter(
+                applicableResults.filter(
                   (
                     result
                   ) =>
@@ -944,7 +963,7 @@ export class AssessmentRepository {
                 ).length,
 
               absentCount:
-                results.filter(
+                applicableResults.filter(
                   (
                     result
                   ) =>
@@ -953,7 +972,7 @@ export class AssessmentRepository {
                 ).length,
 
               exemptCount:
-                results.filter(
+                applicableResults.filter(
                   (
                     result
                   ) =>
@@ -963,11 +982,11 @@ export class AssessmentRepository {
 
               average:
                 calculateAverage(
-                  results
+                  applicableResults
                 ),
 
               complete:
-                students.every(
+                students.filter(student => eligibleIds.has(student.id)).every(
                   (
                     student
                   ) =>
@@ -987,10 +1006,12 @@ export class AssessmentRepository {
       module,
 
       scheme:
-        schemeContext.scheme,
+        schemeContext.scheme ?? (hasAcsStudents ? acsContext.scheme : null),
 
-      criteria:
-        schemeContext.criteria,
+      criteria: allCriteria,
+      acsCriterionIds: acsCriteria.map(criterion => criterion.id),
+      acsStudentIds: students.filter(student => studentAssessmentProfile(student, module.id) === 'acs').map(student => student.id),
+      criterionIdsByStudentId,
 
       students,
 
@@ -1298,7 +1319,7 @@ export class AssessmentRepository {
       ])
 
     const students =
-      await listStudentsForLesson(
+      (await listStudentsForLesson(
         group.id,
         lesson,
         new Set(
@@ -1307,7 +1328,7 @@ export class AssessmentRepository {
               result.studentId
           )
         )
-      )
+      )).filter(student => studentAssessmentProfile(student, module.id) === schemeAssessmentProfile(scheme))
 
     if (
       scheme.teachingAssignmentId !==
@@ -1317,6 +1338,8 @@ export class AssessmentRepository {
         'O critério desta avaliação não pertence à turma e disciplina da aula.'
       )
     }
+
+    const applicableResults = results.filter(result => students.some(student => student.id === result.studentId))
 
     const resultByStudent =
       new Map(
@@ -1371,7 +1394,7 @@ export class AssessmentRepository {
       rows,
 
       evaluatedCount:
-        results.filter(
+        applicableResults.filter(
           (
             result
           ) =>
@@ -1380,7 +1403,7 @@ export class AssessmentRepository {
         ).length,
 
       absentCount:
-        results.filter(
+        applicableResults.filter(
           (
             result
           ) =>
@@ -1389,7 +1412,7 @@ export class AssessmentRepository {
         ).length,
 
       exemptCount:
-        results.filter(
+        applicableResults.filter(
           (
             result
           ) =>
@@ -1399,7 +1422,7 @@ export class AssessmentRepository {
 
       average:
         calculateAverage(
-          results
+          applicableResults
         ),
 
       complete:
@@ -1445,8 +1468,9 @@ export class AssessmentRepository {
         assessment.id
       )
 
+    const { scheme } = await getCriterionAndScheme(assessment.criterionId)
     const students =
-      await listStudentsForLesson(
+      (await listStudentsForLesson(
         group.id,
         lesson,
         new Set(
@@ -1455,7 +1479,7 @@ export class AssessmentRepository {
               result.studentId
           )
         )
-      )
+      )).filter(student => studentAssessmentProfile(student, lesson.moduleId) === schemeAssessmentProfile(scheme))
 
     const studentById =
       new Map(

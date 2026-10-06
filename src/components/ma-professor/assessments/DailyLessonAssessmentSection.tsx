@@ -123,9 +123,13 @@ function getErrorMessage(error: unknown) {
 }
 
 function createRowsFromWorkspace(
-  workspace: LessonAssessmentWorkspace
+  workspace: LessonAssessmentWorkspace,
+  criterionId = ''
 ): DailyAssessmentRow[] {
-  return workspace.students.map(student => ({
+  return workspace.students.filter(student =>
+    !criterionId || !workspace.criterionIdsByStudentId ||
+    workspace.criterionIdsByStudentId[student.id]?.includes(criterionId)
+  ).map(student => ({
     studentId: student.id,
     studentNumber: student.number,
     studentName: student.name,
@@ -154,18 +158,17 @@ function createRowsFromRegister(
 function createDraftState(
   workspace: LessonAssessmentWorkspace
 ): DraftAssessmentState {
+  const criterionId = resolveQuickCriterionId(
+    workspace.criteria,
+    workspace.assessments.map(item => item.assessment)
+  )
   return {
     enabled: false,
     title: '',
-    criterionId: resolveQuickCriterionId(
-      workspace.criteria,
-      workspace.assessments.map(
-        item => item.assessment
-      )
-    ),
+    criterionId,
     activityType: 'practical_work',
     description: '',
-    rows: createRowsFromWorkspace(workspace)
+    rows: createRowsFromWorkspace(workspace, criterionId)
   }
 }
 
@@ -1280,7 +1283,10 @@ const DailyLessonAssessmentSection = forwardRef<
                         current
                           ? {
                               ...current,
-                              criterionId: event.target.value
+                              criterionId: event.target.value,
+                              rows: createRowsFromWorkspace(workspace, event.target.value).map(row =>
+                                current.rows.find(existing => existing.studentId === row.studentId) ?? row
+                              )
                             }
                           : current
                       )
@@ -1299,7 +1305,7 @@ const DailyLessonAssessmentSection = forwardRef<
                         key={criterion.id}
                         value={criterion.id}
                       >
-                        {criterion.name} · {criterion.weightPercent}%
+                        {workspace.acsCriterionIds?.includes(criterion.id) ? 'ACS · ' : ''}{criterion.name} · {criterion.weightPercent}%
                       </option>
                     ))}
                   </select>

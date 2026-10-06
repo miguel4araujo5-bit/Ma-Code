@@ -5,6 +5,8 @@ import {
   useState
 } from 'react'
 
+import type { AssessmentProfile } from '../types'
+
 import AssessmentCriteriaManagementPanel from './AssessmentCriteriaManagementPanel'
 
 import {
@@ -81,6 +83,8 @@ export default function CriteriaWorkspaceView({
         snapshot.assignmentOptions
       ]
     )
+
+  const [profile, setProfile] = useState<AssessmentProfile>('general')
 
   const [
     selectedSubjectId,
@@ -162,7 +166,8 @@ export default function CriteriaWorkspaceView({
     void assessmentCriteriaManagementRepository
       .getSubjectContext(
         snapshot.academicYear.id,
-        selectedSubjectId
+        selectedSubjectId,
+        profile
       )
       .then(
         result => {
@@ -199,7 +204,8 @@ export default function CriteriaWorkspaceView({
   }, [
     selectedSubjectId,
     snapshot.academicYear.id,
-    snapshot.generatedAt
+    snapshot.generatedAt,
+    profile
   ])
 
   const selectedSubjectOption =
@@ -335,6 +341,17 @@ export default function CriteriaWorkspaceView({
         </div>
 
         <div className="px-5 py-6 sm:px-7">
+          <label className="mb-4 block max-w-2xl text-sm font-bold text-slate-200">
+            Tipo de critérios
+            <select value={profile} onChange={event => {
+              setCriteriaOverride(null)
+              setProfile(event.target.value as AssessmentProfile)
+            }} disabled={subjectLoading}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm text-white">
+              <option value="general">Critérios gerais</option>
+              <option value="acs">Critérios ACS</option>
+            </select>
+          </label>
           <label className="block max-w-2xl">
             <span className="mb-2 block text-sm font-bold text-slate-200">
               Disciplina
@@ -411,17 +428,19 @@ export default function CriteriaWorkspaceView({
       ) : !subjectContext?.scheme ? (
         <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6">
           <p className="text-sm font-black text-amber-100">
-            Não existe um conjunto de critérios gerais ativo para {subjectLabel}.
+            Não existe um conjunto de critérios {profile === 'acs' ? 'ACS' : 'gerais'} ativo para {subjectLabel}.
           </p>
 
           <p className="mt-2 text-sm leading-6 text-amber-100/75">
-            Esta disciplina pode estar configurada apenas com critérios específicos por UFCD/módulo. Pode consultá-los na gestão avançada ou corrigir a configuração inicial.
+            {profile === 'acs'
+              ? 'Pode importar os critérios ACS desta disciplina em Corrigir configuração inicial.'
+              : 'Esta disciplina pode estar configurada apenas com critérios específicos por UFCD/módulo. Pode consultá-los na gestão avançada ou corrigir a configuração inicial.'}
           </p>
         </section>
       ) : !subjectContext.aligned ? (
         <section className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.06] p-6">
           <p className="text-sm font-black text-amber-100">
-            Os critérios gerais de {subjectLabel} diferem entre turmas.
+            Os critérios {profile === 'acs' ? 'ACS' : 'gerais'} de {subjectLabel} diferem entre turmas.
           </p>
 
           <p className="mt-2 text-sm leading-6 text-amber-100/75">
@@ -432,7 +451,7 @@ export default function CriteriaWorkspaceView({
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 shadow-xl shadow-black/20">
           <div className="px-5 pt-5 sm:px-7 sm:pt-7">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-              Critérios gerais da disciplina
+              Critérios {profile === 'acs' ? 'ACS' : 'gerais'} da disciplina
             </p>
 
             <h2 className="mt-3 text-xl font-black text-white">
@@ -443,7 +462,7 @@ export default function CriteriaWorkspaceView({
               Aplicados a {subjectContext.coveredTeachingAssignmentIds.length}{' '}
               {subjectContext.coveredTeachingAssignmentIds.length === 1
                 ? 'turma'
-                : 'turmas'} com critérios gerais.
+                : 'turmas'} com critérios {profile === 'acs' ? 'ACS' : 'gerais'}.
             </p>
           </div>
 

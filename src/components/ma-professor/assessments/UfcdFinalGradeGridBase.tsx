@@ -194,9 +194,7 @@ function getPersistedDraft(
           ),
 
     usesAcs:
-      row.finalGradeRecord
-        ?.usesAcs ??
-      false
+      row.assessmentProfile === 'acs' || row.finalGradeRecord?.usesAcs === true
   }
 }
 
@@ -421,7 +419,7 @@ export default function UfcdFinalGradeGrid({
             </h2>
 
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
-              As médias dos domínios vêm diretamente das avaliações já registadas. Marque ACS nos alunos com medidas; nesses casos a média global é apresentada na coluna ACS a 100%.
+              As médias dos domínios vêm diretamente das avaliações já registadas. A indicação ACS vem da ficha do aluno e usa os critérios ACS da disciplina.
             </p>
           </div>
 
@@ -660,10 +658,9 @@ export default function UfcdFinalGradeGrid({
                                 )
                               }
                               disabled={
-                                !ready ||
-                                saving ||
-                                loading
+                                true
                               }
+                              title="A indicação ACS é definida na ficha do aluno."
                               className="h-3.5 w-3.5 rounded border-white/20 bg-slate-900 text-emerald-300 focus:ring-emerald-300/30 disabled:opacity-40"
                             />
                             Aluno com medidas · ACS

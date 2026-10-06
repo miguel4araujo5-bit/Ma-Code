@@ -36,6 +36,7 @@ type StudentFormRow = {
   name: string
   notes: string
   persisted: boolean
+  usesAcs?: boolean
 }
 
 const inputClassName =
@@ -81,6 +82,7 @@ function createStudentRow(
     number: student.number,
     name: student.name,
     notes: student.notes,
+    usesAcs: student.usesAcs === true,
     persisted: true
   }
 }
@@ -204,7 +206,8 @@ function isMeaningfulRow(
   return Boolean(
     row.number.trim() ||
       row.name.trim() ||
-      row.notes.trim()
+      row.notes.trim() ||
+      row.usesAcs === true
   )
 }
 
@@ -587,7 +590,9 @@ export default function StudentsSetupStep({
             row.name !==
               persistedStudent.name ||
             row.notes !==
-              persistedStudent.notes
+              persistedStudent.notes ||
+            (row.usesAcs === true) !==
+              (persistedStudent.usesAcs === true)
           )
         )
       }
@@ -702,6 +707,7 @@ export default function StudentsSetupStep({
         | 'number'
         | 'name'
         | 'notes'
+        | 'usesAcs'
       >
     >
   ) {
@@ -1038,7 +1044,8 @@ export default function StudentsSetupStep({
           number,
           name,
           notes:
-            row.notes
+            row.notes,
+          usesAcs: row.usesAcs
         }
       }
     )
@@ -1395,6 +1402,16 @@ export default function StudentsSetupStep({
                         <p className="text-sm font-black text-white">
                           Aluno
                         </p>
+
+                        <label className="mt-4 flex items-center gap-2 text-sm font-bold text-emerald-100">
+                          <input type="checkbox" checked={row.usesAcs === true}
+                            onChange={event => updateRow(row.localId, { usesAcs: event.target.checked })}
+                            disabled={busy} className="h-4 w-4 rounded" />
+                          Aluno com critérios ACS
+                        </label>
+                        {(row.usesAcs === true) !== (persistedStudentsById.get(row.localId)?.usesAcs === true) ? (
+                          <p className="mt-2 text-xs text-slate-400">Este aluno passa a usar critérios {row.usesAcs ? 'ACS' : 'gerais'}. As avaliações concluídas mantêm-se.</p>
+                        ) : null}
 
                         {row.persisted ? (
                           <p className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-emerald-200">

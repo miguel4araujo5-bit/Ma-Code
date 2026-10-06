@@ -1,3 +1,4 @@
+import { schemeAssessmentProfile } from './assessments/assessmentProfiles'
 import {
   maProfessorDb,
   openMAProfessorDatabase
@@ -5,6 +6,7 @@ import {
 
 import type {
   AssessmentCriterion,
+  AssessmentProfile,
   AssessmentScheme,
   EntityId,
   TeachingAssignment
@@ -19,6 +21,7 @@ export interface SubjectAssessmentCriterionDraft {
 }
 
 export interface CreateSubjectAssessmentSchemesBatchInput {
+  profile?: AssessmentProfile
   academicYearId: EntityId
   teachingAssignmentIds: EntityId[]
   name: string
@@ -233,7 +236,8 @@ function assertAssignments(
 
 async function assertNoExistingSubjectSchemes(
   teachingAssignmentIds:
-    EntityId[]
+    EntityId[],
+  profile: AssessmentProfile = 'general'
 ) {
   const existingSchemes =
     await maProfessorDb
@@ -251,7 +255,8 @@ async function assertNoExistingSubjectSchemes(
       scheme =>
         scheme.active &&
         scheme.scope ===
-          'subject'
+          'subject' &&
+        schemeAssessmentProfile(scheme) === profile
     )
   ) {
     throw new Error(
@@ -281,6 +286,7 @@ function createScheme(
     teachingAssignmentId,
     moduleId: null,
     scope: 'subject',
+    profile: input.profile ?? 'general',
     name:
       normalizedName,
     active:
@@ -377,7 +383,7 @@ export class AssessmentCriteriaBatchRepository {
     )
 
     await assertNoExistingSubjectSchemes(
-      input.teachingAssignmentIds
+      input.teachingAssignmentIds, input.profile
     )
 
     const created =
@@ -420,7 +426,7 @@ export class AssessmentCriteriaBatchRepository {
         )
 
         await assertNoExistingSubjectSchemes(
-          input.teachingAssignmentIds
+          input.teachingAssignmentIds, input.profile
         )
 
         await maProfessorDb

@@ -92,7 +92,12 @@ export interface Student extends AuditFields {
   active: boolean
   notes: string
   membershipPeriods?: StudentMembershipPeriod[]
+  usesAcs?: boolean
+  acsEnabledAt?: ISODateTime
+  assessmentProfilesByModule?: Record<EntityId, AssessmentProfile>
 }
+
+export type AssessmentProfile = 'general' | 'acs'
 
 export type AssessmentSchemeScope =
   | 'subject'
@@ -106,6 +111,7 @@ export interface AssessmentScheme extends AuditFields {
   scope: AssessmentSchemeScope
   name: string
   active: boolean
+  profile?: AssessmentProfile
 }
 
 export interface AssessmentCriterion extends AuditFields {

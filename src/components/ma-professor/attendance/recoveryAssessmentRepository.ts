@@ -1,3 +1,4 @@
+import { studentAssessmentProfile } from '../assessments/assessmentProfiles'
 import {
   maProfessorDb,
   openMAProfessorDatabase
@@ -5,6 +6,7 @@ import {
 
 import type {
   AssessmentCriterion,
+  AssessmentProfile,
   AssessmentScheme,
   EntityId,
   LearningRecovery,
@@ -58,12 +60,14 @@ export function resolveRecoveryAssessmentCriteria(
   teachingAssignmentId: EntityId,
   moduleId: EntityId,
   schemes: AssessmentScheme[],
-  criteria: AssessmentCriterion[]
+  criteria: AssessmentCriterion[],
+  profile: AssessmentProfile = 'general'
 ) {
   const activeSchemes =
     schemes.filter(
       scheme =>
         scheme.active &&
+        (scheme.profile === 'acs' ? 'acs' : 'general') === profile &&
         scheme.teachingAssignmentId ===
           teachingAssignmentId
     )
@@ -323,7 +327,8 @@ async function readRecoveryAssessmentContext(
     module,
     assignment,
     schemes,
-    criteria
+    criteria,
+    student
   ] = await Promise.all([
     maProfessorDb.modules.get(
       recovery.moduleId
@@ -336,7 +341,8 @@ async function readRecoveryAssessmentContext(
       .equals(recovery.academicYearId)
       .toArray(),
     maProfessorDb.assessmentCriteria
-      .toArray()
+      .toArray(),
+    maProfessorDb.students.get(recovery.studentId)
   ])
 
   if (
@@ -367,7 +373,8 @@ async function readRecoveryAssessmentContext(
     assignment.id,
     module.id,
     schemes,
-    criteria
+    criteria,
+    student ? studentAssessmentProfile(student, module.id) : 'general'
   )
 }
 
@@ -378,7 +385,8 @@ export class RecoveryAssessmentRepository {
 
   async listCriteria(
     teachingAssignmentId: EntityId,
-    moduleId: EntityId
+    moduleId: EntityId,
+    profile: AssessmentProfile = 'general'
   ) {
     await this.initialize()
 
@@ -424,7 +432,8 @@ export class RecoveryAssessmentRepository {
       assignment.id,
       module.id,
       schemes,
-      criteria
+      criteria,
+      profile
     )
   }
 
@@ -441,7 +450,8 @@ export class RecoveryAssessmentRepository {
         maProfessorDb.modules,
         maProfessorDb.teachingAssignments,
         maProfessorDb.assessmentSchemes,
-        maProfessorDb.assessmentCriteria
+        maProfessorDb.assessmentCriteria,
+        maProfessorDb.students
       ],
       async () => {
         const current =

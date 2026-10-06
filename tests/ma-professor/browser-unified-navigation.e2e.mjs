@@ -340,7 +340,7 @@ async function assertSingleNavigation(page) {
 
 try {
   await waitForVite(server)
-  browser = await chromium.launch({ headless: true })
+  browser = await chromium.launch({ headless: true, executablePath: process.env.MA_PROFESSOR_CHROMIUM_PATH })
   const context = await browser.newContext({ locale: 'pt-PT', timezoneId: 'Europe/Lisbon', viewport: { width: 1366, height: 900 } })
   page = await context.newPage()
   await page.clock.setFixedTime(new Date(FIXED_NOW))
@@ -533,6 +533,101 @@ try {
   assert.equal((await persistedLesson(page)).matchCount, 1)
   await page.reload()
   assert.equal((await persistedLesson(page)).matchCount, 1)
+
+  // Exercise ACS through the real pupil editor and mixed daily grade grid.
+  await page.evaluate(async summary => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    const { maProfessorRepository } = await import('/src/components/ma-professor/repository.ts')
+    const { assessmentCriteriaBatchRepository } = await import('/src/components/ma-professor/assessmentCriteriaBatchRepository.ts')
+    const { dailyCriteriaGridRepository } = await import('/src/components/ma-professor/daily/dailyCriteriaGridRepository.ts')
+    const db = await openMAProfessorDatabase()
+    const lesson = (await db.lessons.toArray()).find(item => item.summary === summary)
+    const assignment = await db.teachingAssignments.get(lesson.teachingAssignmentId)
+    const pupils = await maProfessorRepository.saveStudentsForGroup(lesson.academicYearId, assignment.groupId, [
+      { number: '1', name: 'Aluno geral E2E' }, { number: '2', name: 'Aluno ACS E2E' }
+    ])
+    const [general] = await assessmentCriteriaBatchRepository.createSubjectSchemes({ academicYearId: lesson.academicYearId,
+      teachingAssignmentIds: [assignment.id], name: 'Gerais E2E', criteria: [
+        { name: 'Conhecimentos', weightPercent: 60 }, { name: 'Participação', weightPercent: 20 }, { name: 'Autonomia', weightPercent: 20 }
+      ] })
+    await assessmentCriteriaBatchRepository.createSubjectSchemes({ academicYearId: lesson.academicYearId,
+      teachingAssignmentIds: [assignment.id], name: 'ACS E2E', profile: 'acs', criteria: [
+        { name: 'Interação', weightPercent: 70 }, { name: 'Envolvimento', weightPercent: 30 }
+      ] })
+    await dailyCriteriaGridRepository.saveLessonGrid({ lesson, summary, activity: 'Atividade E2E', rows: pupils.map(student => ({
+      studentId: student.id, attendanceStatus: 'present', scores: Object.fromEntries(general.criteria.map((criterion, index) => [criterion.id, String([16, 12, 10][index])]))
+    })) })
+    window.localStorage.setItem('ma-professor-e2e-acs-fixture', JSON.stringify({ yearId: lesson.academicYearId, assignmentId: assignment.id, moduleId: lesson.moduleId,
+      pupilId: pupils[1].id, normalId: pupils[0].id, lessonId: lesson.id, date: lesson.date }))
+  }, SUMMARY)
+  await page.reload()
+  await openDestination(page, 'Turmas e alunos', 1366)
+  const pupilCard = page.locator('article').filter({ hasText: 'Aluno ACS E2E' })
+  await pupilCard.getByRole('button', { name: 'Editar', exact: true }).click()
+  const pupilEditor = page.locator('article').filter({ has: page.getByLabel('Aluno com critérios ACS', { exact: true }) })
+  await pupilEditor.getByLabel('Aluno com critérios ACS', { exact: true }).check()
+  await pupilEditor.getByText('Este aluno passa a usar critérios ACS. As avaliações concluídas mantêm-se.', { exact: true }).waitFor()
+  // Saving produces a new snapshot timestamp, as it does with a running clock.
+  await page.clock.setFixedTime(new Date('2026-09-21T09:30:01+01:00'))
+  await pupilEditor.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.getByText('Os dados de Aluno ACS E2E foram guardados.', { exact: true }).waitFor()
+  await pupilEditor.waitFor({ state: 'hidden' })
+  await page.waitForFunction(async () => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
+    return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.usesAcs === true
+  })
+  await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
+  await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
+  const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
+  await scheduledLesson.click()
+  assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
+  const details = page.getByRole('button', { name: /^(Detalhes|Ocultar detalhes)$/ })
+  await details.waitFor()
+  if (await details.textContent() === 'Detalhes') await details.click()
+  const knowledge = page.getByLabel('Conhecimentos de Aluno geral E2E', { exact: true })
+  await knowledge.waitFor()
+  assert.equal(await knowledge.inputValue(), '16')
+  assert.equal(await page.getByLabel('Conhecimentos de Aluno ACS E2E', { exact: true }).isDisabled(), true)
+  assert.equal(await page.getByLabel('Interação de Aluno geral E2E', { exact: true }).isDisabled(), true)
+  const interaction = page.getByLabel('Interação de Aluno ACS E2E', { exact: true })
+  assert.equal(await interaction.inputValue(), '')
+  await interaction.selectOption('18')
+  await page.getByLabel('Envolvimento de Aluno ACS E2E', { exact: true }).selectOption('10')
+  await (await summaryEditor(page)).section.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await waitText(page, 'Aula, sumário, faltas e avaliações guardados.')
+  await page.waitForFunction(async () => {
+    const { assessmentWorkspaceRepository } = await import('/src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts')
+    const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
+    const snapshot = await assessmentWorkspaceRepository.getWorkspace(fixture.yearId, { teachingAssignmentId: fixture.assignmentId, moduleId: fixture.moduleId })
+    return snapshot.studentRows.find(row => row.student.id === fixture.pupilId)?.gradeSummary.provisionalAverage === 15.6 &&
+      snapshot.studentRows.find(row => row.student.id === fixture.normalId)?.gradeSummary.provisionalAverage === 14
+  })
+  await page.reload()
+  await primary(page).getByRole('button', { name: 'Hoje', exact: false }).waitFor()
+  const reopenedAcsScore = await page.evaluate(async () => {
+    const { dailyCriteriaGridRepository } = await import('/src/components/ma-professor/daily/dailyCriteriaGridRepository.ts')
+    const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
+    const grid = await dailyCriteriaGridRepository.getLessonGrid(fixture.lessonId)
+    const criterion = grid.criteria.find(item => item.name === 'Interação')
+    return grid.scoresByStudentId[fixture.pupilId]?.[criterion.id]
+  })
+  assert.equal(reopenedAcsScore, 18, 'ACS score remains persisted after reopening the database')
+  await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
+  await scheduledLesson.click()
+  assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
+  await details.waitFor()
+  if (await details.textContent() === 'Detalhes') await details.click()
+  await page.getByLabel('Interação de Aluno ACS E2E', { exact: true }).waitFor()
+  await page.waitForFunction(() => document.querySelector('select[aria-label="Interação de Aluno ACS E2E"]')?.value === '18')
+  assert.equal(await page.getByLabel('Interação de Aluno ACS E2E', { exact: true }).inputValue(), '18')
+  await openDestination(page, 'Critérios', 1366)
+  await page.getByLabel('Tipo de critérios').selectOption('acs')
+  await page.getByText('Interação', { exact: true }).first().waitFor()
+  await page.getByLabel('Tipo de critérios').selectOption('general')
+  await page.getByText('Conhecimentos', { exact: true }).first().waitFor()
+  assert.equal((await persistedLesson(page)).matchCount, 1)
+  evidence.push('ACS na ficha do aluno, grelha mista com critérios próprios, cálculo, recarregamento e seleção de critérios por tipo')
   assert.deepEqual(pageErrors, [])
   console.log('MA-Professor unified navigation: OK\n' + evidence.join('\n'))
 } catch (error) {

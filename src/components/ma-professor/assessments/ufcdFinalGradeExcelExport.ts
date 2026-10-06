@@ -611,8 +611,7 @@ function populateMoment(
           }
 
           const usesAcs =
-            studentRow.finalGradeRecord
-              ?.usesAcs ?? false
+            studentRow.assessmentProfile === 'acs' || studentRow.finalGradeRecord?.usesAcs === true
           const targetColumn =
             usesAcs
               ? adaptationColumn

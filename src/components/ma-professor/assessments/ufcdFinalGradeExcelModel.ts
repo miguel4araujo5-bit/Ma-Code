@@ -157,7 +157,7 @@ export function buildUfcdFinalGradeExcelModel(
   ])
 
   snapshot.studentRows.forEach(row => {
-    const usesAcs = row.finalGradeRecord?.usesAcs ?? false
+    const usesAcs = row.assessmentProfile === 'acs' || row.finalGradeRecord?.usesAcs === true
     const outputRow: Array<string | number | null> = [
       '',
       row.student.number,
