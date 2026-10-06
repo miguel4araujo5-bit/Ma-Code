@@ -2,6 +2,16 @@
 
 Este ficheiro é a única leitura obrigatória para uma conversa MA-CODE que tenha sido explicitamente ativada como trabalho de agente.
 
+## Estado operacional do MA-Professor — desde 2026-10-06
+
+Estas instruções aplicam-se a todas as tarefas do MA-Professor, mesmo sem ativação do modo agente.
+
+- O utilizador está a usar o programa ao vivo, com dados reais. Preservar o funcionamento atual, os dados guardados e o trabalho em curso é prioritário.
+- Investigar a causa antes de corrigir e limitar cada alteração ao problema autorizado. Evitar refatorações e alterações paralelas sem necessidade comprovada.
+- Quando o utilizador pedir primeiro um diagnóstico, apresentar a causa, a evidência e a correção proposta antes de implementar ou publicar a correção. Um pedido de investigação não autoriza alterar o funcionamento da app.
+- Validar as correções com dados fictícios e testes adequados ao risco, incluindo regressões nos fluxos afetados. Não usar os dados, a conta ou a cópia online real do utilizador para testes.
+- Não tratar o utilizador pelo nome.
+
 ## 0. Ativação explícita
 
 Não ativar modo agente apenas por estar dentro do projeto MA-CODE.
