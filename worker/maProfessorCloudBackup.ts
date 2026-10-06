@@ -504,18 +504,20 @@ async function verifyAccessSession(
     !result ||
     result.success !== true
   ) {
+    // Only an actual authentication failure should ask for the password again.
+    const status = response.status >= 400 ? response.status : 502
     const message =
       result &&
       result.success === false &&
       typeof result.message === 'string'
         ? result.message
-        : 'A sessão já não é válida.'
+        : status === 401 || status === 403
+          ? 'A sessão já não é válida.'
+          : 'Não foi possível verificar o acesso à cópia online. Tente novamente.'
 
     throw new CloudBackupApiError(
       message,
-      response.status === 403
-        ? 403
-        : 401
+      status
     )
   }
 

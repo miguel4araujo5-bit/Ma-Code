@@ -1054,6 +1054,8 @@ try {
     delay(20_000, null, { ref: false }).then(() => { throw new Error('The old-session status request did not start.') })
   ])
   // A password manager may fill the native field without updating React state.
+  // The real backup Worker must keep a temporary access-service failure from relocking the panel.
+  cloudWorker.setAccessStatus(503)
   await unlock.getByLabel('Password pessoal').evaluate((input, password) => {
     input.value = password
   }, PERSONAL_PASSWORD)
@@ -1071,12 +1073,23 @@ try {
   assert.equal(await uploadConfirmation.isChecked(), false)
   assert.equal(countCloudWrites(), beforeUnlockWrites, 'A confirmação da password e a preparação do quadro não podem enviar uma cópia.')
   await cloudPanel.getByRole('status').filter({ hasText: 'Password confirmada.' }).waitFor({ state: 'visible' })
+  await cloudPanel.getByRole('alert').filter({ hasText: 'Serviço de acesso temporariamente indisponível.' }).waitFor({ state: 'visible' })
+  assert.equal((await readCloudSession()).keyAvailable, true)
+  assert.deepEqual(await persistedLesson(page), first)
+  cloudWorker.setAccessStatus(200)
   await cloudPanel.getByRole('button', { name: 'Desativar lembretes de cópia', exact: true }).click()
   assert.equal((await readCloudSession()).preference, 'disabled')
   releaseOldStatus()
   assert.equal(await page.evaluate(() => window.__lateCloudStatus), 'MAProfessorCloudBackupAuthenticationRequiredError')
   await page.unroute(statusRoute, holdOldStatus)
   assert.equal(await unlock.count(), 0, 'A late 401 must not relock the new session.')
+  const recoveredStatus = await page.evaluate(async () => {
+    const storage = await import('/src/components/ma-professor/access/accessStorage.ts')
+    const service = await import('/src/components/ma-professor/sync/cloudBackupService.ts')
+    return service.inspectMAProfessorCloudBackup(storage.readMAProfessorAccessSession())
+  })
+  assert.equal(recoveredStatus.backup.found, true)
+  assert.equal(await unlock.count(), 0, 'Access-service recovery must not require leaving Segurança or entering the password again.')
   assert.equal(await uploadPreparedBackupButton.isEnabled(), false)
 
   // The password opens the complete local preview, without an extra preparation click.

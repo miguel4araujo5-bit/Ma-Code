@@ -459,3 +459,70 @@ test('cloud authentication failures identify the originating session and preserv
   await assert.rejects(runtime.inspectMAProfessorCloudBackup(renewed), /Serviço indisponível/)
   assert.deepEqual(notifications, [], 'A service failure must not be treated as a wrong password.')
 })
+
+test('access-service errors preserve their status and only a real 401 requests the password', async t => {
+  const f = await fixture(t)
+  await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup)
+  f.advance()
+  const record = f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get()
+  const profile = f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get()
+  const changes = [...f.writeChanges]
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  const target = new EventTarget()
+  target.CustomEvent = CustomEvent
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: target })
+  t.after(() => {
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+    else delete globalThis.window
+  })
+  const notifications = []
+  target.addEventListener(runtime.MA_PROFESSOR_BACKUP_AUTH_REQUIRED_EVENT, event => notifications.push(event.detail))
+  let accessStatus = 503
+  t.mock.method(f.env.MA_PROFESSOR_ACCESS, 'get', () => ({ fetch: async () => Response.json(
+    accessStatus === 200
+      ? { success: true, license: { email: session.email, status: 'active' } }
+      : { success: false, message: 'Falha simulada do serviço de acesso.' },
+    { status: accessStatus }
+  ) }))
+
+  for (const status of [401, 403, 408, 429, 500, 502, 503, 504]) {
+    accessStatus = status
+    notifications.length = 0
+    assert.equal((await f.post('/status', session)).status, status)
+    await assert.rejects(runtime.inspectMAProfessorCloudBackup(session), error => {
+      assert.equal(error instanceof runtime.MAProfessorCloudBackupAuthenticationRequiredError, status === 401)
+      return true
+    })
+    assert.deepEqual(notifications, status === 401 ? [session] : [])
+    assert.equal(runtime.readMAProfessorOpaqueExportKey(session.email), exportKey)
+  }
+
+  accessStatus = 503
+  notifications.length = 0
+  await assert.rejects(runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, backup), /Falha simulada/)
+  assert.deepEqual(notifications, [])
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_encrypted_records').get(), record)
+  assert.deepEqual(f.db.prepare('SELECT * FROM ma_professor_sync_profiles').get(), profile)
+  assert.deepEqual(f.writeChanges, changes)
+  accessStatus = 200
+  assert.equal((await runtime.inspectMAProfessorCloudBackup(session)).backup.recordRevision, 1)
+  assert.deepEqual((await runtime.downloadMAProfessorCloudBackupV3(session)).backup, backup)
+})
+
+test('invalid access-service responses fail closed without pretending the session expired', async t => {
+  const f = await fixture(t)
+  let accessResponse
+  t.mock.method(f.env.MA_PROFESSOR_ACCESS, 'get', () => ({ fetch: async () => accessResponse() }))
+  for (const response of [
+    () => new Response('invalid JSON', { status: 200 }),
+    () => Response.json(null),
+    () => Response.json({ success: false })
+  ]) {
+    accessResponse = response
+    const result = await f.post('/status', session)
+    assert.equal(result.status, 502)
+    assert.match((await result.json()).message, /Não foi possível verificar o acesso/)
+    assert.equal(runtime.readMAProfessorOpaqueExportKey(session.email), exportKey)
+    assert.deepEqual(f.writeChanges, [])
+  }
+})
