@@ -595,6 +595,7 @@ try {
   await interaction.selectOption('18')
   await page.getByLabel('Envolvimento de Aluno ACS E2E', { exact: true }).selectOption('10')
   await (await summaryEditor(page)).section.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await waitText(page, 'Aula, sumário, faltas e avaliações guardados.')
   await page.waitForFunction(async () => {
     const { assessmentWorkspaceRepository } = await import('/src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts')
     const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
@@ -603,11 +604,22 @@ try {
       snapshot.studentRows.find(row => row.student.id === fixture.normalId)?.gradeSummary.provisionalAverage === 14
   })
   await page.reload()
+  await primary(page).getByRole('button', { name: 'Hoje', exact: false }).waitFor()
+  const reopenedAcsScore = await page.evaluate(async () => {
+    const { dailyCriteriaGridRepository } = await import('/src/components/ma-professor/daily/dailyCriteriaGridRepository.ts')
+    const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
+    const grid = await dailyCriteriaGridRepository.getLessonGrid(fixture.lessonId)
+    const criterion = grid.criteria.find(item => item.name === 'Interação')
+    return grid.scoresByStudentId[fixture.pupilId]?.[criterion.id]
+  })
+  assert.equal(reopenedAcsScore, 18, 'ACS score remains persisted after reopening the database')
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   await scheduledLesson.click()
+  assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
   await details.waitFor()
   if (await details.textContent() === 'Detalhes') await details.click()
   await page.getByLabel('Interação de Aluno ACS E2E', { exact: true }).waitFor()
+  await page.waitForFunction(() => document.querySelector('select[aria-label="Interação de Aluno ACS E2E"]')?.value === '18')
   assert.equal(await page.getByLabel('Interação de Aluno ACS E2E', { exact: true }).inputValue(), '18')
   await openDestination(page, 'Critérios', 1366)
   await page.getByLabel('Tipo de critérios', { exact: true }).selectOption('acs')
