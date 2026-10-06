@@ -1,3 +1,4 @@
+import { studentAssessmentProfile } from '../assessments/assessmentProfiles'
 import {
   useCallback,
   useEffect,
@@ -42,6 +43,8 @@ export function AttendanceProductWorkspace({
     useState<AttendanceWorkspaceSnapshot | null>(null)
   const [assessmentCriteria, setAssessmentCriteria] =
     useState<AssessmentCriterion[]>([])
+  const [acsAssessmentCriteria, setAcsAssessmentCriteria] =
+    useState<AssessmentCriterion[]>([])
   const [filters, setFilters] =
     useState<AttendanceWorkspaceFilters>({})
   const [loading, setLoading] = useState(true)
@@ -68,10 +71,21 @@ export function AttendanceProductWorkspace({
               )
             : []
 
+        const nextAcsAssessmentCriteria =
+          nextSnapshot.selectedAssignment && nextSnapshot.selectedModule &&
+          nextSnapshot.rows.some(row => studentAssessmentProfile(row.student, nextSnapshot.selectedModule!.id) === 'acs')
+            ? await recoveryAssessmentRepository.listCriteria(
+                nextSnapshot.selectedAssignment.id,
+                nextSnapshot.selectedModule.id,
+                'acs'
+              )
+            : []
+
         setSnapshot(nextSnapshot)
         setAssessmentCriteria(
           nextAssessmentCriteria
         )
+        setAcsAssessmentCriteria(nextAcsAssessmentCriteria)
         setFilters(nextSnapshot.filters)
       } catch (loadError) {
         setError(getErrorMessage(loadError))
@@ -206,6 +220,7 @@ export function AttendanceProductWorkspace({
       <RecoveryAttemptsPanel
         snapshot={snapshot}
         assessmentCriteria={assessmentCriteria}
+        acsAssessmentCriteria={acsAssessmentCriteria}
         loading={loading}
         onCreateAttempt={createRecovery}
         onSetOutcome={(

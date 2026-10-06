@@ -1,3 +1,5 @@
+import { schemeAssessmentProfile } from '../assessments/assessmentProfiles'
+import type { AssessmentProfile } from '../types'
 import type { SetupSnapshot } from '../repository'
 
 function words(value: string) {
@@ -16,10 +18,10 @@ function initials(value: string) {
 }
 
 /** General criteria belong to a subject across classes; document grades are context only. */
-export function resolveAssessmentCriteriaDestinations(snapshot: SetupSnapshot, subjectLabel: string) {
+export function resolveAssessmentCriteriaDestinations(snapshot: SetupSnapshot, subjectLabel: string, profile: AssessmentProfile = 'general') {
   const yearId = snapshot.academicYear.id
   const blocked = new Set(snapshot.assessmentSchemes
-    .filter(scheme => scheme.active && scheme.scope === 'subject')
+    .filter(scheme => scheme.active && scheme.scope === 'subject' && schemeAssessmentProfile(scheme) === profile)
     .map(scheme => scheme.teachingAssignmentId))
   const destinations = snapshot.teachingAssignments.flatMap(assignment => {
     const subject = snapshot.subjects.find(item => item.id === assignment.subjectId && item.active && item.academicYearId === yearId)

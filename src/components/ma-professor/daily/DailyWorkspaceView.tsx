@@ -100,6 +100,9 @@ interface AssessmentFormState {
 }
 
 interface StudentEditorRow extends DailyStudentRow {
+    applicableCriterionIds?: EntityId[];
+    usesAcsCriteria?: boolean;
+    assessmentActivated?: boolean;
     assessmentScoreText: string;
     criterionScores: Record<
         EntityId,
@@ -370,6 +373,8 @@ function buildStudentRows(
 
         return {
             ...row,
+            applicableCriterionIds: criteriaGrid?.criterionIdsByStudentId?.[row.student.id],
+            usesAcsCriteria: criteriaGrid?.acsStudentIds?.includes(row.student.id) ?? false,
             assessmentStatus:
                 'not_evaluated',
             assessmentScore: null,
@@ -385,6 +390,7 @@ function isDailyAssessmentEnabled(
     rows: StudentEditorRow[]
 ) {
     return rows.some(row =>
+        row.assessmentActivated ||
         Object.values(row.criterionScores).some(
             score => score.trim() !== ''
         ) ||
@@ -398,12 +404,15 @@ function buildActivatedStudentRows(
 ): StudentEditorRow[] {
     return rows.map(row => ({
         ...row,
+        assessmentActivated: true,
         criterionScores: Object.fromEntries(
             criteria.map(criterion => [
                 criterion.id,
-                row.criterionScores[criterion.id]?.trim()
-                    ? row.criterionScores[criterion.id]
-                    : '10'
+                row.applicableCriterionIds && !row.applicableCriterionIds.includes(criterion.id)
+                    ? ''
+                    : row.criterionScores[criterion.id]?.trim()
+                        ? row.criterionScores[criterion.id]
+                        : row.usesAcsCriteria ? '' : '10'
             ])
         )
     }));
@@ -1915,6 +1924,7 @@ export default function DailyWorkspaceView({
                 }
 
                 for (const criterion of criteria) {
+                    if (row.applicableCriterionIds && !row.applicableCriterionIds.includes(criterion.id)) continue;
                     if (!row.criterionScores[criterion.id]?.trim()) {
                         continue;
                     }
@@ -3492,6 +3502,12 @@ export default function DailyWorkspaceView({
                                         </div>
                                     ) : null}
 
+                                    {(assessmentWorkspace?.acsStudentIds?.length ?? 0) > 0 && (assessmentWorkspace?.acsCriterionIds?.length ?? 0) === 0 ? (
+                                        <div className="border-b border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">
+                                            Importe os critérios ACS desta disciplina para avaliar os alunos assinalados.
+                                        </div>
+                                    ) : null}
+
                                     {showStudentDetails &&
                                     assessmentEnabled &&
                                     assessmentForm ? (
@@ -3556,12 +3572,12 @@ export default function DailyWorkspaceView({
                                                         key={
                                                             criterion.id
                                                         }
-                                                        title={`${criterion.name} · ${criterion.weightPercent}%`}
+                                                        title={`${assessmentWorkspace?.acsCriterionIds?.includes(criterion.id) ? 'ACS · ' : ''}${criterion.name} · ${criterion.weightPercent}%`}
                                                         className="min-w-0 text-center"
                                                     >
                                                         <span className="block truncate">
                                                             {
-                                                                criterion.name
+                                                                assessmentWorkspace?.acsCriterionIds?.includes(criterion.id) ? `ACS · ${criterion.name}` : criterion.name
                                                             }
                                                         </span>
                                                         <span className="block text-[0.52rem] font-semibold normal-case tracking-normal text-slate-600">
@@ -3731,6 +3747,7 @@ export default function DailyWorkspaceView({
                                                                             index *
                                                                                 criteria.length +
                                                                             criterionIndex;
+                                                                        const applicable = !row.applicableCriterionIds || row.applicableCriterionIds.includes(criterion.id);
                                                                         const absent =
                                                                             row.attendanceStatus ===
                                                                             'absent';
@@ -3751,7 +3768,7 @@ export default function DailyWorkspaceView({
                                                                                     criterion.id
                                                                                 }
                                                                                 value={
-                                                                                    absent
+                                                                                    absent || !applicable
                                                                                         ? ''
                                                                                         : row.criterionScores[
                                                                                               criterion.id
@@ -3783,7 +3800,7 @@ export default function DailyWorkspaceView({
                                                                                     !assessmentEnabled ||
                                                                                     lessonForm.status ===
                                                                                         'cancelled' ||
-                                                                                    absent
+                                                                                    absent || !applicable
                                                                                 }
                                                                                 aria-label={`${criterion.name} de ${row.student.name}`}
                                                                                 className="w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-center text-[0.68rem] font-black text-white outline-none transition focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
@@ -3839,7 +3856,7 @@ export default function DailyWorkspaceView({
                                                                         : formatScore(
                                                                               calculateDailyCriteriaAverage(
                                                                                   row.criterionScores,
-                                                                                  criteria
+                                                                                  criteria.filter(criterion => !row.applicableCriterionIds || row.applicableCriterionIds.includes(criterion.id))
                                                                               )
                                                                           )}
                                                                 </span>

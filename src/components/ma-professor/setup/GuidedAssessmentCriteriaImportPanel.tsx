@@ -1,3 +1,5 @@
+import { schemeAssessmentProfile } from '../assessments/assessmentProfiles'
+import type { AssessmentProfile } from '../types'
 import {
   type ChangeEvent,
   type DragEvent,
@@ -117,6 +119,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
   const [parsed, setParsed] =
     useState<ParsedAssessmentCriteriaPdfDocument | null>(null)
   const [fileName, setFileName] = useState('')
+  const [profile, setProfile] = useState<AssessmentProfile>('general')
   const [rows, setRows] = useState<ImportRow[]>([])
   const [assignmentIds, setAssignmentIds] = useState<EntityId[]>([])
   const [sourceFingerprint, setSourceFingerprint] = useState('')
@@ -148,9 +151,9 @@ export default function GuidedAssessmentCriteriaImportPanel({
     () =>
       resolveAssessmentCriteriaDestinations(
         snapshot,
-        detectedSubject
+        detectedSubject, profile
       ),
-    [snapshot, detectedSubject]
+    [snapshot, detectedSubject, profile]
   )
 
   const assignments = destinationResolution.available
@@ -233,7 +236,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
       const nextRows = rowsFromParsed(result)
       const destinations = resolveAssessmentCriteriaDestinations(
         snapshot,
-        result.metadata.subject?.value ?? ''
+        result.metadata.subject?.value ?? '', profile
       )
 
       if (!mounted.current) return
@@ -422,7 +425,7 @@ export default function GuidedAssessmentCriteriaImportPanel({
         if (
           current.assessmentSchemes.some(scheme =>
             scheme.active &&
-            scheme.scope === 'subject' &&
+            scheme.scope === 'subject' && schemeAssessmentProfile(scheme) === profile &&
             scheme.teachingAssignmentId === assignmentId
           )
         ) {
@@ -437,7 +440,8 @@ export default function GuidedAssessmentCriteriaImportPanel({
       await assessmentCriteriaBatchRepository.createSubjectSchemes({
         academicYearId: snapshot.academicYear.id,
         teachingAssignmentIds: assignmentIds,
-        name: 'Critérios de avaliação',
+        profile,
+        name: profile === 'acs' ? 'Critérios de avaliação ACS' : 'Critérios de avaliação',
         criteria,
         active: true
       })
@@ -473,7 +477,12 @@ export default function GuidedAssessmentCriteriaImportPanel({
           </div>
         </div>
 
-        {!parsed ? (
+        <label className="my-4 flex items-center gap-2 text-sm font-bold text-emerald-100">
+        <input type="checkbox" checked={profile === 'acs'} disabled={busy}
+          onChange={event => { setProfile(event.target.checked ? 'acs' : 'general'); setAssignmentIds([]);  }} className="h-4 w-4 rounded" />
+        Este documento contém critérios ACS
+      </label>
+      {!parsed ? (
           <>
             <input
               ref={inputRef}

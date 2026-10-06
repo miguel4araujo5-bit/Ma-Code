@@ -1,3 +1,4 @@
+import { schemeAssessmentProfile } from './assessmentProfiles'
 import {
   useEffect,
   useMemo,
@@ -204,7 +205,8 @@ export default function AssessmentCriteriaManagementPanel({
         ? assessmentCriteriaManagementRepository
             .getSubjectEditability(
               subjectScope.academicYearId,
-              subjectScope.subjectId
+              subjectScope.subjectId,
+              schemeAssessmentProfile(scheme)
             )
         : assessmentCriteriaManagementRepository
             .getEditability(

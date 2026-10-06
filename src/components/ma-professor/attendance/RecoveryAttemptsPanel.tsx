@@ -1,3 +1,4 @@
+import { studentAssessmentProfile } from '../assessments/assessmentProfiles'
 import {
   useState
 } from 'react'
@@ -39,6 +40,7 @@ type AssessmentDrafts =
 type Props = {
   snapshot: AttendanceWorkspaceSnapshot
   assessmentCriteria: AssessmentCriterion[]
+  acsAssessmentCriteria?: AssessmentCriterion[]
   loading?: boolean
   onCreateAttempt: (
     input: CreateWorkspaceRecoveryInput
@@ -203,6 +205,7 @@ function getCurrentAssessmentGrade(
 export default function RecoveryAttemptsPanel({
   snapshot,
   assessmentCriteria,
+  acsAssessmentCriteria = [],
   loading = false,
   onCreateAttempt,
   onSetOutcome,
@@ -224,6 +227,13 @@ export default function RecoveryAttemptsPanel({
       row =>
         row.recoveryHistory.some(recovery => !recovery.recoveryDate && recovery.status === 'completed')
     )
+
+  function criteriaForRecovery(recovery: LearningRecovery) {
+    const student = snapshot.rows.find(row => row.student.id === recovery.studentId)?.student
+    return student && studentAssessmentProfile(student, recovery.moduleId) === 'acs'
+      ? acsAssessmentCriteria
+      : assessmentCriteria
+  }
 
   if (
     !snapshot.selectedAssignment ||
@@ -275,7 +285,7 @@ export default function RecoveryAttemptsPanel({
         [recovery.id]:
           buildAssessmentDraft(
             recovery,
-            assessmentCriteria
+            criteriaForRecovery(recovery)
           )
       })
     )
@@ -313,7 +323,7 @@ export default function RecoveryAttemptsPanel({
       scores =
         parseAssessmentDraft(
           assessmentDrafts[recovery.id] ?? {},
-          assessmentCriteria
+          criteriaForRecovery(recovery)
         )
     } catch (error) {
       setFeedback({
@@ -405,6 +415,8 @@ export default function RecoveryAttemptsPanel({
 
       <div className="mt-5 space-y-4">
         {rows.map(row => {
+          const studentCriteria = studentAssessmentProfile(row.student, snapshot.selectedModule!.id) === 'acs'
+            ? acsAssessmentCriteria : assessmentCriteria
           const summary =
             summarizeLearningRecoveryAttempts(
               row.recoveryHistory
@@ -448,7 +460,7 @@ export default function RecoveryAttemptsPanel({
                   const assessmentGrade =
                     getCurrentAssessmentGrade(
                       attempt,
-                      assessmentCriteria
+                      studentCriteria
                     )
 
                   const editingAssessment =
@@ -528,7 +540,7 @@ export default function RecoveryAttemptsPanel({
                       ) : null}
 
                       {attempt.status === 'completed' &&
-                      assessmentCriteria.length > 0 ? (
+                      studentCriteria.length > 0 ? (
                         <div className="mt-4 border-t border-white/10 pt-4">
                           {assessmentGrade !== null ? (
                             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -587,7 +599,7 @@ export default function RecoveryAttemptsPanel({
                                 Esta avaliação é opcional. Só será guardada quando todos os critérios tiverem uma classificação válida.
                               </p>
 
-                              {assessmentCriteria.map(
+                              {studentCriteria.map(
                                 criterion => (
                                   <label
                                     key={criterion.id}

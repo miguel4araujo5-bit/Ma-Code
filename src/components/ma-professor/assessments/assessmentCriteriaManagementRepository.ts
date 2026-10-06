@@ -1,3 +1,4 @@
+import { schemeAssessmentProfile } from './assessmentProfiles'
 import {
   maProfessorDb,
   openMAProfessorDatabase
@@ -5,6 +6,7 @@ import {
 
 import type {
   AssessmentCriterion,
+  AssessmentProfile,
   AssessmentScheme,
   EntityId
 } from '../types'
@@ -479,7 +481,8 @@ function sameCriterionConfiguration(
 
 async function readSubjectSchemeGroup(
   academicYearId: EntityId,
-  subjectId: EntityId
+  subjectId: EntityId,
+  profile: AssessmentProfile = 'general'
 ) {
   const assignments =
     (
@@ -535,6 +538,7 @@ async function readSubjectSchemeGroup(
       .filter(
         scheme =>
           scheme.active &&
+          schemeAssessmentProfile(scheme) === profile &&
           scheme.scope ===
             'subject' &&
           scheme.moduleId ===
@@ -698,14 +702,16 @@ export class AssessmentCriteriaManagementRepository {
 
   async getSubjectContext(
     academicYearId: EntityId,
-    subjectId: EntityId
+    subjectId: EntityId,
+    profile: AssessmentProfile = 'general'
   ): Promise<AssessmentSubjectCriteriaContext> {
     await openMAProfessorDatabase()
 
     const group =
       await readSubjectSchemeGroup(
         academicYearId,
-        subjectId
+        subjectId,
+        profile
       )
 
     const referenceScheme =
@@ -767,14 +773,16 @@ export class AssessmentCriteriaManagementRepository {
 
   async getSubjectEditability(
     academicYearId: EntityId,
-    subjectId: EntityId
+    subjectId: EntityId,
+    profile: AssessmentProfile = 'general'
   ): Promise<AssessmentCriteriaEditability> {
     await openMAProfessorDatabase()
 
     const group =
       await readSubjectSchemeGroup(
         academicYearId,
-        subjectId
+        subjectId,
+        profile
       )
 
     return {
@@ -813,10 +821,15 @@ export class AssessmentCriteriaManagementRepository {
         maProfessorDb.moduleFinalGrades
       ],
       async () => {
+        const requestedScheme = await maProfessorDb.assessmentSchemes.get(input.referenceSchemeId)
+        if (!requestedScheme) {
+          throw new Error('O conjunto de critérios selecionado já não existe.')
+        }
         const group =
           await readSubjectSchemeGroup(
             input.academicYearId,
-            input.subjectId
+            input.subjectId,
+            schemeAssessmentProfile(requestedScheme)
           )
 
         const referenceScheme =

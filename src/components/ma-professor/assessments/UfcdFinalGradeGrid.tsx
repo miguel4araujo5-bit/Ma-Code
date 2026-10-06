@@ -49,9 +49,7 @@ function buildPersistedDraft(
         ? ''
         : String(selfAssessmentGrade),
     usesAcs:
-      row.finalGradeRecord
-        ?.usesAcs ??
-      false
+      row.assessmentProfile === 'acs' || row.finalGradeRecord?.usesAcs === true
   }
 }
 

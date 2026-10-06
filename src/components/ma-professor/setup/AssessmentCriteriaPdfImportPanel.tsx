@@ -1,3 +1,4 @@
+import { schemeAssessmentProfile } from '../assessments/assessmentProfiles'
 import {
   type ChangeEvent,
   type DragEvent,
@@ -19,6 +20,7 @@ import {
 } from '../repository'
 import type {
   AssessmentSchemeScope,
+  AssessmentProfile,
   EntityId
 } from '../types'
 import {
@@ -163,6 +165,7 @@ export default function AssessmentCriteriaPdfImportPanel({
   const [fileName, setFileName] = useState('')
   const [rows, setRows] = useState<ImportRow[]>([])
   const [schemeName, setSchemeName] = useState('Critérios de avaliação')
+  const [profile, setProfile] = useState<AssessmentProfile>('general')
   const [scope, setScope] = useState<AssessmentSchemeScope>('subject')
   const [assignmentIds, setAssignmentIds] = useState<EntityId[]>([])
   const [moduleAssignmentId, setModuleAssignmentId] = useState<EntityId>('')
@@ -223,10 +226,10 @@ export default function AssessmentCriteriaPdfImportPanel({
   const activeSubjectSchemeAssignments = useMemo(
     () => new Set(
       snapshot.assessmentSchemes
-        .filter(scheme => scheme.active && scheme.scope === 'subject')
+        .filter(scheme => scheme.active && scheme.scope === 'subject' && schemeAssessmentProfile(scheme) === profile)
         .map(scheme => scheme.teachingAssignmentId)
     ),
-    [snapshot.assessmentSchemes]
+    [snapshot.assessmentSchemes, profile]
   )
 
   const moduleOptions = useMemo(
@@ -249,7 +252,7 @@ export default function AssessmentCriteriaPdfImportPanel({
         )
         .map(scheme => scheme.moduleId as EntityId)
     ),
-    [snapshot.assessmentSchemes]
+    [snapshot.assessmentSchemes, profile]
   )
 
   const includedRows = useMemo(
@@ -267,8 +270,8 @@ export default function AssessmentCriteriaPdfImportPanel({
 
   const detectedSubject = parsed?.metadata.subject?.value ?? ''
   const destinationResolution = useMemo(
-    () => resolveAssessmentCriteriaDestinations(snapshot, detectedSubject),
-    [snapshot, detectedSubject]
+    () => resolveAssessmentCriteriaDestinations(snapshot, detectedSubject, profile),
+    [snapshot, detectedSubject, profile]
   )
   const suggestedAssignments = destinationResolution.candidates
 
@@ -426,6 +429,7 @@ export default function AssessmentCriteriaPdfImportPanel({
   }
 
   function validateDestination(current: SetupSnapshot) {
+    if (profile === 'acs' && scope !== 'subject') throw new Error('Os critérios ACS são definidos por disciplina.')
     if (scope === 'subject') {
       if (assignmentIds.length === 0) {
         throw new Error(
@@ -447,6 +451,7 @@ export default function AssessmentCriteriaPdfImportPanel({
           current.assessmentSchemes.some(scheme =>
             scheme.active &&
             scheme.scope === 'subject' &&
+            schemeAssessmentProfile(scheme) === profile &&
             scheme.teachingAssignmentId === assignmentId
           )
         ) {
@@ -527,6 +532,7 @@ export default function AssessmentCriteriaPdfImportPanel({
         await assessmentCriteriaBatchRepository.createSubjectSchemes({
           academicYearId: snapshot.academicYear.id,
           teachingAssignmentIds: assignmentIds,
+          profile,
           name: schemeName,
           criteria,
           active: true
@@ -593,6 +599,11 @@ export default function AssessmentCriteriaPdfImportPanel({
 
         {open ? (
           <div className="mt-5 space-y-5">
+            <label className="flex items-center gap-2 text-sm font-bold text-slate-200">
+              <input type="checkbox" checked={profile === 'acs'} disabled={busy}
+                onChange={event => { setProfile(event.target.checked ? 'acs' : 'general'); setScope('subject'); setAssignmentIds([]) }} />
+              Este documento contém critérios ACS
+            </label>
             <input
               ref={inputRef}
               type="file"
@@ -819,7 +830,7 @@ export default function AssessmentCriteriaPdfImportPanel({
                         type="button"
                         disabled={busy}
                         onClick={() => {
-                          setScope('module')
+                          setScope('module'); setProfile('general')
                           setAssignmentIds([])
                         }}
                         className={`rounded-xl border px-3 py-2 text-xs font-black transition ${

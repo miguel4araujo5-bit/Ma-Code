@@ -116,9 +116,7 @@ function buildPersistedDraft(
         ? ''
         : String(selfAssessmentGrade),
     usesAcs:
-      row.finalGradeRecord
-        ?.usesAcs ??
-      false
+      row.assessmentProfile === 'acs' || row.finalGradeRecord?.usesAcs === true
   }
 }
 
@@ -503,7 +501,7 @@ export default function UfcdCfpPreview({
             Folha de avaliação final
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Edite a autoavaliação, a classificação final e a indicação ACS diretamente na folha oficial. O PDF contém apenas a CFP; o Excel contém o livro XLSM completo.
+            Edite a autoavaliação e a classificação final diretamente na folha oficial. A indicação ACS vem da ficha do aluno. O PDF contém apenas a CFP; o Excel contém o livro XLSM completo.
           </p>
           {emissionOutdated ? <p role="status" className="mt-2 text-sm text-amber-200">A avaliação foi alterada depois da última emissão. Pode emitir novamente a folha atualizada.</p> : null}
           <button type="button" disabled={exportDisabled || Boolean(exporting) || savingAll} onClick={() => void runExport('both')} className="mt-3 rounded-xl border border-cyan-300/30 px-4 py-2 text-sm font-bold text-cyan-100">{emissionOutdated ? 'Emitir novamente Excel e PDF' : 'Emitir Excel e PDF'}</button>
@@ -834,8 +832,9 @@ export default function UfcdCfpPreview({
                                 )
                               }
                               disabled={
-                                rowDisabled
+                                true
                               }
+                              title="A indicação ACS é definida na ficha do aluno."
                               aria-label={`ACS de ${sourceRow.student.name}`}
                               className="h-3 w-3 accent-slate-900 disabled:opacity-40"
                             />

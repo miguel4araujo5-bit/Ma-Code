@@ -1,3 +1,4 @@
+import { schemeAssessmentProfile, studentAssessmentProfile } from './assessmentProfiles'
 import { lessonCountsTowardUfcdProgress } from '../lessons/ufcdProgress'
 import {
   maProfessorDb,
@@ -11,6 +12,7 @@ import {
 import type {
   AcademicYear,
   AssessmentCriterion,
+  AssessmentProfile,
   AssessmentResult,
   AssessmentScheme,
   ClassGroup,
@@ -57,6 +59,7 @@ export interface AssessmentWorkspaceActivityRow {
 }
 
 export interface AssessmentWorkspaceStudentRow {
+  assessmentProfile?: AssessmentProfile
   recoveryPending?: boolean
   student: Student
   gradeSummary: StudentModuleGradeSummary
@@ -92,6 +95,8 @@ export interface AssessmentWorkspaceSnapshot {
 
   scheme: AssessmentScheme | null
   criteria: AssessmentCriterion[]
+  acsScheme?: AssessmentScheme | null
+  acsCriteria?: AssessmentCriterion[]
 
   activities: AssessmentWorkspaceActivityRow[]
   studentRows: AssessmentWorkspaceStudentRow[]
@@ -653,7 +658,8 @@ function resolveAssessmentScheme(
   schemes:
     AssessmentScheme[],
   criteria:
-    AssessmentCriterion[]
+    AssessmentCriterion[],
+  profile: AssessmentProfile = 'general'
 ): ResolvedAssessmentScheme {
   const activeSchemes =
     schemes.filter(
@@ -661,6 +667,7 @@ function resolveAssessmentScheme(
         scheme
       ) =>
         scheme.active &&
+        schemeAssessmentProfile(scheme) === profile &&
         scheme.teachingAssignmentId ===
           assignmentId
     )
@@ -746,7 +753,8 @@ function buildActivityRows(
   results:
     AssessmentResult[],
   students:
-    Student[]
+    Student[],
+  schemes: AssessmentScheme[]
 ) {
   const lessonById =
     new Map(
@@ -844,16 +852,19 @@ function buildActivityRows(
             )
           )
 
+        const profile = schemeAssessmentProfile(schemes.find(scheme => scheme.id === criterion.schemeId)!)
+
         const activityStudents =
           students.filter(
             student =>
+              studentAssessmentProfile(student, assessment.moduleId) === profile && (
               isStudentMemberOnDate(
                 student,
                 lesson.date
               ) ||
               resultStudentIds.has(
                 student.id
-              )
+              ))
           )
 
         const activityStudentIds =
@@ -986,7 +997,8 @@ function buildStudentRows(
   results:
     AssessmentResult[],
   finalGrades:
-    ModuleFinalGrade[]
+    ModuleFinalGrade[],
+  acsCriteria: AssessmentCriterion[]
 ) {
   const assessmentsByCriterionId =
     new Map<
@@ -1071,6 +1083,8 @@ function buildStudentRows(
     (
       student
     ): AssessmentWorkspaceStudentRow => {
+      const assessmentProfile = studentAssessmentProfile(student, module.id)
+      const studentCriteria = assessmentProfile === 'acs' ? acsCriteria : criteria
       const studentResults =
         resultsByStudentId.get(
           student.id
@@ -1090,7 +1104,7 @@ function buildStudentRows(
         )
 
       const criterionBreakdowns =
-        criteria.map(
+        studentCriteria.map(
           (
             criterion
           ) => {
@@ -1200,9 +1214,9 @@ function buildStudentRows(
           : null
 
       const allActiveCriteriaAssessed =
-        criteria.length >
+        studentCriteria.length >
           0 &&
-        criteria.every(
+        studentCriteria.every(
           (
             criterion
           ) =>
@@ -1263,6 +1277,7 @@ function buildStudentRows(
 
       return {
         student,
+        assessmentProfile,
         gradeSummary,
         finalGradeRecord
       }
@@ -1592,6 +1607,10 @@ export class AssessmentWorkspaceRepository {
         context.criteria
       )
 
+    const acsContext = resolveAssessmentScheme(
+      selectedAssignment.id, selectedModule.id, context.schemes, context.criteria, 'acs'
+    )
+
     const allGroupStudents =
       sortStudents(
         context.students.filter(
@@ -1656,9 +1675,10 @@ export class AssessmentWorkspaceRepository {
       buildActivityRows(
         assessments,
         context.lessons,
-        schemeContext.criteria,
+        [...schemeContext.criteria, ...acsContext.criteria],
         results,
-        allGroupStudents
+        allGroupStudents,
+        context.schemes
       )
 
     const studentRows =
@@ -1668,7 +1688,8 @@ export class AssessmentWorkspaceRepository {
         schemeContext.criteria,
         assessments,
         results,
-        finalGrades
+        finalGrades,
+        acsContext.criteria
       )
 
     const provisionalAverages =
@@ -1719,6 +1740,8 @@ export class AssessmentWorkspaceRepository {
 
       criteria:
         schemeContext.criteria,
+      acsScheme: acsContext.scheme,
+      acsCriteria: acsContext.criteria,
 
       activities,
 
@@ -1920,6 +1943,7 @@ export class AssessmentWorkspaceRepository {
             )
 
     const usesAcs =
+      studentAssessmentProfile(student, module.id) === 'acs' ? true :
       input.usesAcs ===
       undefined
         ? existing

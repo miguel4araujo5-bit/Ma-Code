@@ -70,6 +70,7 @@ interface GroupFormState {
 }
 
 interface StudentFormState {
+  usesAcs: boolean
   number: string
   name: string
   notes: string
@@ -115,7 +116,8 @@ function createEmptyStudentForm(): StudentFormState {
   return {
     number: '',
     name: '',
-    notes: ''
+    notes: '',
+    usesAcs: false
   }
 }
 
@@ -146,7 +148,8 @@ function createStudentForms(
       {
         number: student.number,
         name: student.name,
-        notes: student.notes
+        notes: student.notes,
+        usesAcs: student.usesAcs === true
       }
     ])
   ) as StudentForms
@@ -731,6 +734,7 @@ export default function GroupsWorkspaceView({
         notes:
           current[studentId]?.notes ??
           '',
+        usesAcs: current[studentId]?.usesAcs ?? false,
         ...changes
       }
     }))
@@ -785,7 +789,8 @@ export default function GroupsWorkspaceView({
         ] ?? {
           number: student.number,
           name: student.name,
-          notes: student.notes
+          notes: student.notes,
+          usesAcs: student.usesAcs === true
         }
     }))
     setEditingStudentId(student.id)
@@ -814,7 +819,8 @@ export default function GroupsWorkspaceView({
         ] ?? {
           number: student.number,
           name: student.name,
-          notes: student.notes
+          notes: student.notes,
+          usesAcs: student.usesAcs === true
         }
     }))
     setEditingStudentId(null)
@@ -1538,6 +1544,13 @@ export default function GroupsWorkspaceView({
                       className={fieldClass}
                     />
                   </label>
+                          <label className="flex items-center gap-2 text-sm font-bold text-emerald-100">
+                            <input type="checkbox" checked={newStudent.usesAcs}
+                              onChange={event => updateNewStudent({ usesAcs: event.target.checked })} disabled={busy} className="h-4 w-4 rounded" />
+                            Aluno com critérios ACS
+                          </label>
+                          {newStudent.usesAcs ? <p className="text-xs text-slate-400">Este aluno passa a usar critérios ACS. As avaliações concluídas mantêm-se.</p> : null}
+
 
                   <button
                     type="submit"
@@ -1663,7 +1676,8 @@ export default function GroupsWorkspaceView({
                     studentForms[student.id] ?? {
                       number: student.number,
                       name: student.name,
-                      notes: student.notes
+                      notes: student.notes,
+                      usesAcs: student.usesAcs === true
                     }
 
                   const editing =
@@ -1739,6 +1753,13 @@ export default function GroupsWorkspaceView({
                               className={fieldClass}
                             />
                           </label>
+                          <label className="flex items-center gap-2 text-sm font-bold text-emerald-100">
+                            <input type="checkbox" checked={form.usesAcs}
+                              onChange={event => updateStudentForm(student.id, { usesAcs: event.target.checked })} disabled={busy} className="h-4 w-4 rounded" />
+                            Aluno com critérios ACS
+                          </label>
+                          {form.usesAcs !== (student.usesAcs === true) ? <p className="text-xs text-slate-400">Este aluno passa a usar critérios {form.usesAcs ? 'ACS' : 'gerais'}. As avaliações concluídas mantêm-se.</p> : null}
+
 
                           <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                             <button
