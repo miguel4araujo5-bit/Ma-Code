@@ -243,7 +243,7 @@ async function assertSubmissionShortcuts(page) {
         [...document.querySelectorAll('button[aria-controls]')].every(button => !button.disabled)
     })
     assert.equal(await search.inputValue(), '')
-    assert.equal(await page.getByLabel('Estado', { exact: true }).inputValue(), state)
+    assert.equal(await page.getByRole('combobox', { name: /^Estado\b/ }).inputValue(), state)
     assert.equal(await card.getAttribute('aria-pressed'), 'true')
     const count = Number(await card.locator('span').nth(1).textContent())
     const results = page.getByRole('heading', { name: `${count} ${count === 1 ? 'aula encontrada' : 'aulas encontradas'}`, exact: true })
