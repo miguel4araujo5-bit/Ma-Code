@@ -62,7 +62,7 @@ const bundle =
         export { createMAProfessorDatabaseSnapshot } from '${base}sync/databaseSnapshotService';
         export { previewMAProfessorCloudRestore, restoreMAProfessorCloudRestore } from '${base}sync/cloudBackupRestoreService';
         export { default as BackupDraftNotice } from '${base}settings/BackupDraftNotice';
-        export { saveMAProfessorDailyDraft, deleteMAProfessorDailyDraft, clearMAProfessorDailyDrafts, countMAProfessorDailyDrafts } from '${base}daily/dailyDraftStorage';
+        export { saveMAProfessorDailyDraft, deleteMAProfessorDailyDraft, clearMAProfessorDailyDrafts, countMAProfessorDailyDrafts, listMAProfessorDailyDrafts } from '${base}daily/dailyDraftStorage';
         export {
           createMAProfessorBackup,
           createMAProfessorLocalBackupSignature,
@@ -616,6 +616,30 @@ test('the draft warning counts only the current account, updates after save/dele
   await act(async () => reactRoot.render(React.createElement(runtime.BackupDraftNotice, { accountEmail: 'roundtrip@example.test' })))
   await waitFor(() => element.textContent.includes('1 aula com alterações por guardar'))
   assert.ok(element.textContent.includes('Os rascunhos não entram nesta cópia'))
+  const openLesson = element.querySelector('button')
+  assert.ok(openLesson.textContent.includes('21/09/2026 · 09:00–09:50 · 10.º D · Área de Expressões'))
+  let target
+  const onOpen = event => { target = event.detail }
+  window.addEventListener('ma-professor-open-daily', onOpen)
+  t.after(() => window.removeEventListener('ma-professor-open-daily', onOpen))
+  await act(async () => openLesson.click())
+  assert.deepEqual(target, { academicYearId: 'year-2026', date: '2026-09-21', lessonId: 'lesson-a' })
+  assert.equal((await db.lessons.get('lesson-a')).summary, 'Criação e apresentação de pequenas histórias.', 'Abrir uma aula não deve gravar o rascunho.')
+
+  await act(async () => runtime.saveMAProfessorDailyDraft({ ...draft, lessonId: 'lesson-b', date: '2026-09-28' }))
+  await waitFor(() => element.querySelectorAll('button').length === 2)
+  assert.ok(element.textContent.includes('2 aulas com alterações por guardar'))
+  assert.deepEqual([...element.querySelectorAll('time')].map(item => item.dateTime), ['2026-09-21', '2026-09-28'])
+  assert.equal((await runtime.listMAProfessorDailyDrafts('roundtrip@example.test')).length, 2)
+  await act(async () => runtime.deleteMAProfessorDailyDraft('roundtrip@example.test', 'year-2026', 'lesson-b'))
+  await waitFor(() => element.querySelectorAll('button').length === 1)
+
+  await act(async () => runtime.saveMAProfessorDailyDraft({ ...draft, lessonId: 'unchanged', draftSignature: 'base' }))
+  await act(async () => runtime.saveMAProfessorDailyDraft({ ...draft, academicYearId: 'year-inactive', lessonId: 'old-lesson', date: '2025-09-21' }))
+  await waitFor(() => element.textContent.includes('Ano letivo inativo'))
+  assert.equal(element.querySelectorAll('button').length, 1, 'Rascunhos de outro ano não devem abrir uma aula do ano ativo.')
+  await act(async () => runtime.deleteMAProfessorDailyDraft('roundtrip@example.test', 'year-inactive', 'old-lesson'))
+  await waitFor(() => !element.textContent.includes('Ano letivo inativo'))
   const backup = await runtime.createMAProfessorBackup()
   assert.equal(JSON.stringify(backup).includes('Rascunho por guardar'), false)
   await act(async () => runtime.deleteMAProfessorDailyDraft('roundtrip@example.test', 'year-2026', 'lesson-a'))

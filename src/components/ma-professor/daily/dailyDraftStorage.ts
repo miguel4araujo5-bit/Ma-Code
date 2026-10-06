@@ -822,18 +822,23 @@ export async function removeStudentFromMAProfessorDailyDrafts(studentId: string)
   } finally { database.close() }
 }
 
-export async function countMAProfessorDailyDrafts(accountEmail: string): Promise<number> {
+export async function listMAProfessorDailyDrafts(accountEmail: string): Promise<MAProfessorDailyDraft[]> {
   const email = normalizeEmail(accountEmail)
-  if (!email) return 0
+  if (!email) return []
   const database = await openDailyDraftDatabase()
   try {
     const transaction = database.transaction(DAILY_DRAFT_STORE_NAME, 'readonly')
     const records = await requestToPromise(transaction.objectStore(DAILY_DRAFT_STORE_NAME).getAll())
-    return records.filter(value => {
-      const draft = parseStoredDraft(value, value?.id)
-      return draft && draft.accountEmail === email && draft.baseSavedSignature !== draft.draftSignature
-    }).length
+    return records
+      .map(value => parseStoredDraft(value, value?.id))
+      .filter((draft): draft is MAProfessorDailyDraft => Boolean(
+        draft && draft.accountEmail === email && draft.baseSavedSignature !== draft.draftSignature
+      ))
   } finally {
     database.close()
   }
+}
+
+export async function countMAProfessorDailyDrafts(accountEmail: string): Promise<number> {
+  return (await listMAProfessorDailyDrafts(accountEmail)).length
 }

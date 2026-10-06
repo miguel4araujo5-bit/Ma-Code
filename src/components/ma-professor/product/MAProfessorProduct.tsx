@@ -33,7 +33,8 @@ import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
 
 import {
   isMAProfessorOperationallyReady,
-  MA_PROFESSOR_OPEN_DAILY_EVENT
+  MA_PROFESSOR_OPEN_DAILY_EVENT,
+  type MAProfessorOpenDailyDetail
 } from '../setup/setupReadiness'
 
 import type {
@@ -401,24 +402,35 @@ function ProductContent() {
 
   useEffect(() => {
     const openDaily =
-      () => {
-        void refreshAcademicYear()
-          .then(state => {
-            if (
-              !state?.academicYear ||
-              !state.operationalReady
-            ) {
-              setWorkspace(
-                'menu'
-              )
-              return
-            }
+      (event: Event) => {
+        const target = (event as CustomEvent<MAProfessorOpenDailyDetail>).detail
+        void (async () => {
+          if (target && !(await (
+            dailyNavigationGuardRef.current?.() ?? Promise.resolve(true)
+          ))) {
+            return
+          }
 
-            setDailyTarget({})
+          const state = await refreshAcademicYear()
+          if (
+            !state?.academicYear ||
+            !state.operationalReady
+          ) {
             setWorkspace(
-              'daily'
+              'menu'
             )
-          })
+            return
+          }
+
+          if (target && target.academicYearId !== state.academicYear.id) {
+            return
+          }
+
+          setDailyTarget(target ? { date: target.date, lessonId: target.lessonId } : {})
+          setWorkspace(
+            'daily'
+          )
+        })()
       }
 
     window.addEventListener(

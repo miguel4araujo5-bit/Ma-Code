@@ -3,11 +3,18 @@ import type {
 } from '../repository'
 
 import type {
-  EntityId
+  EntityId,
+  ISODate
 } from '../types'
 
 export const MA_PROFESSOR_OPEN_DAILY_EVENT =
   'ma-professor-open-daily'
+
+export interface MAProfessorOpenDailyDetail {
+  academicYearId: EntityId
+  date: ISODate
+  lessonId: EntityId
+}
 
 export interface MAProfessorSetupReadiness {
   operationalReady: boolean

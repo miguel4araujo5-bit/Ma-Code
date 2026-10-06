@@ -159,6 +159,15 @@ async function waitText(page, text) {
   })
 }
 
+async function waitForBrowserData(page, check, argument) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const result = await page.evaluate(check, argument)
+    if (result) return result
+    await delay(50)
+  }
+  throw new Error('Os dados locais não ficaram disponíveis a tempo.')
+}
+
 async function selectSchool(page) {
   await waitHeading(page, 'Em que escola leciona?')
   await page.getByRole('button', { name: /S\. Bento — Vizela/ }).click()
@@ -446,7 +455,66 @@ try {
   await resetEditor.textarea.fill(SUMMARY)
   await resetEditor.section.getByRole('button', { name: 'Guardar', exact: true }).click()
   await waitText(page, 'Aula, sumário, faltas e avaliações guardados.')
+  await waitForBrowserData(page, async summary => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    return (await (await openMAProfessorDatabase()).lessons.toArray()).some(item => item.summary === summary)
+  }, SUMMARY)
   evidence.push('navegação bloqueada quando a gravação falha; gravação automática ao sair quando recupera')
+
+  // Recover real Daily drafts from the backup warning, including another week on mobile.
+  const localDraftSummary = 'Rascunho E2E da aula atual.'
+  const futureDraftSummary = 'Rascunho E2E de outra semana.'
+  const recoveryEditor = await summaryEditor(page)
+  await recoveryEditor.textarea.fill(localDraftSummary)
+  const recoveryDraft = await waitForBrowserData(page, async () => {
+    const { listMAProfessorDailyDrafts } = await import('/src/components/ma-professor/daily/dailyDraftStorage.ts')
+    return (await listMAProfessorDailyDrafts('e2e.professor@example.test')).find(item => item.lesson.summary === 'Rascunho E2E da aula atual.') || false
+  })
+  await recoveryEditor.textarea.fill(SUMMARY)
+  await waitForBrowserData(page, async () => {
+    const { countMAProfessorDailyDrafts } = await import('/src/components/ma-professor/daily/dailyDraftStorage.ts')
+    return await countMAProfessorDailyDrafts('e2e.professor@example.test') === 0
+  })
+  await page.evaluate(async ({ draft, futureSummary }) => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    const { saveMAProfessorDailyDraft } = await import('/src/components/ma-professor/daily/dailyDraftStorage.ts')
+    const db = await openMAProfessorDatabase()
+    const lesson = await db.lessons.get(draft.lessonId)
+    await db.lessons.add({ ...lesson, id: 'backup-draft-other-week', date: '2026-09-29', origin: 'extra', scheduleSlotId: null })
+    await saveMAProfessorDailyDraft(draft)
+    const futureLesson = { ...draft.lesson, summary: futureSummary }
+    await saveMAProfessorDailyDraft({ ...draft, lessonId: 'backup-draft-other-week', date: '2026-09-29', lesson: futureLesson,
+      draftSignature: JSON.stringify({ ...JSON.parse(draft.draftSignature), lesson: futureLesson }) })
+  }, { draft: recoveryDraft, futureSummary: futureDraftSummary })
+  await page.setViewportSize({ width: 390, height: 900 })
+  await openDestination(page, 'Definições', 390)
+  await page.getByRole('button', { name: /Segurança e recuperação/ }).click()
+  await page.getByText(/Existem 2 aulas com alterações por guardar/).waitFor()
+  const futureDraftLink = page.getByRole('button', { name: /29\/09\/2026 .*11.º E.*Área de Expressões.*Abrir em Hoje/ })
+  await futureDraftLink.click()
+  await page.waitForFunction(expected => [...document.querySelectorAll('textarea')].some(item => item.value === expected), futureDraftSummary)
+  const futureRecoveryEditor = await summaryEditor(page)
+  assert.equal(await futureRecoveryEditor.textarea.inputValue(), futureDraftSummary)
+  await futureRecoveryEditor.section.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await waitText(page, 'Aula, sumário, faltas e avaliações guardados.')
+  await openDestination(page, 'Definições', 390)
+  await page.getByRole('button', { name: /Segurança e recuperação/ }).click()
+  await page.getByText(/Existe 1 aula com alterações por guardar/).waitFor()
+  assert.equal(await page.getByRole('button', { name: /29\/09\/2026 .*Abrir em Hoje/ }).count(), 0)
+  await page.getByRole('button', { name: /21\/09\/2026 .*Abrir em Hoje/ }).click()
+  await page.waitForFunction(expected => [...document.querySelectorAll('textarea')].some(item => item.value === expected), localDraftSummary)
+  const currentRecoveryEditor = await summaryEditor(page)
+  await currentRecoveryEditor.textarea.fill(SUMMARY)
+  await waitForBrowserData(page, async () => {
+    const { countMAProfessorDailyDrafts } = await import('/src/components/ma-professor/daily/dailyDraftStorage.ts')
+    return await countMAProfessorDailyDrafts('e2e.professor@example.test') === 0
+  })
+  await page.evaluate(async () => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    await (await openMAProfessorDatabase()).lessons.delete('backup-draft-other-week')
+  })
+  assert.equal((await persistedLesson(page)).matchCount, 1)
+  evidence.push('aviso de cópia com data, hora, turma e disciplina; ligação recupera a aula exata de outra semana em mobile; guardar atualiza a lista')
 
   for (const width of [1366, 1024, 390]) {
     await page.setViewportSize({ width, height: 900 })

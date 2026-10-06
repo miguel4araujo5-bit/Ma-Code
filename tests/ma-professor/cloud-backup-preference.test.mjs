@@ -93,7 +93,20 @@ async function stage(
   }
 
   await compile('daily/dailyDraftStorage.ts', 'daily-drafts.mjs', {})
-  await compile('settings/BackupDraftNotice.tsx', 'draft-notice.mjs', { '../daily/dailyDraftStorage': './daily-drafts.mjs' })
+  await compile('setup/setupReadiness.ts', 'readiness.mjs', {})
+  await writeFile(join(directory, 'draft-db.mjs'), `
+    export const openMAProfessorDatabase = async () => {};
+    export const maProfessorDb = {
+      lessons: { bulkGet: async ids => ids.map(() => undefined) },
+      academicYears: { toArray: async () => [] },
+      teachingAssignments: { bulkGet: async () => [] },
+      groups: { bulkGet: async () => [] }, subjects: { bulkGet: async () => [] }
+    };
+  `)
+  await compile('settings/BackupDraftNotice.tsx', 'draft-notice.mjs', {
+    '../daily/dailyDraftStorage': './daily-drafts.mjs',
+    '../db': './draft-db.mjs', '../setup/setupReadiness': './readiness.mjs'
+  })
 
   await compile(
     sourceName,
