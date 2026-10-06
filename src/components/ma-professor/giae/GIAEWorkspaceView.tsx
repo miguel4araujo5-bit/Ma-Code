@@ -1,7 +1,9 @@
 import {
   type ChangeEvent,
   useEffect,
+  useId,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -229,28 +231,53 @@ function MetricCard({
   label,
   value,
   detail,
-  className
+  className,
+  onClick,
+  selected = false,
+  disabled = false,
+  controls
 }: {
   label: string
   value: string | number
   detail: string
   className: string
+  onClick?: () => void
+  selected?: boolean
+  disabled?: boolean
+  controls?: string
 }) {
-  return (
-    <article
-      className={`rounded-2xl border p-4 ${className}`}
-    >
-      <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400">
+  const content = (
+    <>
+      <span className="block text-[0.65rem] font-bold uppercase tracking-[0.14em] text-slate-400">
         {label}
-      </p>
+      </span>
 
-      <p className="mt-2 text-2xl font-black text-white">
+      <span className="mt-2 block text-2xl font-black text-white">
         {value}
-      </p>
+      </span>
 
-      <p className="mt-1 text-xs leading-5 text-slate-500">
+      <span className="mt-1 block text-xs leading-5 text-slate-500">
         {detail}
-      </p>
+      </span>
+    </>
+  )
+
+  const cardClassName = `rounded-2xl border p-4 ${className}`
+
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={selected}
+      aria-controls={controls}
+      className={`${cardClassName} w-full text-left text-cyan-200 transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 disabled:cursor-wait disabled:opacity-60 ${selected ? 'ring-2 ring-inset ring-current' : ''}`}
+    >
+      {content}
+    </button>
+  ) : (
+    <article className={cardClassName}>
+      {content}
     </article>
   )
 }
@@ -993,6 +1020,14 @@ export default function GIAEWorkspaceView({
   onMarkManySubmitted,
   onMarkManyCopiedSubmitted
 }: GIAEWorkspaceViewProps) {
+  const resultsId = useId()
+  const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
+  const pendingShortcut = useRef<{
+    state: GIAEWorkspaceFilters['state']
+    previousRows: GIAEWorkspaceRow[]
+    started: boolean
+  } | null>(null)
+
   const [
     selectedLessonIds,
     setSelectedLessonIds
@@ -1072,6 +1107,50 @@ export default function GIAEWorkspaceView({
   const disabled =
     loading ||
     busyAction !== null
+
+  const hasAdditionalFilters = Boolean(
+    snapshot.filters.query || snapshot.filters.dateFrom ||
+    snapshot.filters.dateTo || snapshot.filters.groupId ||
+    snapshot.filters.teachingAssignmentId || snapshot.filters.moduleId
+  )
+
+  function focusResults() {
+    resultsHeadingRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
+    resultsHeadingRef.current?.focus({ preventScroll: true })
+  }
+
+  function handleStateShortcut(state: GIAEWorkspaceFilters['state']) {
+    if (disabled) return
+
+    if (!error && !hasAdditionalFilters && snapshot.filters.state === state) {
+      focusResults()
+      return
+    }
+
+    pendingShortcut.current = { state, previousRows: snapshot.rows, started: false }
+    onFiltersChange({ ...emptyFilters, state })
+  }
+
+  useEffect(() => {
+    const pending = pendingShortcut.current
+    if (!pending) return
+
+    if (loading) {
+      pending.started = true
+      return
+    }
+
+    if ((error && pending.started) || hasAdditionalFilters || snapshot.filters.state !== pending.state) {
+      pendingShortcut.current = null
+      return
+    }
+
+    // The parent updates filters before replacing the asynchronously loaded rows.
+    if (error || snapshot.rows === pending.previousRows) return
+
+    pendingShortcut.current = null
+    focusResults()
+  }, [error, hasAdditionalFilters, loading, snapshot.filters.state, snapshot.rows])
 
   useEffect(() => {
     const validIds =
@@ -1501,6 +1580,10 @@ export default function GIAEWorkspaceView({
             }
             detail={`${snapshot.totals.overdue} em atraso`}
             className="border-rose-300/20 bg-rose-300/[0.055]"
+            onClick={() => handleStateShortcut('missing_summary')}
+            selected={!hasAdditionalFilters && snapshot.filters.state === 'missing_summary'}
+            disabled={disabled}
+            controls={resultsId}
           />
 
           <MetricCard
@@ -1511,6 +1594,10 @@ export default function GIAEWorkspaceView({
             }
             detail="Dados e prontos a copiar"
             className="border-amber-300/20 bg-amber-300/[0.055]"
+            onClick={() => handleStateShortcut('pending')}
+            selected={!hasAdditionalFilters && snapshot.filters.state === 'pending'}
+            disabled={disabled}
+            controls={resultsId}
           />
 
           <MetricCard
@@ -1521,6 +1608,10 @@ export default function GIAEWorkspaceView({
             }
             detail="Assinalados após cópia ou confirmação manual"
             className="border-emerald-300/20 bg-emerald-300/[0.055]"
+            onClick={() => handleStateShortcut('submitted')}
+            selected={!hasAdditionalFilters && snapshot.filters.state === 'submitted'}
+            disabled={disabled}
+            controls={resultsId}
           />
 
           <MetricCard
@@ -1531,6 +1622,10 @@ export default function GIAEWorkspaceView({
             }
             detail={`${snapshot.totals.periods} tempos abrangidos`}
             className="border-cyan-300/20 bg-cyan-300/[0.055]"
+            onClick={() => handleStateShortcut(null)}
+            selected={!hasAdditionalFilters && snapshot.filters.state === null}
+            disabled={disabled}
+            controls={resultsId}
           />
 
           <MetricCard
@@ -1616,14 +1711,14 @@ export default function GIAEWorkspaceView({
         </div>
       ) : null}
 
-      <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-slate-950/65 p-5 sm:p-6">
+      <section id={resultsId} aria-labelledby={`${resultsId}-heading`} className="mt-5 rounded-[1.75rem] border border-white/10 bg-slate-950/65 p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
               Registos
             </p>
 
-            <h2 className="mt-2 text-xl font-black text-white">
+            <h2 id={`${resultsId}-heading`} ref={resultsHeadingRef} tabIndex={-1} className="mt-2 scroll-mt-24 text-xl font-black text-white">
               {snapshot.rows.length}{' '}
               {snapshot.rows.length ===
               1

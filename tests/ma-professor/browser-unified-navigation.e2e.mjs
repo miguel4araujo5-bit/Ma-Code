@@ -231,6 +231,31 @@ async function summaryEditor(page) {
   return { section, textarea }
 }
 
+async function assertSubmissionShortcuts(page) {
+  const search = page.getByLabel('Pesquisa', { exact: true })
+  for (const [label, state] of [['Sem sumário', 'missing_summary'], ['Por submeter', 'pending'], ['Submetidos', 'submitted'], ['Total', '']]) {
+    await search.fill('Filtro fictício sem correspondência')
+    const card = page.getByRole('button', { name: new RegExp(`^${label} `) })
+    await card.click()
+    await page.waitForFunction(() => {
+      const target = document.querySelector('h2[tabindex="-1"]')
+      return target && document.activeElement === target &&
+        [...document.querySelectorAll('button[aria-controls]')].every(button => !button.disabled)
+    })
+    assert.equal(await search.inputValue(), '')
+    assert.equal(await page.getByLabel('Estado', { exact: true }).inputValue(), state)
+    assert.equal(await card.getAttribute('aria-pressed'), 'true')
+    const count = Number(await card.locator('span').nth(1).textContent())
+    const results = page.getByRole('heading', { name: `${count} ${count === 1 ? 'aula encontrada' : 'aulas encontradas'}`, exact: true })
+    const bounds = await results.boundingBox()
+    assert.ok(bounds && bounds.y >= 0 && bounds.y < 900, `${label}: results must be on screen`)
+  }
+  const total = page.getByRole('button', { name: /^Total / })
+  await total.focus()
+  await total.press('Enter')
+  assert.equal(await page.locator('h2[tabindex="-1"]').evaluate(node => node === document.activeElement), true)
+}
+
 async function persistedLesson(page) {
   return page.evaluate(async expectedSummary => {
     const { openMAProfessorDatabase } = await import(
@@ -430,7 +455,10 @@ try {
       const heading = label === 'Horários' ? 'Horário e calendário escolar' : label
       await page.getByRole('heading', { name: heading, exact: true }).first().waitFor()
       await assertSingleNavigation(page)
-      if (label === 'Sumários / GIAE') await page.getByRole('button', { name: 'Exportar sumários', exact: true }).waitFor()
+      if (label === 'Sumários / GIAE') {
+        await page.getByRole('button', { name: 'Exportar sumários', exact: true }).waitFor()
+        await assertSubmissionShortcuts(page)
+      }
       if (label === 'Restaurar dados') await page.getByRole('button', { name: 'Escolher cópia do dispositivo' }).waitFor()
       if (width >= 1280) {
         const selected = page.getByRole('complementary', { name: 'Navegação completa do MA-Professor' }).getByRole('button').filter({ hasText: label })
