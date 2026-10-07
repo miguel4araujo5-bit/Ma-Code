@@ -996,7 +996,7 @@ export default function LessonEditorDialog({
                       </div>
 
                       <p className="mt-3 text-xs leading-5 text-slate-500">
-                        Se alguma aula abrangida já estiver submetida no programa oficial, tiver faltas ou avaliações, a operação pára sem alterar nenhuma aula.
+                        Sumários, atividade, notas, planificação, faltas e avaliações acompanham a respetiva aula. Se alguma aula abrangida já estiver submetida no programa oficial, a operação pára sem alterar nenhuma aula.
                       </p>
                     </fieldset>
                   ) : null}
