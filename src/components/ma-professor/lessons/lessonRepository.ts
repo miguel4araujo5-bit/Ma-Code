@@ -535,74 +535,19 @@ export class LessonRepository
             )
           ])
 
-        const relatedIds =
-          new Set<EntityId>()
-
-        const [
-          attendance,
-          assessments
-        ] = await Promise.all([
-          maProfessorDb.lessonAttendance
-            .toArray(),
-          maProfessorDb.lessonAssessments
-            .toArray()
-        ])
-
-        attendance.forEach(
-          row => {
-            if (
-              row.status ===
-                'absent' &&
-              movingIds.has(
-                row.lessonId
-              )
-            ) {
-              relatedIds.add(
-                row.lessonId
-              )
-            }
-          }
-        )
-
-        assessments.forEach(
-          row => {
-            if (
-              movingIds.has(
-                row.lessonId
-              )
-            ) {
-              relatedIds.add(
-                row.lessonId
-              )
-            }
-          }
-        )
-
-        const protectedLesson =
+        const submittedLesson =
           [
             ...primaryLessons,
             ...secondaryLessons
           ].find(
             lesson =>
               lesson.giaeStatus ===
-                'submitted' ||
-              relatedIds.has(
-                lesson.id
-              )
+                'submitted'
           )
 
-        if (protectedLesson) {
-          if (
-            protectedLesson.giaeStatus ===
-              'submitted'
-          ) {
-            throw new Error(
-              'Existem aulas neste âmbito já submetidas no programa oficial. Retire primeiro o visto dessas aulas; nenhuma alteração foi aplicada.'
-            )
-          }
-
+        if (submittedLesson) {
           throw new Error(
-            'Existem aulas neste âmbito com faltas ou avaliações associadas. Corrija essas aulas individualmente; nenhuma alteração foi aplicada.'
+            'Existem aulas neste âmbito já submetidas no programa oficial. Retire primeiro o visto dessas aulas; nenhuma alteração foi aplicada.'
           )
         }
 
