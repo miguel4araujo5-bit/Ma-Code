@@ -248,10 +248,28 @@ function selectModuleForAllocation(
           ) ?? 0
         ) < module.plannedPeriods
     ) ??
-    modules[
-      modules.length - 1
-    ] ??
     null
+  )
+}
+
+function lessonReservesScheduleOccurrence(
+  lesson: Lesson
+) {
+  return (
+    Boolean(
+      lesson.scheduleSlotId
+    ) &&
+    (
+      lesson.origin ===
+        'scheduled' ||
+      (
+        lesson.origin ===
+          'extra' &&
+        Boolean(
+          lesson.scheduleOriginalPosition
+        )
+      )
+    )
   )
 }
 
@@ -381,9 +399,9 @@ export function planScheduledLessonReconciliation(
   input.lessons.forEach(
     lesson => {
       if (
-        lesson.origin !==
-          'scheduled' ||
-        !lesson.scheduleSlotId
+        !lessonReservesScheduleOccurrence(
+          lesson
+        )
       ) {
         return
       }
@@ -499,9 +517,9 @@ export function planScheduledLessonReconciliation(
   input.lessons.forEach(
     lesson => {
       if (
-        lesson.origin !==
-          'scheduled' ||
-        !lesson.scheduleSlotId
+        !lessonReservesScheduleOccurrence(
+          lesson
+        )
       ) {
         return
       }
@@ -682,7 +700,13 @@ export function planScheduledLessonReconciliation(
       )
 
     if (!module) {
-      skippedWithoutModule += 1
+      if (modules.length === 0) {
+        skippedWithoutModule += 1
+      } else {
+        // A carga total planificada já foi consumida. A célula futura
+        // fica vazia em vez de criar uma aula que exceda o plano.
+        createdOutsidePlannedCapacity += 1
+      }
       continue
     }
 
@@ -694,10 +718,6 @@ export function planScheduledLessonReconciliation(
     const withinCapacity =
       allocated <
       module.plannedPeriods
-
-    if (!withinCapacity) {
-      createdOutsidePlannedCapacity += 1
-    }
 
     createLessons.push({
       academicYearId:
