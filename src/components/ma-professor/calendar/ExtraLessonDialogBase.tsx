@@ -746,7 +746,7 @@ export default function ExtraLessonDialog({
                     </p>
 
                     <p className="mt-2 text-xs leading-5 text-slate-500">
-                      A aula será criada como extra, mesmo quando utilizar um horário habitual.
+                      A antecipação reutiliza uma aula futura planeada e não aumenta a carga total da disciplina.
                     </p>
                   </div>
 
