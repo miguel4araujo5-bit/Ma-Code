@@ -159,14 +159,23 @@ test('from-here permutation swaps the recurring cells atomically from the select
  const slotB={...audit,id:'slot-b',academicYearId:'y',teachingAssignmentId:'a',weekday:2,startTime:'10:00',endTime:'10:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
  await db.weeklyScheduleSlots.bulkPut([slotA,slotB])
  await db.lessons.bulkPut([
-  lesson('p1',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-14',startTime:'09:00',endTime:'09:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
+  lesson('p1',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-14',startTime:'09:00',endTime:'09:50',summary:'Sumário preservado',plannedActivity:'Atividade preservada',notes:'Nota preservada',planificationItemIds:['plan-1'],status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
   lesson('p2',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-21',startTime:'09:00',endTime:'09:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
   lesson('s1',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-15',startTime:'10:00',endTime:'10:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
   lesson('s2',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-22',startTime:'10:00',endTime:'10:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null})
  ])
+ await db.lessonAttendance.put(absence('p1-f','p1'))
+ await db.lessonAssessments.put({...audit,id:'p1-assess',academicYearId:'y',lessonId:'p1',teachingAssignmentId:'a',moduleId:'b',criterionId:'criterion-preserved',title:'Avaliação preservada',activityType:'practical_work',description:'',absentScore:0,exemptScore:0})
  await api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'from_here',{id:'s1',updatedAt:stamp})
  assert.deepEqual([(await db.lessons.get('p1')).date,(await db.lessons.get('p2')).date],['2026-09-15','2026-09-22'])
  assert.deepEqual([(await db.lessons.get('s1')).date,(await db.lessons.get('s2')).date],['2026-09-14','2026-09-21'])
+ const preserved=await db.lessons.get('p1')
+ assert.equal(preserved.summary,'Sumário preservado')
+ assert.equal(preserved.plannedActivity,'Atividade preservada')
+ assert.equal(preserved.notes,'Nota preservada')
+ assert.deepEqual(preserved.planificationItemIds,['plan-1'])
+ assert.equal((await db.lessonAttendance.get('p1-f')).lessonId,'p1')
+ assert.equal((await db.lessonAssessments.get('p1-assess')).lessonId,'p1')
  assert.equal((await db.weeklyScheduleSlots.get('slot-a')).validUntil,'2026-09-13')
  assert.equal((await db.weeklyScheduleSlots.get('slot-b')).validUntil,'2026-09-13')
  assert.equal(await db.weeklyScheduleSlots.count(),4)
