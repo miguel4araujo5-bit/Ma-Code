@@ -20,6 +20,7 @@ export * from './src/components/ma-professor/lessons/ufcdProgressRepository'
 export * from './src/components/ma-professor/lessons/ufcdCompletionProjection'
 export * from './src/components/ma-professor/lessons/scheduledLessonReconciliation'
 export * from './src/components/ma-professor/lessons/lessonRepository'
+export * from './src/components/ma-professor/calendar/extraLessonRepository'
 export * from './src/components/ma-professor/attendance/attendanceRepository'
 export * from './src/components/ma-professor/attendance/attendancePeriodMetrics'
 export * from './src/components/ma-professor/assessments/assessmentWorkspaceRepository'
@@ -196,6 +197,30 @@ test('move uses only date/time; submitted destinations and stale versions roll b
  await assert.rejects(api.lessonRepository.moveLesson('l',destination,stamp,{id:'other',updatedAt:stamp}),/alterada/)
  const moved=await api.lessonRepository.moveLesson('l',{...destination,date:'2026-09-16',moduleId:'c',summary:'must not leak',giaeStatus:'submitted'},stamp)
  assert.equal(moved.moduleId,'b');assert.equal(moved.summary,'Sumário');assert.equal(moved.giaeStatus,'pending')
+})
+
+test('an anticipated scheduled lesson reserves its original occurrence instead of being recreated',async()=>{
+ const slot={...audit,id:'slot',academicYearId:'y',teachingAssignmentId:'a',weekday:1,startTime:'09:00',endTime:'09:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
+ await db.weeklyScheduleSlots.put(slot)
+ await db.lessons.put(lesson('future',{origin:'scheduled',scheduleSlotId:'slot',date:'2026-10-12',summary:'',plannedActivity:'',notes:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null,planificationItemIds:[]}))
+ const anticipated=await api.extraLessonRepository.createExtraLesson({
+  academicYearId:'y',teachingAssignmentId:'a',moduleId:'b',date:'2026-10-05',startTime:'11:00',endTime:'11:50',periodCount:1,status:'planned',countTowardProgress:true,plannedActivity:'',summary:'',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending'
+ })
+ assert.equal(anticipated.id,'future')
+ assert.equal(anticipated.origin,'extra')
+ assert.equal(anticipated.scheduleSlotId,'slot')
+ assert.deepEqual(anticipated.scheduleOriginalPosition,{date:'2026-10-12',startTime:'09:00'})
+ const result=api.planScheduledLessonReconciliation({academicYear:year,assignments:[assignment],slots:[slot],modules:[module()],events:[],lessons:[anticipated],relatedLessonIds:new Set(),dateFrom:'2026-10-12',dateTo:'2026-10-18'})
+ assert.equal(result.createLessons.length,0)
+ assert.ok(result.preservedLessonIds.includes('future'))
+})
+
+test('reconciliation leaves future timetable cells empty once the planned discipline load is exhausted',()=>{
+ const slot={...audit,id:'slot',academicYearId:'y',teachingAssignmentId:'a',weekday:1,startTime:'09:00',endTime:'09:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
+ const completed=lesson('done',{date:'2026-09-14',moduleId:'b',periodCount:1})
+ const result=api.planScheduledLessonReconciliation({academicYear:year,assignments:[assignment],slots:[slot],modules:[module('b',1,1)],events:[],lessons:[completed],relatedLessonIds:new Set(),dateFrom:'2026-09-21',dateTo:'2026-09-21'})
+ assert.equal(result.createLessons.length,0)
+ assert.equal(result.createdOutsidePlannedCapacity,1)
 })
 
 test('a moved scheduled occurrence is preserved across reconciliation of its original week',async()=>{
