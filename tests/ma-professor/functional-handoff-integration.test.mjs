@@ -145,6 +145,49 @@ test('manual recovery without absences accepts date/grade but invents no school 
  assert.equal((await api.assessmentWorkspaceRepository.getWorkspace('y',{teachingAssignmentId:'a',moduleId:'b'})).studentRows[0].gradeSummary.confirmedFinalGrade,14)
 })
 
+test('two consecutive one-period cells advance to the next UFCD immediately at the boundary',()=>{
+ const slots=[
+  {...audit,id:'slot-1',academicYearId:'y',teachingAssignmentId:'a',weekday:1,startTime:'09:00',endTime:'09:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true},
+  {...audit,id:'slot-2',academicYearId:'y',teachingAssignmentId:'a',weekday:1,startTime:'10:00',endTime:'10:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
+ ]
+ const result=api.planScheduledLessonReconciliation({academicYear:year,assignments:[assignment],slots,modules:[module('b',1,1),module('c',2,1)],events:[],lessons:[],relatedLessonIds:new Set(),dateFrom:'2026-09-14',dateTo:'2026-09-14'})
+ assert.deepEqual(result.createLessons.map(row=>row.moduleId),['b','c'])
+})
+
+test('from-here permutation swaps the recurring cells atomically from the selected week',async()=>{
+ const slotA={...audit,id:'slot-a',academicYearId:'y',teachingAssignmentId:'a',weekday:1,startTime:'09:00',endTime:'09:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
+ const slotB={...audit,id:'slot-b',academicYearId:'y',teachingAssignmentId:'a',weekday:2,startTime:'10:00',endTime:'10:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
+ await db.weeklyScheduleSlots.bulkPut([slotA,slotB])
+ await db.lessons.bulkPut([
+  lesson('p1',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-14',startTime:'09:00',endTime:'09:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
+  lesson('p2',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-21',startTime:'09:00',endTime:'09:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
+  lesson('s1',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-15',startTime:'10:00',endTime:'10:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
+  lesson('s2',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-22',startTime:'10:00',endTime:'10:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null})
+ ])
+ await api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'from_here',{id:'s1',updatedAt:stamp})
+ assert.deepEqual([(await db.lessons.get('p1')).date,(await db.lessons.get('p2')).date],['2026-09-15','2026-09-22'])
+ assert.deepEqual([(await db.lessons.get('s1')).date,(await db.lessons.get('s2')).date],['2026-09-14','2026-09-21'])
+ assert.equal((await db.weeklyScheduleSlots.get('slot-a')).validUntil,'2026-09-13')
+ assert.equal((await db.weeklyScheduleSlots.get('slot-b')).validUntil,'2026-09-13')
+ assert.equal(await db.weeklyScheduleSlots.count(),4)
+ assert.equal(await db.lessons.count(),4)
+})
+
+test('scoped schedule change aborts completely when any affected lesson is submitted',async()=>{
+ const slotA={...audit,id:'slot-a',academicYearId:'y',teachingAssignmentId:'a',weekday:1,startTime:'09:00',endTime:'09:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
+ const slotB={...audit,id:'slot-b',academicYearId:'y',teachingAssignmentId:'a',weekday:2,startTime:'10:00',endTime:'10:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
+ await db.weeklyScheduleSlots.bulkPut([slotA,slotB])
+ await db.lessons.bulkPut([
+  lesson('p1',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-14',startTime:'09:00',endTime:'09:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
+  lesson('p2',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-21',startTime:'09:00',endTime:'09:50'}),
+  lesson('s1',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-15',startTime:'10:00',endTime:'10:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null})
+ ])
+ await assert.rejects(api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'from_here',{id:'s1',updatedAt:stamp}),/submetidas/)
+ assert.equal((await db.lessons.get('p1')).date,'2026-09-14')
+ assert.equal((await db.weeklyScheduleSlots.get('slot-a')).validUntil,'2027-07-31')
+ assert.equal(await db.weeklyScheduleSlots.count(),2)
+})
+
 test('submitted lessons cannot move or change module; swapping keeps both lessons and evidence',async()=>{
  await db.lessons.bulkPut([lesson('l'),lesson('other',{date:'2026-09-15',giaeStatus:'pending',giaeSubmittedAt:null})]);await db.lessonAttendance.put(absence('f','l'))
  await assert.rejects(api.lessonRepository.updateLesson('l',{moduleId:'c'}),/retire primeiro/)
