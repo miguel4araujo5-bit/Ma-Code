@@ -5,7 +5,6 @@ import {
 import {
   findPlanificationReservationConflict,
   getReservedPlanificationItemIds,
-  selectNextAvailablePlanificationItem
 } from '../planifications/planificationItemReservation'
 
 import type {
@@ -458,65 +457,52 @@ export class LessonRepository
     )
   }
 
-  override async getNextPlanificationItem(
+  async getAvailablePlanificationItems(
     moduleId: EntityId,
     ignoredLessonId?: EntityId
   ) {
     await this.initialize()
 
-    const [
-      planifications,
-      moduleLessons
-    ] = await Promise.all([
-      maProfessorDb.planifications
-        .where(
-          'moduleId'
-        )
-        .equals(
-          moduleId
-        )
-        .toArray(),
-      maProfessorDb.lessons
-        .where(
-          'moduleId'
-        )
-        .equals(
-          moduleId
-        )
-        .toArray()
+    const [planifications, moduleLessons] = await Promise.all([
+      maProfessorDb.planifications.where('moduleId').equals(moduleId).toArray(),
+      maProfessorDb.lessons.where('moduleId').equals(moduleId).toArray()
     ])
 
-    const activePlanification =
-      planifications.find(
-        planification =>
-          planification.active
-      )
-
-    if (!activePlanification) {
-      return null
-    }
-
-    const items =
-      await maProfessorDb.planificationItems
-        .where(
-          'planificationId'
-        )
-        .equals(
-          activePlanification.id
-        )
-        .toArray()
-
-    const reservedIds =
-      getReservedPlanificationItemIds(
-        moduleLessons,
-        moduleId,
-        ignoredLessonId
-      )
-
-    return selectNextAvailablePlanificationItem(
-      items,
-      reservedIds
+    const activePlanification = planifications.find(
+      planification => planification.active
     )
+
+    if (!activePlanification) return []
+
+    const items = await maProfessorDb.planificationItems
+      .where('planificationId')
+      .equals(activePlanification.id)
+      .toArray()
+
+    const reservedIds = getReservedPlanificationItemIds(
+      moduleLessons,
+      moduleId,
+      ignoredLessonId
+    )
+
+    return items
+      .filter(item =>
+        item.status === 'planned' &&
+        !item.usedLessonId &&
+        !reservedIds.has(item.id)
+      )
+      .sort((left, right) => left.order - right.order)
+  }
+
+  override async getNextPlanificationItem(
+    moduleId: EntityId,
+    ignoredLessonId?: EntityId
+  ) {
+    const items = await this.getAvailablePlanificationItems(
+      moduleId,
+      ignoredLessonId
+    )
+    return items[0] ?? null
   }
 
   async markGIAESubmittedExplicit(
