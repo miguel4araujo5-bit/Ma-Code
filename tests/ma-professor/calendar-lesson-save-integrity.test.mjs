@@ -271,3 +271,59 @@ test(
     )
   }
 )
+
+
+test(
+  'existing lesson editor uses navigable planification without consuming items until Adicionar',
+  () => {
+    assert.match(
+      editorSource,
+      /PlanificationSummaryTextarea/
+    )
+    assert.match(
+      editorSource,
+      /getAvailablePlanificationItems\(\s*form\.moduleId,\s*lesson\.id/
+    )
+    assert.match(
+      editorSource,
+      /aria-label="Item anterior da planificação"[\s\S]*aria-label="Item seguinte da planificação"[\s\S]*Adicionar/s
+    )
+    assert.match(
+      editorSource,
+      /appendPlanificationSuggestion\(\s*current\.summary,\s*planificationSuggestionText/
+    )
+  }
+)
+
+test(
+  'copying the previous lesson changes only the summary in the existing lesson editor',
+  () => {
+    const start = editorSource.indexOf(
+      'function copyPreviousLesson()'
+    )
+    const end = editorSource.indexOf(
+      'function usePlanificationItem()',
+      start
+    )
+    const block = editorSource.slice(start, end)
+
+    assert.match(block, /summary:\s*previous\.summary/)
+    assert.doesNotMatch(block, /plannedActivity:/)
+    assert.doesNotMatch(block, /notes:/)
+  }
+)
+
+
+test(
+  'lesson move UI exposes the three approved scopes',
+  () => {
+    assert.match(editorSource, /Só esta célula/)
+    assert.match(editorSource, /Daqui para a frente/)
+    assert.match(editorSource, /Do início ao fim/)
+    assert.match(editorSource, /moveLessonWithScope/)
+    assert.match(
+      editorSource,
+      /Sumários, atividade, notas, planificação, faltas e avaliações acompanham[\s\S]*programa oficial/
+    )
+  }
+)

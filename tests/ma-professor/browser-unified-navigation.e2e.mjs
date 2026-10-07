@@ -573,21 +573,38 @@ try {
   await page.setViewportSize({ width: 1366, height: 900 })
   await primary(page).getByRole('button', { name: 'Calendário', exact: false }).click()
   await page.getByRole('button', { name: '+ Aula extra', exact: true }).click()
-  const extra = page.getByRole('dialog', { name: 'Criar nova aula', exact: true })
+  const extra = page.getByRole('dialog', { name: 'Antecipar aula', exact: true })
   await extra.waitFor()
-  await extra.getByPlaceholder('Conteúdos, atividade ou trabalho previsto para a aula.').fill('Aula extra de navegação')
-  page.once('dialog', dialog => dialog.dismiss())
-  await extra.getByRole('button', { name: 'Fechar criação da aula extra' }).click()
-  assert.equal(await extra.isVisible(), true, 'cancelled discard must retain the extra lesson')
-  await extra.getByRole('button', { name: 'Criar aula extra', exact: true }).click()
-  await extra.waitFor({ state: 'hidden' })
-  const extraCount = await page.evaluate(async () => {
+  const beforeAnticipation = await page.evaluate(async () => {
     const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
     const db = await openMAProfessorDatabase()
-    return (await db.lessons.toArray()).filter(item => item.origin === 'extra').length
+    const lessons = await db.lessons.toArray()
+    return {
+      total: lessons.length,
+      displaced: lessons.filter(item => Boolean(item.scheduleOriginalPosition)).length,
+      extras: lessons.filter(item => item.origin === 'extra').length
+    }
   })
-  assert.equal(extraCount, 1)
-  evidence.push('aula extra no calendário único, proteção do rascunho e persistência')
+  await extra.getByPlaceholder('Conteúdos, atividade ou trabalho previsto para a aula.').fill('Antecipação de navegação')
+  page.once('dialog', dialog => dialog.dismiss())
+  await extra.getByRole('button', { name: 'Fechar criação da aula extra' }).click()
+  assert.equal(await extra.isVisible(), true, 'cancelled discard must retain the anticipation draft')
+  await extra.getByRole('button', { name: 'Criar antecipação', exact: true }).click()
+  await extra.waitFor({ state: 'hidden' })
+  const afterAnticipation = await page.evaluate(async () => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    const db = await openMAProfessorDatabase()
+    const lessons = await db.lessons.toArray()
+    return {
+      total: lessons.length,
+      displaced: lessons.filter(item => Boolean(item.scheduleOriginalPosition)).length,
+      extras: lessons.filter(item => item.origin === 'extra').length
+    }
+  })
+  assert.equal(afterAnticipation.total, beforeAnticipation.total)
+  assert.equal(afterAnticipation.displaced, beforeAnticipation.displaced + 1)
+  assert.equal(afterAnticipation.extras, beforeAnticipation.extras)
+  evidence.push('antecipação no calendário único, proteção do rascunho e carga total invariável')
 
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   await page.getByText('Painel do ano letivo', { exact: true }).waitFor()

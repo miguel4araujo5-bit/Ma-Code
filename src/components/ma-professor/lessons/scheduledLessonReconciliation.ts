@@ -38,6 +38,7 @@ export interface ScheduledLessonReconciliationPlanInput {
   relatedLessonIds: ReadonlySet<EntityId>
   dateFrom: ISODate
   dateTo: ISODate
+  allowOutsidePlannedCapacity?: boolean
 }
 
 export interface ScheduledLessonReconciliationPlan {
@@ -255,6 +256,27 @@ function selectModuleForAllocation(
   )
 }
 
+function lessonReservesScheduleOccurrence(
+  lesson: Lesson
+) {
+  return (
+    Boolean(
+      lesson.scheduleSlotId
+    ) &&
+    (
+      lesson.origin ===
+        'scheduled' ||
+      (
+        lesson.origin ===
+          'extra' &&
+        Boolean(
+          lesson.scheduleOriginalPosition
+        )
+      )
+    )
+  )
+}
+
 export function getScheduleOccurrenceKey(
   scheduleSlotId: EntityId,
   date: ISODate
@@ -381,16 +403,16 @@ export function planScheduledLessonReconciliation(
   input.lessons.forEach(
     lesson => {
       if (
-        lesson.origin !==
-          'scheduled' ||
-        !lesson.scheduleSlotId
+        !lessonReservesScheduleOccurrence(
+          lesson
+        )
       ) {
         return
       }
 
       const key =
         getScheduleOccurrenceKey(
-          lesson.scheduleSlotId,
+          lesson.scheduleSlotId!,
           lesson.scheduleOriginalPosition?.date ?? lesson.date
         )
 
@@ -499,16 +521,16 @@ export function planScheduledLessonReconciliation(
   input.lessons.forEach(
     lesson => {
       if (
-        lesson.origin !==
-          'scheduled' ||
-        !lesson.scheduleSlotId
+        !lessonReservesScheduleOccurrence(
+          lesson
+        )
       ) {
         return
       }
 
       const key =
         getScheduleOccurrenceKey(
-          lesson.scheduleSlotId,
+          lesson.scheduleSlotId!,
           lesson.scheduleOriginalPosition?.date ?? lesson.date
         )
 
@@ -697,6 +719,15 @@ export function planScheduledLessonReconciliation(
 
     if (!withinCapacity) {
       createdOutsidePlannedCapacity += 1
+
+      if (
+        !input.allowOutsidePlannedCapacity
+      ) {
+        // Na reconciliação real, a carga total planificada é um limite
+        // rígido. A previsão pode pedir ocorrências virtuais adicionais
+        // sem as persistir.
+        continue
+      }
     }
 
     createLessons.push({

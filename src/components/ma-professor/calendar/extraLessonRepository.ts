@@ -910,12 +910,15 @@ export class ExtraLessonRepository {
         sourceLesson.id,
         {
           moduleId: input.moduleId,
-          scheduleSlotId: null,
+          // Uma antecipação é a própria aula prevista deslocada, não uma
+          // aula adicional. Mantém a origem e o bloco para reservar a
+          // ocorrência original na reconciliação.
+          scheduleSlotId: sourceLesson.scheduleSlotId,
           scheduleOriginalPosition: sourceLesson.scheduleOriginalPosition ?? {
             date: sourceLesson.date,
             startTime: sourceLesson.startTime
           },
-          origin: 'extra',
+          origin: 'scheduled',
           status,
           date: input.date,
           startTime: input.startTime,

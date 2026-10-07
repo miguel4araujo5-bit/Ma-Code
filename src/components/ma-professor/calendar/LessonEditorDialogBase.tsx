@@ -18,7 +18,8 @@ import {
 } from '../db'
 
 import {
-  lessonRepository
+  lessonRepository,
+  type LessonMoveScope
 } from '../lessons/lessonRepository'
 
 import type {
@@ -26,6 +27,7 @@ import type {
   GIAEStatus,
   Lesson,
   LessonStatus,
+  PlanificationItem,
   SummarySource
 } from '../types'
 
@@ -37,6 +39,11 @@ import {
 import {
   assertCalendarLessonRelatedDataCompatibility
 } from './calendarLessonSaveSafety'
+
+import PlanificationSummaryTextarea, {
+  appendPlanificationSuggestion,
+  getPlanificationSuggestionText
+} from './PlanificationSummaryTextarea'
 
 import LessonAttendanceSection, {
   type LessonAttendanceSectionHandle
@@ -315,6 +322,12 @@ export default function LessonEditorDialog({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [moveCollision, setMoveCollision] = useState<Lesson | null>(null)
+  const [moveScope, setMoveScope] =
+    useState<LessonMoveScope>('single')
+  const [planificationItems, setPlanificationItems] =
+    useState<PlanificationItem[]>([])
+  const [planificationIndex, setPlanificationIndex] = useState(0)
+  const [planificationLoading, setPlanificationLoading] = useState(false)
 
   const attendanceSectionRef =
     useRef<LessonAttendanceSectionHandle>(null)
@@ -338,10 +351,38 @@ export default function LessonEditorDialog({
 
   const moduleChanged = form.moduleId !== lesson.moduleId
 
-  const canUsePlanification = Boolean(
-    context.nextPlanificationItem &&
-      form.moduleId === lesson.moduleId
-  )
+  const positionChanged =
+    form.date !== lesson.date ||
+    form.startTime !== lesson.startTime ||
+    form.endTime !== lesson.endTime
+
+  const availablePlanificationItems =
+    planificationItems.filter(
+      item =>
+        !form.planificationItemIds.includes(
+          item.id
+        )
+    )
+
+  const currentPlanificationIndex =
+    availablePlanificationItems.length === 0
+      ? 0
+      : Math.min(
+          planificationIndex,
+          availablePlanificationItems.length - 1
+        )
+
+  const planificationItem =
+    availablePlanificationItems[
+      currentPlanificationIndex
+    ] ?? null
+
+  const planificationSuggestionText =
+    planificationItem
+      ? getPlanificationSuggestionText(
+          planificationItem
+        )
+      : ''
 
   const canSubmitToGIAE =
     form.status === 'taught' &&
@@ -349,8 +390,60 @@ export default function LessonEditorDialog({
 
   useEffect(() => {
     setForm(buildInitialForm(context))
+    setMoveScope('single')
+    setMoveCollision(null)
     setError('')
   }, [context])
+
+  useEffect(() => {
+    let cancelled = false
+
+    setPlanificationIndex(0)
+
+    if (!form.moduleId) {
+      setPlanificationItems([])
+      setPlanificationLoading(false)
+
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setPlanificationLoading(true)
+
+    async function loadPlanificationItems() {
+      try {
+        const items =
+          await lessonRepository.getAvailablePlanificationItems(
+            form.moduleId,
+            lesson.id
+          )
+
+        if (!cancelled) {
+          setPlanificationItems(
+            items
+          )
+        }
+      } catch {
+        if (!cancelled) {
+          setPlanificationItems([])
+        }
+      } finally {
+        if (!cancelled) {
+          setPlanificationLoading(false)
+        }
+      }
+    }
+
+    void loadPlanificationItems()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    form.moduleId,
+    lesson.id
+  ])
 
   useEffect(() => {
     const previousOverflow =
@@ -410,41 +503,39 @@ export default function LessonEditorDialog({
 
     setForm(current => ({
       ...current,
-      plannedActivity: previous.plannedActivity,
       summary: previous.summary,
       summarySource: 'manual',
-      planificationItemIds: [],
-      notes: previous.notes
+      planificationItemIds: []
     }))
   }
 
-  function useNextPlanificationItem() {
-    const item = context.nextPlanificationItem
-
-    if (!item || !canUsePlanification) {
+  function usePlanificationItem() {
+    if (
+      !planificationItem ||
+      !planificationSuggestionText
+    ) {
       return
     }
 
     setForm(current => ({
       ...current,
-      plannedActivity:
-        item.activity.trim() || item.content.trim(),
       summary:
-        item.suggestedSummary.trim() || item.content.trim(),
-      summarySource: 'planification',
-      planificationItemIds: [item.id]
+        appendPlanificationSuggestion(
+          current.summary,
+          planificationSuggestionText
+        ),
+      summarySource:
+        'planification',
+      planificationItemIds:
+        Array.from(
+          new Set([
+            ...current.planificationItemIds,
+            planificationItem.id
+          ])
+        )
     }))
-  }
 
-  function handleSummaryChange(
-    event: ChangeEvent<HTMLTextAreaElement>
-  ) {
-    setForm(current => ({
-      ...current,
-      summary: event.target.value,
-      summarySource: 'manual',
-      planificationItemIds: []
-    }))
+    setPlanificationIndex(0)
   }
 
   function disconnectPlanification() {
@@ -513,7 +604,7 @@ export default function LessonEditorDialog({
       return
     }
 
-    const moving = form.date !== lesson.date || form.startTime !== lesson.startTime || form.endTime !== lesson.endTime
+    const moving = positionChanged
     if (moving) {
       try {
         if (lesson.giaeStatus === 'submitted') throw new Error('Esta aula já está marcada como submetida no programa oficial. Retire primeiro esse visto e guarde antes de alterar a data ou hora.')
@@ -546,7 +637,23 @@ export default function LessonEditorDialog({
               .count()
           ])
 
-          const positionedLesson = moving ? await lessonRepository.moveLesson(lesson.id, form, lesson.updatedAt, confirmedSwap ? { id: confirmedSwap.id, updatedAt: confirmedSwap.updatedAt } : undefined) : lesson
+          const positionedLesson =
+            moving
+              ? await lessonRepository.moveLessonWithScope(
+                  lesson.id,
+                  form,
+                  lesson.updatedAt,
+                  moveScope,
+                  confirmedSwap
+                    ? {
+                        id:
+                          confirmedSwap.id,
+                        updatedAt:
+                          confirmedSwap.updatedAt
+                      }
+                    : undefined
+                )
+              : lesson
           let savedLesson = await lessonRepository.updateLesson(
             lesson.id,
             {
@@ -826,6 +933,74 @@ export default function LessonEditorDialog({
                     </label>
                   </div>
 
+                  {positionChanged &&
+                  lesson.origin === 'scheduled' &&
+                  lesson.scheduleSlotId ? (
+                    <fieldset className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4">
+                      <legend className="px-1 text-xs font-black uppercase tracking-[0.12em] text-cyan-100">
+                        Aplicar alteração
+                      </legend>
+
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        {([
+                          [
+                            'single',
+                            'Só esta célula'
+                          ],
+                          [
+                            'from_here',
+                            'Daqui para a frente'
+                          ],
+                          [
+                            'whole_schedule',
+                            'Do início ao fim'
+                          ]
+                        ] as Array<[
+                          LessonMoveScope,
+                          string
+                        ]>).map(
+                          ([
+                            value,
+                            label
+                          ]) => (
+                            <label
+                              key={value}
+                              className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold transition ${
+                                moveScope === value
+                                  ? 'border-cyan-200/30 bg-cyan-300/10 text-cyan-50'
+                                  : 'border-white/10 bg-white/[0.025] text-slate-400'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="lesson-move-scope"
+                                value={value}
+                                checked={
+                                  moveScope ===
+                                  value
+                                }
+                                onChange={() =>
+                                  setMoveScope(
+                                    value
+                                  )
+                                }
+                                disabled={saving}
+                                className="h-4 w-4 border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
+                              />
+                              <span>
+                                {label}
+                              </span>
+                            </label>
+                          )
+                        )}
+                      </div>
+
+                      <p className="mt-3 text-xs leading-5 text-slate-500">
+                        Sumários, atividade, notas, planificação, faltas e avaliações acompanham a respetiva aula. Se alguma aula abrangida já estiver submetida no programa oficial, a operação pára sem alterar nenhuma aula.
+                      </p>
+                    </fieldset>
+                  ) : null}
+
                   <label className="mt-5 block">
                     <FieldLabel>UFCD ou módulo</FieldLabel>
 
@@ -899,37 +1074,89 @@ export default function LessonEditorDialog({
                 <section className="grid gap-5 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                   <article className="rounded-[1.5rem] border border-cyan-300/15 bg-cyan-300/[0.035] p-5 sm:p-6">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
-                      Próximo da planificação
+                      Planificação
                     </p>
 
-                    {context.nextPlanificationItem ? (
+                    {planificationItem ? (
                       <>
                         <p className="mt-4 text-sm font-black leading-6 text-white">
-                          {context.nextPlanificationItem.content}
+                          {planificationItem.content}
                         </p>
 
-                        {context.nextPlanificationItem.activity ? (
+                        {planificationItem.activity ? (
                           <p className="mt-2 text-xs leading-5 text-slate-400">
-                            {context.nextPlanificationItem.activity}
+                            {planificationItem.activity}
                           </p>
                         ) : null}
 
-                        <button
-                          type="button"
-                          onClick={useNextPlanificationItem}
-                          disabled={
-                            saving ||
-                            !canUsePlanification
-                          }
-                          className="mt-5 w-full rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          Usar próximo item
-                        </button>
+                        <div className="mt-5 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPlanificationIndex(
+                                current =>
+                                  Math.max(
+                                    0,
+                                    current - 1
+                                  )
+                              )
+                            }
+                            disabled={
+                              saving ||
+                              planificationLoading ||
+                              currentPlanificationIndex <= 0
+                            }
+                            aria-label="Item anterior da planificação"
+                            className="grid h-11 w-11 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-300/[0.07] text-lg font-black text-cyan-50 disabled:opacity-35"
+                          >
+                            −
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPlanificationIndex(
+                                current =>
+                                  Math.min(
+                                    availablePlanificationItems.length - 1,
+                                    current + 1
+                                  )
+                              )
+                            }
+                            disabled={
+                              saving ||
+                              planificationLoading ||
+                              currentPlanificationIndex >=
+                                availablePlanificationItems.length - 1
+                            }
+                            aria-label="Item seguinte da planificação"
+                            className="grid h-11 w-11 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-300/[0.07] text-lg font-black text-cyan-50 disabled:opacity-35"
+                          >
+                            +
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={usePlanificationItem}
+                            disabled={
+                              saving ||
+                              planificationLoading
+                            }
+                            className="min-h-11 flex-1 rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-sm font-black text-cyan-50 disabled:opacity-50"
+                          >
+                            Adicionar
+                          </button>
+                        </div>
+
+                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                          A sugestão aparece em cinzento dentro do Sumário. Navegar não a marca como utilizada.
+                        </p>
                       </>
                     ) : (
                       <p className="mt-4 text-sm leading-6 text-slate-400">
-                        Não existe um próximo item disponível na
-                        planificação desta UFCD.
+                        {selectedModule
+                          ? 'Não existe outro item disponível na planificação desta UFCD.'
+                          : 'Selecione uma UFCD para consultar a planificação.'}
                       </p>
                     )}
                   </article>
@@ -1003,13 +1230,24 @@ export default function LessonEditorDialog({
                         Sumário
                       </FieldLabel>
 
-                      <textarea
+                      <PlanificationSummaryTextarea
                         value={form.summary}
-                        onChange={handleSummaryChange}
+                        suggestion={
+                          planificationSuggestionText
+                        }
+                        onChange={value =>
+                          setForm(current => ({
+                            ...current,
+                            summary: value,
+                            summarySource:
+                              current.planificationItemIds.length > 0
+                                ? 'planification'
+                                : 'manual'
+                          }))
+                        }
                         disabled={saving}
                         rows={5}
                         placeholder="Escreva o sumário que será registado no GIAE."
-                        className={textAreaClassName}
                       />
                     </label>
 

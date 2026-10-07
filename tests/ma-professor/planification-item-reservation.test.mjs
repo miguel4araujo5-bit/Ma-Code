@@ -235,7 +235,11 @@ test(
     )
     assert.match(
       lessonRepositorySource,
-      /getReservedPlanificationItemIds[\s\S]*selectNextAvailablePlanificationItem/
+      /getAvailablePlanificationItems[\s\S]*getReservedPlanificationItemIds[\s\S]*reservedIds\.has\(item\.id\)[\s\S]*sort/
+    )
+    assert.match(
+      lessonRepositorySource,
+      /getNextPlanificationItem[\s\S]*getAvailablePlanificationItems/
     )
   }
 )
