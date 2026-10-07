@@ -398,6 +398,16 @@ export class LessonRepository
             current.date
           )
 
+        if (
+          getStartOfWeek(
+            requestedPosition.date
+          ) !== anchorWeekStart
+        ) {
+          throw new Error(
+            'Para «Daqui para a frente» ou «Do início ao fim», escolha uma célula da mesma semana. Para mudar esta aula para outra semana, use «Só esta célula».'
+          )
+        }
+
         const allLessons =
           await maProfessorDb.lessons
             .where(
@@ -541,6 +551,8 @@ export class LessonRepository
         attendance.forEach(
           row => {
             if (
+              row.status ===
+                'absent' &&
               movingIds.has(
                 row.lessonId
               )
