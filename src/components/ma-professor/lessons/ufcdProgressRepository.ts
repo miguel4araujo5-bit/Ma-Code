@@ -614,7 +614,11 @@ export class UfcdProgressRepository {
         relatedLessonIds,
         dateFrom,
         dateTo:
-          projectionEnd
+          projectionEnd,
+        // Apenas para a previsão: permite prolongar a grelha virtual
+        // sem criar aulas reais para lá da carga planificada.
+        allowOutsidePlannedCapacity:
+          true
       })
 
     const deletedLessonIds =
