@@ -42,6 +42,7 @@ export interface LessonChanges {
   teachingAssignmentId?: EntityId
   moduleId?: EntityId
   scheduleSlotId?: EntityId | null
+  scheduleOriginalPosition?: Lesson['scheduleOriginalPosition']
   origin?: LessonOrigin
   status?: LessonStatus
   date?: ISODate

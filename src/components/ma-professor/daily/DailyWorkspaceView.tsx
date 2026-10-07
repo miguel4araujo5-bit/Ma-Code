@@ -3169,7 +3169,7 @@ export default function DailyWorkspaceView({
                             ) : null}
 
                             <div className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-stretch">
-                                <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/55 lg:h-[25rem]">
+                                <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/55 lg:min-h-[25rem]">
                                     <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
                                         <div>
                                             <p className="text-[0.6rem] font-black uppercase tracking-[0.15em] text-cyan-300">
@@ -3333,14 +3333,14 @@ export default function DailyWorkspaceView({
                                         </p> : null}
                                         {selectedLesson.context.lessonNumber ? <p className="mt-2 text-xs text-slate-400">Lição {selectedLesson.context.lessonNumber}</p> : null}
                                         {selectedLesson.context.hasUnsubmittedLessons ? <p className="mt-1 text-xs text-amber-300" role="status">Há lições por submeter.</p> : null}
-                                        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                            <p className="min-w-0 text-[0.68rem] leading-4 text-slate-500 sm:flex-1 sm:pr-3">
+                                        <div className="mt-2 flex flex-col gap-2">
+                                            <p className="min-w-0 text-[0.68rem] leading-4 text-slate-500">
                                                 {lessonIsFuture
                                                     ? 'Aula futura: guardar o sumário mantém-na planeada até ser marcada como submetida no programa oficial.'
                                                     : 'A aula só conta como dada depois de marcada como submetida no programa oficial.'}
                                             </p>
 
-                                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -3352,7 +3352,7 @@ export default function DailyWorkspaceView({
                                                             'cancelled' ||
                                                         !lessonForm.summary.trim()
                                                     }
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:border-cyan-300/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                                                    className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:border-cyan-300/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
                                                 >
                                                     <svg
                                                         aria-hidden="true"
@@ -3379,7 +3379,7 @@ export default function DailyWorkspaceView({
 
                                                 <label
                                                     title="Pode confirmar ou anular manualmente este estado, mesmo sem copiar o sumário."
-                                                    className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300"
+                                                    className="flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[0.68rem] font-bold text-slate-300"
                                                 >
                                                     <input
                                                         type="checkbox"
@@ -3397,7 +3397,7 @@ export default function DailyWorkspaceView({
                                                             !lessonForm.summary.trim()
                                                         }
                                                         aria-label="Estado de submissão no programa oficial"
-                                                        className="h-4 w-4 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-45"
+                                                        className="h-4 w-4 shrink-0 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-45"
                                                     />
 
                                                     Submetida no programa oficial
