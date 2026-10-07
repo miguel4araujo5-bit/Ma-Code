@@ -9,7 +9,8 @@ import {
 
 import type {
   EntityId,
-  Lesson
+  Lesson,
+  WeeklyScheduleSlot
 } from '../types'
 
 import {
@@ -47,6 +48,129 @@ export {
   formatLessonSummaryForGIAE,
   formatLessonsForBulkGIAE
 } from './lessonRepositoryBase'
+
+export type LessonMoveScope =
+  | 'single'
+  | 'from_here'
+  | 'whole_schedule'
+
+function createScheduleEntityId() {
+  const uuid =
+    globalThis.crypto
+      ?.randomUUID?.()
+
+  return uuid
+    ? `schedule-${uuid}`
+    : `schedule-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 12)}`
+}
+
+function parseISODate(
+  value: string
+) {
+  const [year, month, day] =
+    value
+      .split('-')
+      .map(Number)
+
+  return new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    )
+  )
+}
+
+function formatISODate(
+  value: Date
+) {
+  return value
+    .toISOString()
+    .slice(0, 10)
+}
+
+function addDays(
+  value: string,
+  amount: number
+) {
+  const date =
+    parseISODate(
+      value
+    )
+
+  date.setUTCDate(
+    date.getUTCDate() +
+      amount
+  )
+
+  return formatISODate(
+    date
+  )
+}
+
+function getWeekday(
+  value: string
+): WeeklyScheduleSlot['weekday'] {
+  const weekday =
+    parseISODate(
+      value
+    ).getUTCDay()
+
+  return (
+    weekday === 0
+      ? 7
+      : weekday
+  ) as WeeklyScheduleSlot['weekday']
+}
+
+function getStartOfWeek(
+  value: string
+) {
+  return addDays(
+    value,
+    -(
+      getWeekday(
+        value
+      ) - 1
+    )
+  )
+}
+
+function dateForWeekday(
+  weekStart: string,
+  weekday: WeeklyScheduleSlot['weekday']
+) {
+  return addDays(
+    weekStart,
+    weekday - 1
+  )
+}
+
+function scheduleDatesOverlap(
+  leftStart: string,
+  leftEnd: string,
+  rightStart: string,
+  rightEnd: string
+) {
+  return (
+    leftStart <= rightEnd &&
+    rightStart <= leftEnd
+  )
+}
+
+function scheduleTimesOverlap(
+  leftStart: string,
+  leftEnd: string,
+  rightStart: string,
+  rightEnd: string
+) {
+  return (
+    leftStart < rightEnd &&
+    rightStart < leftEnd
+  )
+}
 
 function normalizeSummaryForComparison(
   value: string | undefined
@@ -198,6 +322,581 @@ export class LessonRepository
       await maProfessorDb.lessons.put(moved)
       return moved
     })
+  }
+
+  async moveLessonWithScope(
+    id: EntityId,
+    requestedPosition: Pick<Lesson, 'date' | 'startTime' | 'endTime'>,
+    expectedUpdatedAt: string,
+    scope: LessonMoveScope = 'single',
+    swap?: {
+      id: EntityId
+      updatedAt: string
+    }
+  ) {
+    if (scope === 'single') {
+      return this.moveLesson(
+        id,
+        requestedPosition,
+        expectedUpdatedAt,
+        swap
+      )
+    }
+
+    await this.initialize()
+
+    return maProfessorDb.transaction(
+      'rw',
+      maProfessorDb.tables,
+      async () => {
+        const current =
+          await maProfessorDb.lessons.get(
+            id
+          )
+
+        if (
+          !current ||
+          current.updatedAt !==
+            expectedUpdatedAt
+        ) {
+          throw new Error(
+            'Esta aula foi alterada entretanto. Atualize antes de a mover.'
+          )
+        }
+
+        if (
+          current.origin !==
+            'scheduled' ||
+          !current.scheduleSlotId ||
+          current.scheduleOriginalPosition
+        ) {
+          throw new Error(
+            'Este âmbito só pode ser aplicado a uma aula normal do horário. Use «Só esta célula» para uma exceção já deslocada.'
+          )
+        }
+
+        const currentSlot =
+          await maProfessorDb
+            .weeklyScheduleSlots
+            .get(
+              current.scheduleSlotId
+            )
+
+        if (!currentSlot) {
+          throw new Error(
+            'O bloco de horário desta aula já não está disponível.'
+          )
+        }
+
+        const targetWeekday =
+          getWeekday(
+            requestedPosition.date
+          )
+
+        const anchorWeekStart =
+          getStartOfWeek(
+            current.date
+          )
+
+        const allLessons =
+          await maProfessorDb.lessons
+            .where(
+              'academicYearId'
+            )
+            .equals(
+              current.academicYearId
+            )
+            .toArray()
+
+        const allSlots =
+          await maProfessorDb
+            .weeklyScheduleSlots
+            .where(
+              'academicYearId'
+            )
+            .equals(
+              current.academicYearId
+            )
+            .toArray()
+
+        const destinationLesson =
+          swap
+            ? await maProfessorDb.lessons.get(
+                swap.id
+              )
+            : null
+
+        if (
+          swap &&
+          (
+            !destinationLesson ||
+            destinationLesson.updatedAt !==
+              swap.updatedAt
+          )
+        ) {
+          throw new Error(
+            'A aula de destino foi alterada entretanto. Escolha novamente o destino.'
+          )
+        }
+
+        let destinationSlot:
+          WeeklyScheduleSlot | null =
+          null
+
+        if (destinationLesson) {
+          if (
+            destinationLesson.origin !==
+              'scheduled' ||
+            !destinationLesson.scheduleSlotId ||
+            destinationLesson.scheduleOriginalPosition
+          ) {
+            throw new Error(
+              'Para permutar várias ocorrências, a aula de destino também tem de ser uma aula normal do horário. Use «Só esta célula» para esta permuta.'
+            )
+          }
+
+          destinationSlot =
+            await maProfessorDb
+              .weeklyScheduleSlots
+              .get(
+                destinationLesson.scheduleSlotId
+              ) ?? null
+
+          if (!destinationSlot) {
+            throw new Error(
+              'O bloco de horário da aula de destino já não está disponível.'
+            )
+          }
+
+          if (
+            currentSlot.periodCount !==
+              destinationSlot.periodCount
+          ) {
+            throw new Error(
+              'A permuta exige blocos com o mesmo número de tempos.'
+            )
+          }
+        }
+
+        const inScope = (
+          lesson: Lesson,
+          slotId: EntityId
+        ) =>
+          lesson.origin ===
+            'scheduled' &&
+          lesson.scheduleSlotId ===
+            slotId &&
+          !lesson.scheduleOriginalPosition &&
+          (
+            scope ===
+              'whole_schedule' ||
+            getStartOfWeek(
+              lesson.date
+            ) >= anchorWeekStart
+          )
+
+        const primaryLessons =
+          allLessons.filter(
+            lesson =>
+              inScope(
+                lesson,
+                currentSlot.id
+              )
+          )
+
+        const secondaryLessons =
+          destinationSlot
+            ? allLessons.filter(
+                lesson =>
+                  inScope(
+                    lesson,
+                    destinationSlot!.id
+                  )
+              )
+            : []
+
+        const movingIds =
+          new Set([
+            ...primaryLessons.map(
+              lesson => lesson.id
+            ),
+            ...secondaryLessons.map(
+              lesson => lesson.id
+            )
+          ])
+
+        const relatedIds =
+          new Set<EntityId>()
+
+        const [
+          attendance,
+          assessments
+        ] = await Promise.all([
+          maProfessorDb.lessonAttendance
+            .toArray(),
+          maProfessorDb.lessonAssessments
+            .toArray()
+        ])
+
+        attendance.forEach(
+          row => {
+            if (
+              movingIds.has(
+                row.lessonId
+              )
+            ) {
+              relatedIds.add(
+                row.lessonId
+              )
+            }
+          }
+        )
+
+        assessments.forEach(
+          row => {
+            if (
+              movingIds.has(
+                row.lessonId
+              )
+            ) {
+              relatedIds.add(
+                row.lessonId
+              )
+            }
+          }
+        )
+
+        const protectedLesson =
+          [
+            ...primaryLessons,
+            ...secondaryLessons
+          ].find(
+            lesson =>
+              lesson.giaeStatus ===
+                'submitted' ||
+              relatedIds.has(
+                lesson.id
+              )
+          )
+
+        if (protectedLesson) {
+          if (
+            protectedLesson.giaeStatus ===
+              'submitted'
+          ) {
+            throw new Error(
+              'Existem aulas neste âmbito já submetidas no programa oficial. Retire primeiro o visto dessas aulas; nenhuma alteração foi aplicada.'
+            )
+          }
+
+          throw new Error(
+            'Existem aulas neste âmbito com faltas ou avaliações associadas. Corrija essas aulas individualmente; nenhuma alteração foi aplicada.'
+          )
+        }
+
+        const primaryTarget = {
+          weekday:
+            targetWeekday,
+          startTime:
+            requestedPosition.startTime,
+          endTime:
+            requestedPosition.endTime
+        }
+
+        const secondaryTarget =
+          destinationSlot
+            ? {
+                weekday:
+                  currentSlot.weekday,
+                startTime:
+                  currentSlot.startTime,
+                endTime:
+                  currentSlot.endTime
+              }
+            : null
+
+        const destinationRows = [
+          ...primaryLessons.map(
+            lesson => ({
+              lesson,
+              date:
+                dateForWeekday(
+                  getStartOfWeek(
+                    lesson.date
+                  ),
+                  primaryTarget.weekday
+                ),
+              startTime:
+                primaryTarget.startTime,
+              endTime:
+                primaryTarget.endTime
+            })
+          ),
+          ...secondaryLessons.map(
+            lesson => ({
+              lesson,
+              date:
+                dateForWeekday(
+                  getStartOfWeek(
+                    lesson.date
+                  ),
+                  secondaryTarget!.weekday
+                ),
+              startTime:
+                secondaryTarget!.startTime,
+              endTime:
+                secondaryTarget!.endTime
+            })
+          )
+        ]
+
+        for (const destination of destinationRows) {
+          const collision =
+            allLessons.find(
+              row =>
+                !movingIds.has(
+                  row.id
+                ) &&
+                row.status !==
+                  'cancelled' &&
+                row.date ===
+                  destination.date &&
+                row.startTime <
+                  destination.endTime &&
+                row.endTime >
+                  destination.startTime
+            )
+
+          if (collision) {
+            throw new Error(
+              'A alteração iria sobrepor-se a outra aula. Nenhuma alteração foi aplicada.'
+            )
+          }
+        }
+
+        const splitStart =
+          scope ===
+            'from_here'
+            ? anchorWeekStart
+            : null
+
+        const getChangedValidity = (
+          slot: WeeklyScheduleSlot
+        ) => ({
+          validFrom:
+            splitStart &&
+            splitStart >
+              slot.validFrom
+              ? splitStart
+              : slot.validFrom,
+          validUntil:
+            slot.validUntil
+        })
+
+        const slotConflicts = (
+          slot: WeeklyScheduleSlot,
+          target: {
+            weekday: WeeklyScheduleSlot['weekday']
+            startTime: string
+            endTime: string
+          },
+          ignoredIds: Set<EntityId>
+        ) => {
+          const validity =
+            getChangedValidity(
+              slot
+            )
+
+          return allSlots.some(
+            other =>
+              !ignoredIds.has(
+                other.id
+              ) &&
+              other.active &&
+              other.weekday ===
+                target.weekday &&
+              scheduleDatesOverlap(
+                validity.validFrom,
+                validity.validUntil,
+                other.validFrom,
+                other.validUntil
+              ) &&
+              scheduleTimesOverlap(
+                target.startTime,
+                target.endTime,
+                other.startTime,
+                other.endTime
+              )
+          )
+        }
+
+        const ignoredSlotIds =
+          new Set<EntityId>([
+            currentSlot.id,
+            ...(
+              destinationSlot
+                ? [
+                    destinationSlot.id
+                  ]
+                : []
+            )
+          ])
+
+        if (
+          slotConflicts(
+            currentSlot,
+            primaryTarget,
+            ignoredSlotIds
+          ) ||
+          (
+            destinationSlot &&
+            secondaryTarget &&
+            slotConflicts(
+              destinationSlot,
+              secondaryTarget,
+              ignoredSlotIds
+            )
+          )
+        ) {
+          throw new Error(
+            'A alteração iria criar uma sobreposição no horário semanal. Nenhuma alteração foi aplicada.'
+          )
+        }
+
+        const timestamp =
+          new Date().toISOString()
+
+        async function updateSlotForScope(
+          slot: WeeklyScheduleSlot,
+          target: {
+            weekday: WeeklyScheduleSlot['weekday']
+            startTime: string
+            endTime: string
+          }
+        ) {
+          if (
+            !splitStart ||
+            splitStart <=
+              slot.validFrom
+          ) {
+            const updatedSlot = {
+              ...slot,
+              ...target,
+              updatedAt:
+                timestamp
+            }
+
+            await maProfessorDb
+              .weeklyScheduleSlots
+              .put(
+                updatedSlot
+              )
+
+            return updatedSlot
+          }
+
+          if (
+            splitStart >
+              slot.validUntil
+          ) {
+            throw new Error(
+              'A aula selecionada fica fora da vigência atual do bloco de horário.'
+            )
+          }
+
+          const suffix: WeeklyScheduleSlot = {
+            ...slot,
+            id:
+              createScheduleEntityId(),
+            ...target,
+            validFrom:
+              splitStart,
+            createdAt:
+              timestamp,
+            updatedAt:
+              timestamp
+          }
+
+          await maProfessorDb
+            .weeklyScheduleSlots
+            .put({
+              ...slot,
+              validUntil:
+                addDays(
+                  splitStart,
+                  -1
+                ),
+              updatedAt:
+                timestamp
+            })
+
+          await maProfessorDb
+            .weeklyScheduleSlots
+            .add(
+              suffix
+            )
+
+          return suffix
+        }
+
+        const primaryResultSlot =
+          await updateSlotForScope(
+            currentSlot,
+            primaryTarget
+          )
+
+        const secondaryResultSlot =
+          destinationSlot &&
+          secondaryTarget
+            ? await updateSlotForScope(
+                destinationSlot,
+                secondaryTarget
+              )
+            : null
+
+        for (const destination of destinationRows) {
+          const targetSlot =
+            primaryLessons.some(
+              lesson =>
+                lesson.id ===
+                  destination.lesson.id
+            )
+              ? primaryResultSlot
+              : secondaryResultSlot
+
+          if (!targetSlot) {
+            continue
+          }
+
+          await maProfessorDb.lessons.put({
+            ...destination.lesson,
+            scheduleSlotId:
+              targetSlot.id,
+            date:
+              destination.date,
+            startTime:
+              destination.startTime,
+            endTime:
+              destination.endTime,
+            updatedAt:
+              timestamp
+          })
+        }
+
+        const moved =
+          await maProfessorDb.lessons.get(
+            current.id
+          )
+
+        if (!moved) {
+          throw new Error(
+            'Não foi possível concluir a alteração do horário.'
+          )
+        }
+
+        return moved
+      }
+    )
   }
 
   override async createLesson(
