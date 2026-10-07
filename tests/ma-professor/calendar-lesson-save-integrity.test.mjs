@@ -323,7 +323,7 @@ test(
     assert.match(editorSource, /moveLessonWithScope/)
     assert.match(
       editorSource,
-      /programa oficial[\s\S]*faltas ou avaliações/
+      /Sumários, atividade, notas, planificação, faltas e avaliações acompanham[\s\S]*programa oficial/
     )
   }
 )
