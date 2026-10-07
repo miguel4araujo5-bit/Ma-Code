@@ -283,7 +283,7 @@ export default function LessonEditorDialog(
     }
 
     if (
-      label === 'Usar próximo item' ||
+      label === 'Adicionar' ||
       label === 'Copiar aula anterior' ||
       label === 'Desligar da planificação' ||
       label === 'Manter pendente' ||
