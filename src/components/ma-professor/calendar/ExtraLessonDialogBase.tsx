@@ -23,6 +23,11 @@ import {
   type ExtraLessonSelectionContext
 } from './extraLessonRepository'
 
+import PlanificationSummaryTextarea, {
+  appendPlanificationSuggestion,
+  getPlanificationSuggestionText
+} from './PlanificationSummaryTextarea'
+
 type ExtraLessonDialogProps = {
   context: ExtraLessonCreateContext
   onClose: () => void
@@ -61,11 +66,6 @@ const statusOptions: Array<{
     label: 'Dada',
     description: 'Conta para o progresso e exige um sumário.'
   },
-  {
-    value: 'cancelled',
-    label: 'Cancelada',
-    description: 'Fica registada, mas não conta como tempo dado.'
-  }
 ]
 
 const statusClasses: Record<LessonStatus, string> = {
@@ -285,8 +285,8 @@ export default function ExtraLessonDialog({
   const [selectionLoading, setSelectionLoading] = useState(false)
   const [selectionError, setSelectionError] = useState('')
 
-  const [planificationItem, setPlanificationItem] =
-    useState<PlanificationItem | null>(null)
+  const [planificationItems, setPlanificationItems] = useState<PlanificationItem[]>([])
+  const [planificationIndex, setPlanificationIndex] = useState(0)
 
   const [planificationLoading, setPlanificationLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -311,6 +311,17 @@ export default function ExtraLessonDialog({
       null,
     [form.moduleId, selectedAssignmentOption, selectionContext]
   )
+
+  const availablePlanificationItems = planificationItems.filter(
+    item => !form.planificationItemIds.includes(item.id)
+  )
+  const currentPlanificationIndex = availablePlanificationItems.length === 0
+    ? 0
+    : Math.min(planificationIndex, availablePlanificationItems.length - 1)
+  const planificationItem = availablePlanificationItems[currentPlanificationIndex] ?? null
+  const planificationSuggestionText = planificationItem
+    ? getPlanificationSuggestionText(planificationItem)
+    : ''
 
   const matchingScheduleSlots =
     selectionContext?.matchingScheduleSlots ?? []
@@ -417,7 +428,7 @@ export default function ExtraLessonDialog({
     let cancelled = false
 
     if (!form.moduleId) {
-      setPlanificationItem(null)
+      setPlanificationItems([])
       setPlanificationLoading(false)
 
       return () => {
@@ -427,19 +438,21 @@ export default function ExtraLessonDialog({
 
     setPlanificationLoading(true)
 
+    setPlanificationIndex(0)
+
     async function loadPlanificationItem() {
       try {
-        const item =
-          await extraLessonRepository.getModulePlanificationItem(
+        const items =
+          await extraLessonRepository.getModulePlanificationItems(
             form.moduleId
           )
 
         if (!cancelled) {
-          setPlanificationItem(item)
+          setPlanificationItems(items)
         }
       } catch {
         if (!cancelled) {
-          setPlanificationItem(null)
+          setPlanificationItems([])
         }
       } finally {
         if (!cancelled) {
@@ -512,30 +525,21 @@ export default function ExtraLessonDialog({
 
     setForm((current) => ({
       ...current,
-      plannedActivity: previous.plannedActivity,
       summary: previous.summary,
-      notes: previous.notes,
       summarySource: 'manual',
       planificationItemIds: []
     }))
   }
 
   function usePlanificationItem() {
-    if (!planificationItem) {
-      return
-    }
-
+    if (!planificationItem || !planificationSuggestionText) return
     setForm((current) => ({
       ...current,
-      plannedActivity:
-        planificationItem.activity.trim() ||
-        planificationItem.content.trim(),
-      summary:
-        planificationItem.suggestedSummary.trim() ||
-        planificationItem.content.trim(),
+      summary: appendPlanificationSuggestion(current.summary, planificationSuggestionText),
       summarySource: 'planification',
-      planificationItemIds: [planificationItem.id]
+      planificationItemIds: Array.from(new Set([...current.planificationItemIds, planificationItem.id]))
     }))
+    setPlanificationIndex(0)
   }
 
   async function handleSubmit(
@@ -601,10 +605,7 @@ export default function ExtraLessonDialog({
           endTime: form.endTime,
           periodCount,
           status: form.status,
-          countTowardProgress:
-            form.status === 'cancelled'
-              ? false
-              : form.countTowardProgress,
+          countTowardProgress: true,
           plannedActivity: form.plannedActivity,
           summary: form.summary,
           summarySource: form.summarySource,
@@ -646,7 +647,7 @@ export default function ExtraLessonDialog({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.12em] text-violet-100">
-                  Aula extra
+                  Antecipação
                 </span>
 
                 <span
@@ -666,7 +667,7 @@ export default function ExtraLessonDialog({
                 id="extra-lesson-title"
                 className="mt-3 text-2xl font-black text-white"
               >
-                Criar nova aula
+                Antecipar aula
               </h2>
 
               <p className="mt-2 text-sm capitalize leading-6 text-slate-400">
@@ -938,35 +939,7 @@ export default function ExtraLessonDialog({
                   </select>
                 </label>
 
-                <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-900/55 p-4">
-                  <input
-                    type="checkbox"
-                    checked={form.countTowardProgress}
-                    onChange={(
-                      event: ChangeEvent<HTMLInputElement>
-                    ) =>
-                      updateForm(
-                        'countTowardProgress',
-                        event.target.checked
-                      )
-                    }
-                    disabled={
-                      saving ||
-                      form.status === 'cancelled'
-                    }
-                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30 disabled:opacity-40"
-                  />
 
-                  <span>
-                    <span className="block text-sm font-black text-white">
-                      Contabilizar no progresso da UFCD
-                    </span>
-
-                    <span className="mt-1 block text-xs leading-5 text-slate-500">
-                      Desative quando a aula extra não deve aumentar os tempos dados.
-                    </span>
-                  </span>
-                </label>
               </section>
 
               <section className="grid gap-5 xl:grid-cols-2">
@@ -985,32 +958,29 @@ export default function ExtraLessonDialog({
 
                   {planificationItem ? (
                     <>
-                      <p className="mt-4 text-sm font-black leading-6 text-white">
-                        {planificationItem.content}
+                      <div className="mt-5 flex items-center gap-2">
+                        <button type="button" aria-label="Item anterior da planificação"
+                          onClick={() => setPlanificationIndex(current => Math.max(0, current - 1))}
+                          disabled={saving || planificationLoading || currentPlanificationIndex === 0}
+                          className="grid h-11 w-11 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-300/[0.07] text-lg font-black text-cyan-50 disabled:opacity-35">−</button>
+                        <button type="button" aria-label="Item seguinte da planificação"
+                          onClick={() => setPlanificationIndex(current => Math.min(availablePlanificationItems.length - 1, current + 1))}
+                          disabled={saving || planificationLoading || currentPlanificationIndex >= availablePlanificationItems.length - 1}
+                          className="grid h-11 w-11 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-300/[0.07] text-lg font-black text-cyan-50 disabled:opacity-35">+</button>
+                        <button type="button" onClick={usePlanificationItem}
+                          disabled={saving || planificationLoading}
+                          className="min-h-11 flex-1 rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-sm font-black text-cyan-50 disabled:opacity-50">
+                          Adicionar
+                        </button>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-slate-500">
+                        A sugestão aparece em cinzento dentro do Sumário. Navegar não a marca como utilizada.
                       </p>
-
-                      {planificationItem.activity ? (
-                        <p className="mt-2 text-xs leading-5 text-slate-400">
-                          {planificationItem.activity}
-                        </p>
-                      ) : null}
-
-                      <button
-                        type="button"
-                        onClick={usePlanificationItem}
-                        disabled={
-                          saving ||
-                          planificationLoading
-                        }
-                        className="mt-5 w-full rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-50 transition hover:bg-cyan-300/15 disabled:cursor-wait disabled:opacity-50"
-                      >
-                        Usar próximo item
-                      </button>
                     </>
                   ) : (
                     <p className="mt-4 text-sm leading-6 text-slate-400">
                       {selectedModule
-                        ? 'Não existe um próximo item disponível na planificação desta UFCD.'
+                        ? 'Não existe outro item disponível na planificação desta UFCD.'
                         : 'Selecione uma UFCD para consultar a planificação.'}
                     </p>
                   )}
@@ -1082,22 +1052,19 @@ export default function ExtraLessonDialog({
                       Sumário
                     </FieldLabel>
 
-                    <textarea
+                    <PlanificationSummaryTextarea
                       value={form.summary}
-                      onChange={(
-                        event: ChangeEvent<HTMLTextAreaElement>
-                      ) =>
+                      suggestion={planificationSuggestionText}
+                      onChange={(value) =>
                         setForm((current) => ({
                           ...current,
-                          summary: event.target.value,
-                          summarySource: 'manual',
-                          planificationItemIds: []
+                          summary: value,
+                          summarySource: current.planificationItemIds.length > 0 ? 'planification' : 'manual'
                         }))
                       }
                       disabled={saving}
                       rows={5}
                       placeholder="Escreva o sumário que será registado no GIAE."
-                      className="w-full resize-y rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10 disabled:cursor-wait disabled:opacity-60"
                     />
                   </label>
 
@@ -1269,8 +1236,8 @@ export default function ExtraLessonDialog({
                   className="rounded-2xl border border-cyan-200/30 bg-gradient-to-r from-cyan-300 to-sky-300 px-6 py-3 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
                 >
                   {saving
-                    ? 'A criar...'
-                    : 'Criar aula extra'}
+                    ? 'A antecipar...'
+                    : 'Criar antecipação'}
                 </button>
               </div>
             </div>
