@@ -312,3 +312,18 @@ test(
     assert.doesNotMatch(block, /notes:/)
   }
 )
+
+
+test(
+  'lesson move UI exposes the three approved scopes',
+  () => {
+    assert.match(editorSource, /Só esta célula/)
+    assert.match(editorSource, /Daqui para a frente/)
+    assert.match(editorSource, /Do início ao fim/)
+    assert.match(editorSource, /moveLessonWithScope/)
+    assert.match(
+      editorSource,
+      /programa oficial[\s\S]*faltas ou avaliações/
+    )
+  }
+)
