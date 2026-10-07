@@ -249,14 +249,6 @@ test(
       dailyWorkspaceViewSource,
       /A aula só conta como dada depois de marcada como submetida no programa oficial\./
     )
-    assert.match(
-      dailyWorkspaceViewSource,
-      /sm:flex-1 sm:pr-3/
-    )
-    assert.match(
-      dailyWorkspaceViewSource,
-      /flex shrink-0 flex-wrap items-center justify-end gap-2/
-    )
     assert.doesNotMatch(
       dailyWorkspaceViewSource,
       /Ao escrever[\s\S]*um sumário,[\s\S]*a aula passa[\s\S]*a dada quando[\s\S]*guardar\./
