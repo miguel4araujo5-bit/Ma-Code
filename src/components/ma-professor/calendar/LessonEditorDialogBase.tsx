@@ -18,7 +18,8 @@ import {
 } from '../db'
 
 import {
-  lessonRepository
+  lessonRepository,
+  type LessonMoveScope
 } from '../lessons/lessonRepository'
 
 import type {
@@ -321,6 +322,8 @@ export default function LessonEditorDialog({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [moveCollision, setMoveCollision] = useState<Lesson | null>(null)
+  const [moveScope, setMoveScope] =
+    useState<LessonMoveScope>('single')
   const [planificationItems, setPlanificationItems] =
     useState<PlanificationItem[]>([])
   const [planificationIndex, setPlanificationIndex] = useState(0)
@@ -347,6 +350,11 @@ export default function LessonEditorDialog({
   )
 
   const moduleChanged = form.moduleId !== lesson.moduleId
+
+  const positionChanged =
+    form.date !== lesson.date ||
+    form.startTime !== lesson.startTime ||
+    form.endTime !== lesson.endTime
 
   const availablePlanificationItems =
     planificationItems.filter(
@@ -382,6 +390,8 @@ export default function LessonEditorDialog({
 
   useEffect(() => {
     setForm(buildInitialForm(context))
+    setMoveScope('single')
+    setMoveCollision(null)
     setError('')
   }, [context])
 
@@ -594,7 +604,7 @@ export default function LessonEditorDialog({
       return
     }
 
-    const moving = form.date !== lesson.date || form.startTime !== lesson.startTime || form.endTime !== lesson.endTime
+    const moving = positionChanged
     if (moving) {
       try {
         if (lesson.giaeStatus === 'submitted') throw new Error('Esta aula já está marcada como submetida no programa oficial. Retire primeiro esse visto e guarde antes de alterar a data ou hora.')
@@ -627,7 +637,23 @@ export default function LessonEditorDialog({
               .count()
           ])
 
-          const positionedLesson = moving ? await lessonRepository.moveLesson(lesson.id, form, lesson.updatedAt, confirmedSwap ? { id: confirmedSwap.id, updatedAt: confirmedSwap.updatedAt } : undefined) : lesson
+          const positionedLesson =
+            moving
+              ? await lessonRepository.moveLessonWithScope(
+                  lesson.id,
+                  form,
+                  lesson.updatedAt,
+                  moveScope,
+                  confirmedSwap
+                    ? {
+                        id:
+                          confirmedSwap.id,
+                        updatedAt:
+                          confirmedSwap.updatedAt
+                      }
+                    : undefined
+                )
+              : lesson
           let savedLesson = await lessonRepository.updateLesson(
             lesson.id,
             {
@@ -906,6 +932,74 @@ export default function LessonEditorDialog({
                       />
                     </label>
                   </div>
+
+                  {positionChanged &&
+                  lesson.origin === 'scheduled' &&
+                  lesson.scheduleSlotId ? (
+                    <fieldset className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.035] p-4">
+                      <legend className="px-1 text-xs font-black uppercase tracking-[0.12em] text-cyan-100">
+                        Aplicar alteração
+                      </legend>
+
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        {([
+                          [
+                            'single',
+                            'Só esta célula'
+                          ],
+                          [
+                            'from_here',
+                            'Daqui para a frente'
+                          ],
+                          [
+                            'whole_schedule',
+                            'Do início ao fim'
+                          ]
+                        ] as Array<[
+                          LessonMoveScope,
+                          string
+                        ]>).map(
+                          ([
+                            value,
+                            label
+                          ]) => (
+                            <label
+                              key={value}
+                              className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold transition ${
+                                moveScope === value
+                                  ? 'border-cyan-200/30 bg-cyan-300/10 text-cyan-50'
+                                  : 'border-white/10 bg-white/[0.025] text-slate-400'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="lesson-move-scope"
+                                value={value}
+                                checked={
+                                  moveScope ===
+                                  value
+                                }
+                                onChange={() =>
+                                  setMoveScope(
+                                    value
+                                  )
+                                }
+                                disabled={saving}
+                                className="h-4 w-4 border-white/20 bg-slate-900 text-cyan-300 focus:ring-cyan-300/30"
+                              />
+                              <span>
+                                {label}
+                              </span>
+                            </label>
+                          )
+                        )}
+                      </div>
+
+                      <p className="mt-3 text-xs leading-5 text-slate-500">
+                        Se alguma aula abrangida já estiver submetida no programa oficial, tiver faltas ou avaliações, a operação pára sem alterar nenhuma aula.
+                      </p>
+                    </fieldset>
+                  ) : null}
 
                   <label className="mt-5 block">
                     <FieldLabel>UFCD ou módulo</FieldLabel>
