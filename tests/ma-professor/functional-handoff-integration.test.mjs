@@ -250,7 +250,7 @@ test('an anticipated scheduled lesson reserves its original occurrence instead o
   academicYearId:'y',teachingAssignmentId:'a',moduleId:'b',date:'2026-10-05',startTime:'11:00',endTime:'11:50',periodCount:1,status:'planned',countTowardProgress:true,plannedActivity:'',summary:'',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending'
  })
  assert.equal(anticipated.id,'future')
- assert.equal(anticipated.origin,'extra')
+ assert.equal(anticipated.origin,'scheduled')
  assert.equal(anticipated.scheduleSlotId,'slot')
  assert.deepEqual(anticipated.scheduleOriginalPosition,{date:'2026-10-12',startTime:'09:00'})
  const result=api.planScheduledLessonReconciliation({academicYear:year,assignments:[assignment],slots:[slot],modules:[module()],events:[],lessons:[anticipated],relatedLessonIds:new Set(),dateFrom:'2026-10-12',dateTo:'2026-10-18'})
