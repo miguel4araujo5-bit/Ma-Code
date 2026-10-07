@@ -444,6 +444,33 @@ async function loadAssignmentOptions(
   )
 }
 
+function lessonOccursAfterPosition(lesson: Lesson, date: ISODate, startTime: LocalTime) {
+  return lesson.date > date || (lesson.date === date && lesson.startTime > startTime)
+}
+
+function sortLessonsLatestFirst(left: Lesson, right: Lesson) {
+  return right.date.localeCompare(left.date) ||
+    right.startTime.localeCompare(left.startTime) ||
+    right.createdAt.localeCompare(left.createdAt) ||
+    right.id.localeCompare(left.id)
+}
+
+function sortLessonsEarliestFirst(left: Lesson, right: Lesson) {
+  return left.date.localeCompare(right.date) ||
+    left.startTime.localeCompare(right.startTime) ||
+    left.createdAt.localeCompare(right.createdAt) ||
+    left.id.localeCompare(right.id)
+}
+
+function lessonHasPreparedContent(lesson: Lesson) {
+  return Boolean(
+    lesson.summary.trim() ||
+    lesson.plannedActivity.trim() ||
+    lesson.notes.trim() ||
+    lesson.planificationItemIds.length > 0
+  )
+}
+
 export class ExtraLessonRepository {
   async initialize() {
     await openMAProfessorDatabase()
@@ -751,126 +778,164 @@ export class ExtraLessonRepository {
     }
   }
 
-  async getModulePlanificationItem(
-    moduleId: EntityId
-  ) {
+  async getModulePlanificationItems(moduleId: EntityId) {
     await this.initialize()
-
-    const module =
-      await maProfessorDb
-        .modules
-        .get(moduleId)
-
-    if (
-      !module ||
-      !module.active
-    ) {
-      throw new Error(
-        'A UFCD ou módulo selecionado já não está disponível.'
-      )
+    const module = await maProfessorDb.modules.get(moduleId)
+    if (!module || !module.active) {
+      throw new Error('A UFCD ou módulo selecionado já não está disponível.')
     }
-
-    return lessonRepository.getNextPlanificationItem(
-      module.id
-    )
+    return lessonRepository.getAvailablePlanificationItems(module.id)
   }
 
-  async createExtraLesson(
-    input: ExtraLessonDraft
-  ): Promise<Lesson> {
+  async getModulePlanificationItem(moduleId: EntityId) {
+    const items = await this.getModulePlanificationItems(moduleId)
+    return items[0] ?? null
+  }
+
+  async createExtraLesson(input: ExtraLessonDraft): Promise<Lesson> {
     await this.initialize()
+    const status = input.status ?? 'planned'
 
-    const status =
-      input.status ??
-      'planned'
-
-    if (
-      status === 'taught' &&
-      !input.summary?.trim()
-    ) {
-      throw new Error(
-        'Indique o sumário antes de marcar a aula como dada.'
-      )
+    if (status === 'cancelled') {
+      throw new Error('Uma antecipação nova não pode ser criada como cancelada.')
+    }
+    if (status === 'taught' && !input.summary?.trim()) {
+      throw new Error('Indique o sumário antes de marcar a aula como dada.')
+    }
+    if (input.giaeStatus === 'submitted' && (status !== 'taught' || !input.summary?.trim())) {
+      throw new Error('Apenas uma aula dada com sumário pode ser marcada como submetida no programa oficial.')
     }
 
-    if (
-      input.giaeStatus ===
-        'submitted' &&
-      (
-        status !== 'taught' ||
-        !input.summary?.trim()
-      )
-    ) {
-      throw new Error(
-        'Apenas uma aula dada com sumário pode ser marcada como submetida no programa oficial.'
-      )
-    }
+    return maProfessorDb.transaction('rw', maProfessorDb.tables, async () => {
+      const [modules, lessons] = await Promise.all([
+        maProfessorDb.modules.where('teachingAssignmentId').equals(input.teachingAssignmentId).toArray(),
+        maProfessorDb.lessons.where('teachingAssignmentId').equals(input.teachingAssignmentId).toArray()
+      ])
 
-    let lesson =
-      await lessonRepository.createLesson({
-        academicYearId:
-          input.academicYearId,
+      const orderedModules = sortModules(modules.filter(module => module.active))
+      const targetModuleIndex = orderedModules.findIndex(module => module.id === input.moduleId)
+      if (targetModuleIndex < 0) throw new Error('A UFCD ou módulo selecionado já não está disponível.')
 
-        teachingAssignmentId:
-          input.teachingAssignmentId,
-
-        moduleId:
-          input.moduleId,
-
-        scheduleSlotId:
-          null,
-
-        origin:
-          'extra',
-
-        status,
-
-        date:
-          input.date,
-
-        startTime:
-          input.startTime,
-
-        endTime:
-          input.endTime,
-
-        periodCount:
-          input.periodCount,
-
-        countTowardProgress:
-          status ===
-          'cancelled'
-            ? false
-            : input.countTowardProgress ??
-              true,
-
-        plannedActivity:
-          input.plannedActivity,
-
-        summary:
-          input.summary,
-
-        summarySource:
-          input.summarySource,
-
-        planificationItemIds:
-          input.planificationItemIds,
-
-        notes:
-          input.notes
-      })
-
-    if (
-      input.giaeStatus ===
-      'submitted'
-    ) {
-      lesson =
-        await lessonRepository.markGIAESubmitted(
-          lesson.id
+      const sourceLesson = lessons
+        .filter(lesson =>
+          lesson.origin === 'scheduled' &&
+          lesson.status === 'planned' &&
+          lesson.giaeStatus === 'pending' &&
+          lesson.countTowardProgress &&
+          lessonOccursAfterPosition(lesson, input.date, input.startTime)
         )
-    }
+        .sort(sortLessonsLatestFirst)[0] ?? null
 
-    return lesson
+      if (!sourceLesson) {
+        throw new Error('Não existe uma última aula futura disponível para antecipar nesta disciplina.')
+      }
+      if (sourceLesson.periodCount !== input.periodCount) {
+        throw new Error(`A última aula disponível tem ${sourceLesson.periodCount} ${sourceLesson.periodCount === 1 ? 'tempo' : 'tempos'}. Para a antecipar sem alterar a carga da disciplina, use o mesmo número de tempos.`)
+      }
+      if (lessonHasPreparedContent(sourceLesson)) {
+        throw new Error('A última aula disponível já possui informação preparada. Retire essa preparação antes de a antecipar.')
+      }
+
+      const [sourceAttendanceCount, sourceAssessmentCount, sourceSuggestionCount] = await Promise.all([
+        maProfessorDb.lessonAttendance.where('lessonId').equals(sourceLesson.id).count(),
+        maProfessorDb.lessonAssessments.where('lessonId').equals(sourceLesson.id).count(),
+        maProfessorDb.summarySuggestions.where('lessonId').equals(sourceLesson.id).count()
+      ])
+      if (sourceAttendanceCount > 0 || sourceAssessmentCount > 0 || sourceSuggestionCount > 0) {
+        throw new Error('A última aula disponível já possui dados associados e não pode ser antecipada automaticamente.')
+      }
+
+      const sourceModuleIndex = orderedModules.findIndex(module => module.id === sourceLesson.moduleId)
+      if (sourceModuleIndex < 0) {
+        throw new Error('A última aula disponível pertence a uma UFCD que já não está ativa.')
+      }
+
+      const eligibleBoundaryLessons = lessons.filter(lesson =>
+        lesson.id !== sourceLesson.id &&
+        lesson.origin === 'scheduled' &&
+        lesson.status === 'planned' &&
+        lesson.giaeStatus === 'pending' &&
+        lesson.countTowardProgress &&
+        lesson.periodCount === input.periodCount &&
+        lessonOccursAfterPosition(lesson, input.date, input.startTime)
+      )
+
+      async function assertBoundaryLessonIsClean(lesson: Lesson) {
+        if (lessonHasPreparedContent(lesson)) {
+          throw new Error('Não foi possível ajustar automaticamente o limite entre UFCDs porque uma aula futura já possui informação preparada.')
+        }
+        const [attendanceCount, assessmentCount, suggestionCount] = await Promise.all([
+          maProfessorDb.lessonAttendance.where('lessonId').equals(lesson.id).count(),
+          maProfessorDb.lessonAssessments.where('lessonId').equals(lesson.id).count(),
+          maProfessorDb.summarySuggestions.where('lessonId').equals(lesson.id).count()
+        ])
+        if (attendanceCount > 0 || assessmentCount > 0 || suggestionCount > 0) {
+          throw new Error('Não foi possível ajustar automaticamente o limite entre UFCDs porque uma aula futura já possui dados associados.')
+        }
+      }
+
+      if (targetModuleIndex < sourceModuleIndex) {
+        for (let moduleIndex = targetModuleIndex; moduleIndex < sourceModuleIndex; moduleIndex += 1) {
+          const boundaryLesson = eligibleBoundaryLessons
+            .filter(lesson => lesson.moduleId === orderedModules[moduleIndex].id)
+            .sort(sortLessonsLatestFirst)[0]
+          if (!boundaryLesson) {
+            throw new Error('Não existe uma aula futura disponível para ajustar o limite entre UFCDs sem alterar a carga planificada.')
+          }
+          await assertBoundaryLessonIsClean(boundaryLesson)
+          await lessonRepository.updateLesson(
+            boundaryLesson.id,
+            { moduleId: orderedModules[moduleIndex + 1].id },
+            { expectedUpdatedAt: boundaryLesson.updatedAt }
+          )
+        }
+      } else if (targetModuleIndex > sourceModuleIndex) {
+        for (let moduleIndex = targetModuleIndex; moduleIndex > sourceModuleIndex; moduleIndex -= 1) {
+          const boundaryLesson = eligibleBoundaryLessons
+            .filter(lesson => lesson.moduleId === orderedModules[moduleIndex].id)
+            .sort(sortLessonsEarliestFirst)[0]
+          if (!boundaryLesson) {
+            throw new Error('Não existe uma aula futura disponível para ajustar o limite entre UFCDs sem alterar a carga planificada.')
+          }
+          await assertBoundaryLessonIsClean(boundaryLesson)
+          await lessonRepository.updateLesson(
+            boundaryLesson.id,
+            { moduleId: orderedModules[moduleIndex - 1].id },
+            { expectedUpdatedAt: boundaryLesson.updatedAt }
+          )
+        }
+      }
+
+      let lesson = await lessonRepository.updateLesson(
+        sourceLesson.id,
+        {
+          moduleId: input.moduleId,
+          scheduleSlotId: null,
+          scheduleOriginalPosition: sourceLesson.scheduleOriginalPosition ?? {
+            date: sourceLesson.date,
+            startTime: sourceLesson.startTime
+          },
+          origin: 'extra',
+          status,
+          date: input.date,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          periodCount: input.periodCount,
+          countTowardProgress: true,
+          plannedActivity: input.plannedActivity,
+          summary: input.summary,
+          summarySource: input.summarySource,
+          planificationItemIds: input.planificationItemIds,
+          notes: input.notes
+        },
+        { expectedUpdatedAt: sourceLesson.updatedAt }
+      )
+
+      if (input.giaeStatus === 'submitted') {
+        lesson = await lessonRepository.markGIAESubmitted(lesson.id)
+      }
+      return lesson
+    })
   }
 }
 
