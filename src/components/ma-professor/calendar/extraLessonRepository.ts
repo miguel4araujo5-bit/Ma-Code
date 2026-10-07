@@ -910,7 +910,9 @@ export class ExtraLessonRepository {
         sourceLesson.id,
         {
           moduleId: input.moduleId,
-          scheduleSlotId: null,
+          // Mantém a ligação ao bloco de horário para que a ocorrência
+          // original fique reservada e não seja recriada pela reconciliação.
+          scheduleSlotId: sourceLesson.scheduleSlotId,
           scheduleOriginalPosition: sourceLesson.scheduleOriginalPosition ?? {
             date: sourceLesson.date,
             startTime: sourceLesson.startTime
