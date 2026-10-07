@@ -38,6 +38,7 @@ export interface ScheduledLessonReconciliationPlanInput {
   relatedLessonIds: ReadonlySet<EntityId>
   dateFrom: ISODate
   dateTo: ISODate
+  allowOutsidePlannedCapacity?: boolean
 }
 
 export interface ScheduledLessonReconciliationPlan {
@@ -248,6 +249,9 @@ function selectModuleForAllocation(
           ) ?? 0
         ) < module.plannedPeriods
     ) ??
+    modules[
+      modules.length - 1
+    ] ??
     null
   )
 }
@@ -700,13 +704,7 @@ export function planScheduledLessonReconciliation(
       )
 
     if (!module) {
-      if (modules.length === 0) {
-        skippedWithoutModule += 1
-      } else {
-        // A carga total planificada já foi consumida. A célula futura
-        // fica vazia em vez de criar uma aula que exceda o plano.
-        createdOutsidePlannedCapacity += 1
-      }
+      skippedWithoutModule += 1
       continue
     }
 
@@ -718,6 +716,19 @@ export function planScheduledLessonReconciliation(
     const withinCapacity =
       allocated <
       module.plannedPeriods
+
+    if (!withinCapacity) {
+      createdOutsidePlannedCapacity += 1
+
+      if (
+        !input.allowOutsidePlannedCapacity
+      ) {
+        // Na reconciliação real, a carga total planificada é um limite
+        // rígido. A previsão pode pedir ocorrências virtuais adicionais
+        // sem as persistir.
+        continue
+      }
+    }
 
     createLessons.push({
       academicYearId:
