@@ -408,7 +408,7 @@ export function planScheduledLessonReconciliation(
 
       const key =
         getScheduleOccurrenceKey(
-          lesson.scheduleSlotId,
+          lesson.scheduleSlotId!,
           lesson.scheduleOriginalPosition?.date ?? lesson.date
         )
 
@@ -526,7 +526,7 @@ export function planScheduledLessonReconciliation(
 
       const key =
         getScheduleOccurrenceKey(
-          lesson.scheduleSlotId,
+          lesson.scheduleSlotId!,
           lesson.scheduleOriginalPosition?.date ?? lesson.date
         )
 
