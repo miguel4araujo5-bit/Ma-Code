@@ -1,6 +1,7 @@
 import CloudBackupPreview from '../sync/CloudBackupPreview'
 import CloudBackupPreferencePanel from '../sync/CloudBackupPreferencePanel'
 import CloudBackupReauthentication from '../sync/CloudBackupReauthentication'
+import BackupDraftNotice from './BackupDraftNotice'
 import { createPortal } from 'react-dom'
 import { ProblemReportDialog } from '../support/ProblemReportDialog'
 import { useCloudBackupCooldown } from '../sync/cloudBackupCooldown'
@@ -563,6 +564,8 @@ export function EncryptedSyncPanel() {
       <p className="mt-2 text-sm leading-6 text-slate-400">
         Reveja o quadro com os dados guardados neste dispositivo. Só depois da sua confirmação é que esta cópia é cifrada e enviada para a nuvem.
       </p>
+
+      {!preparedBackup || needsReauthentication ? <BackupDraftNotice accountEmail={session.email} /> : null}
 
       {needsReauthentication ? (
         <div className="mt-4">
