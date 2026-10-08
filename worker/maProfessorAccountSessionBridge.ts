@@ -619,6 +619,9 @@ export class MaProfessorAccessDurableObject {
       )
 
     if (delegated.ok) {
+      // Login replaces sessions in storage. Refresh the cached verifier before
+      // the new token is used by the backup or another delegated operation.
+      this.refreshExisting()
       return delegated
     }
 
