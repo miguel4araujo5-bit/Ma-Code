@@ -2057,6 +2057,7 @@ export default function MAProfessorApp({
           context={lessonEditorContext}
           onClose={handleLessonEditorClose}
           onSaved={handleLessonEditorSaved}
+          onOpenLesson={handleCalendarLessonSelect}
         />
       ) : null}
 

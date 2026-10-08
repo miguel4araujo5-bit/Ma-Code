@@ -19,6 +19,7 @@ import {
 
 import {
   lessonRepository,
+  LessonMoveBlockedError,
   type LessonMoveScope
 } from '../lessons/lessonRepository'
 
@@ -53,6 +54,7 @@ interface LessonEditorDialogProps {
   context: CalendarLessonEditorContext
   onClose: () => void
   onSaved: (lesson: Lesson) => void | Promise<void>
+  onOpenLesson: (lessonId: EntityId) => void | Promise<void>
 }
 
 interface LessonEditorFormState {
@@ -313,7 +315,8 @@ function StatusSelector({
 export default function LessonEditorDialog({
   context,
   onClose,
-  onSaved
+  onSaved,
+  onOpenLesson
 }: LessonEditorDialogProps) {
   const [form, setForm] = useState<LessonEditorFormState>(
     () => buildInitialForm(context)
@@ -321,6 +324,7 @@ export default function LessonEditorDialog({
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [blockedLessons, setBlockedLessons] = useState<LessonMoveBlockedError['lessons']>([])
   const [moveCollision, setMoveCollision] = useState<Lesson | null>(null)
   const [moveScope, setMoveScope] =
     useState<LessonMoveScope>('single')
@@ -393,6 +397,7 @@ export default function LessonEditorDialog({
     setMoveScope('single')
     setMoveCollision(null)
     setError('')
+    setBlockedLessons([])
   }, [context])
 
   useEffect(() => {
@@ -556,6 +561,8 @@ export default function LessonEditorDialog({
       return
     }
 
+    setBlockedLessons([])
+
     const periodCount = Number(form.periodCount)
 
     if (
@@ -607,10 +614,14 @@ export default function LessonEditorDialog({
     const moving = positionChanged
     if (moving) {
       try {
-        if (lesson.giaeStatus === 'submitted') throw new Error('Esta aula já está marcada como submetida no programa oficial. Retire primeiro esse visto e guarde antes de alterar a data ou hora.')
+        if (lesson.giaeStatus === 'submitted' && moveScope === 'single') throw new LessonMoveBlockedError([lesson], 'Esta aula já está marcada como submetida no programa oficial. Retire primeiro esse visto e guarde antes de alterar a data ou hora.')
         const collision = await lessonRepository.findMoveCollision(lesson.id, form)
         if (collision && !confirmedSwap) { setMoveCollision(collision); return }
-      } catch (error) { setError(getErrorMessage(error)); return }
+      } catch (error) {
+        setError(getErrorMessage(error))
+        if (error instanceof LessonMoveBlockedError) setBlockedLessons(error.lessons)
+        return
+      }
     }
     setMoveCollision(null)
     setSaving(true)
@@ -751,6 +762,7 @@ export default function LessonEditorDialog({
     } catch (saveError) {
       assessmentSectionRef.current?.resetTransientSaveState()
       setError(getErrorMessage(saveError))
+      if (saveError instanceof LessonMoveBlockedError) setBlockedLessons(saveError.lessons)
     } finally {
       setSaving(false)
     }
@@ -1492,6 +1504,19 @@ export default function LessonEditorDialog({
                     className="rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
                   >
                     {error}
+                    {blockedLessons.length ? (
+                      <ul className="mt-3 space-y-2">
+                        {blockedLessons.map(blocked => (
+                          <li key={blocked.id}>
+                            <button type="button" disabled={saving}
+                              onClick={() => void onOpenLesson(blocked.id)}
+                              className="text-left font-bold underline underline-offset-4 hover:text-white disabled:opacity-60">
+                              Abrir aula de {formatDate(blocked.date)} · {blocked.startTime}–{blocked.endTime}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

@@ -12,6 +12,7 @@ import {
 } from '../navigation/useUnsavedWorkspaceProtection'
 
 import type {
+  EntityId,
   Lesson,
   LessonStatus
 } from '../types'
@@ -146,7 +147,8 @@ export default function LessonEditorDialog(
     )
     setGuardError('')
   }, [
-    lessonId
+    lessonId,
+    props.context
   ])
 
   function confirmDiscardLessonChanges() {
@@ -166,6 +168,11 @@ export default function LessonEditorDialog(
     }
 
     props.onClose()
+  }
+
+  async function requestOpenLesson(lessonId: EntityId) {
+    if (!confirmDiscardLessonChanges()) return
+    await props.onOpenLesson(lessonId)
   }
 
   function markSectionDirty(
@@ -393,6 +400,7 @@ export default function LessonEditorDialog(
         {...props}
         onClose={requestClose}
         onSaved={handleSaved}
+        onOpenLesson={requestOpenLesson}
       />
     </div>
   )

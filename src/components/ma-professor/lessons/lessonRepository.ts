@@ -54,6 +54,18 @@ export type LessonMoveScope =
   | 'from_here'
   | 'whole_schedule'
 
+export class LessonMoveBlockedError extends Error {
+  readonly lessons: Array<Pick<Lesson, 'id' | 'date' | 'startTime' | 'endTime'>>
+
+  constructor(lessons: Lesson[], message = 'Existem aulas neste âmbito já submetidas no programa oficial. Retire primeiro o visto dessas aulas; nenhuma alteração foi aplicada.') {
+    super(message)
+    this.name = 'LessonMoveBlockedError'
+    this.lessons = lessons
+      .map(({ id, date, startTime, endTime }) => ({ id, date, startTime, endTime }))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id))
+  }
+}
+
 function createScheduleEntityId() {
   const uuid =
     globalThis.crypto
@@ -304,12 +316,12 @@ export class LessonRepository
     return maProfessorDb.transaction('rw', maProfessorDb.tables, async () => {
       const current = await maProfessorDb.lessons.get(id)
       if (!current || current.updatedAt !== expectedUpdatedAt) throw new Error('Esta aula foi alterada entretanto. Atualize antes de a mover.')
-      if (current.giaeStatus === 'submitted') throw new Error('Esta aula já está marcada como submetida no programa oficial. Para alterar a data ou hora, retire primeiro esse visto.')
+      if (current.giaeStatus === 'submitted') throw new LessonMoveBlockedError([current], 'Esta aula já está marcada como submetida no programa oficial. Para alterar a data ou hora, retire primeiro esse visto.')
       const collision = await this.findMoveCollision(id, position)
       if (collision && (!swap || swap.id !== collision.id)) throw new Error('Já existe uma aula nesse horário. Escolha Permutar/substituir ou outra hora.')
       const other = swap ? await maProfessorDb.lessons.get(swap.id) : null
       if (swap && (!other || !collision || other.updatedAt !== swap.updatedAt)) throw new Error('A aula de destino foi alterada entretanto. Escolha novamente o destino.')
-      if (other?.giaeStatus === 'submitted') throw new Error('Uma ou mais aulas que está a tentar permutar estão marcadas como submetidas no programa oficial. Retire primeiro esse visto para prosseguir.')
+      if (other?.giaeStatus === 'submitted') throw new LessonMoveBlockedError([other], 'Uma ou mais aulas que está a tentar permutar estão marcadas como submetidas no programa oficial. Retire primeiro esse visto para prosseguir.')
       if (other && (other.startTime !== position.startTime || other.endTime !== position.endTime || other.periodCount !== current.periodCount)) throw new Error('A permuta exige células com o mesmo número de tempos. Escolha outra hora.')
       const all = await maProfessorDb.lessons.where('academicYearId').equals(current.academicYearId).toArray()
       for (const [, destination] of other ? [[current, position], [other, current]] as const : [[current, position]] as const) {
@@ -535,20 +547,18 @@ export class LessonRepository
             )
           ])
 
-        const submittedLesson =
+        const submittedLessons =
           [
             ...primaryLessons,
             ...secondaryLessons
-          ].find(
+          ].filter(
             lesson =>
               lesson.giaeStatus ===
                 'submitted'
           )
 
-        if (submittedLesson) {
-          throw new Error(
-            'Existem aulas neste âmbito já submetidas no programa oficial. Retire primeiro o visto dessas aulas; nenhuma alteração foi aplicada.'
-          )
+        if (submittedLessons.length) {
+          throw new LessonMoveBlockedError(submittedLessons)
         }
 
         const primaryTarget = {

@@ -189,9 +189,22 @@ test('scoped schedule change aborts completely when any affected lesson is submi
  await db.lessons.bulkPut([
   lesson('p1',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-14',startTime:'09:00',endTime:'09:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
   lesson('p2',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-21',startTime:'09:00',endTime:'09:50'}),
-  lesson('s1',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-15',startTime:'10:00',endTime:'10:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null})
+  lesson('p0',{origin:'scheduled',scheduleSlotId:'slot-a',date:'2026-09-07',startTime:'09:00',endTime:'09:50'}),
+  lesson('s1',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-15',startTime:'10:00',endTime:'10:50',summary:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null}),
+  lesson('s2',{origin:'scheduled',scheduleSlotId:'slot-b',date:'2026-09-22',startTime:'10:00',endTime:'10:50'})
  ])
- await assert.rejects(api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'from_here',{id:'s1',updatedAt:stamp}),/submetidas/)
+ const before=await db.lessons.toArray()
+ await assert.rejects(api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'from_here',{id:'s1',updatedAt:stamp}),error=>{
+  assert.ok(error instanceof api.LessonMoveBlockedError)
+  assert.deepEqual(error.lessons.map(row=>row.id),['p2','s2'])
+  assert.deepEqual(error.lessons[0],{id:'p2',date:'2026-09-21',startTime:'09:00',endTime:'09:50'})
+  return true
+ })
+ await assert.rejects(api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'whole_schedule',{id:'s1',updatedAt:stamp}),error=>{
+  assert.deepEqual(error.lessons.map(row=>row.id),['p0','p2','s2'])
+  return true
+ })
+ assert.deepEqual(await db.lessons.toArray(),before)
  assert.equal((await db.lessons.get('p1')).date,'2026-09-14')
  assert.equal((await db.weeklyScheduleSlots.get('slot-a')).validUntil,'2027-07-31')
  assert.equal(await db.weeklyScheduleSlots.count(),2)
