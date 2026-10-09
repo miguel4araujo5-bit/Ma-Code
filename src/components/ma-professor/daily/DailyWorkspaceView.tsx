@@ -364,7 +364,7 @@ function buildStudentRows(
             );
 
         const previousScores =
-            criteriaGrid?.previousScoresByStudentId[row.student.id] ?? {};
+            criteriaGrid?.previousScoresByStudentId?.[row.student.id] ?? {};
 
         const criterionPreviousScores = Object.fromEntries(
             criteria.map(criterion => [
