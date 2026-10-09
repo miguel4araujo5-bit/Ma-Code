@@ -694,8 +694,14 @@ try {
     const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
     return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.assessmentProfilesByAssignment?.[fixture.assignmentId] === 'acs'
   })
+  const navigationDialogs = []
+  page.on('dialog', async dialog => {
+    navigationDialogs.push(dialog.message())
+    await dialog.accept()
+  })
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
+  assert.deepEqual(navigationDialogs, [], 'a saved ACS edit must not trigger an unsaved-work warning')
   const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
   await scheduledLesson.click()
   assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
