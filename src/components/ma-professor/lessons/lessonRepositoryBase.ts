@@ -2551,7 +2551,8 @@ export class LessonRepository {
             date >=
               slot.validFrom &&
             date <=
-              slot.validUntil
+              slot.validUntil &&
+            !slot.excludedDates?.includes(date)
         )
 
       for (

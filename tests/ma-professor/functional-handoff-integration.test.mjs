@@ -45,6 +45,12 @@ const student=(id='one',number='1')=>({...audit,id,academicYearId:'y',groupId:'g
 const lesson=(id,extras={})=>({...audit,id,academicYearId:'y',teachingAssignmentId:'a',moduleId:'b',scheduleSlotId:null,origin:'extra',status:'taught',date:'2026-09-14',startTime:'09:00',endTime:'09:50',periodCount:1,countTowardProgress:true,plannedActivity:'',summary:'Sumário',summarySource:'manual',planificationItemIds:[],giaeStatus:'submitted',giaeSubmittedAt:stamp,notes:'',...extras})
 const absence=(id,lessonId,studentId='one')=>({...audit,id,lessonId,studentId,status:'absent',code:'F',note:''})
 const recoveryInput={academicYearId:'y',teachingAssignmentId:'a',moduleId:'b',studentId:'one'}
+async function moveWithRecordsConfirmation(move) {
+ try { return await move({}) } catch (error) {
+  if (!(error instanceof api.LessonMoveRecordsError)) throw error
+  return move({records:{action:'transfer',confirmationKey:error.confirmationKey}})
+ }
+}
 async function seedAssessments() {
  await db.assessmentSchemes.put({...audit,id:'scheme',academicYearId:'y',teachingAssignmentId:'a',moduleId:null,scope:'subject',name:'Critérios',active:true})
  await db.assessmentCriteria.put({...audit,id:'criterion',schemeId:'scheme',name:'Desempenho',weightPercent:100,order:1,active:true})
@@ -166,7 +172,7 @@ test('from-here permutation swaps the recurring cells atomically from the select
  ])
  await db.lessonAttendance.put(absence('p1-f','p1'))
  await db.lessonAssessments.put({...audit,id:'p1-assess',academicYearId:'y',lessonId:'p1',teachingAssignmentId:'a',moduleId:'b',criterionId:'criterion-preserved',title:'Avaliação preservada',activityType:'practical_work',description:'',absentScore:0,exemptScore:0})
- await api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'from_here',{id:'s1',updatedAt:stamp})
+ await moveWithRecordsConfirmation(options=>api.lessonRepository.moveLessonWithScope('p1',{date:'2026-09-15',startTime:'10:00',endTime:'10:50'},stamp,'from_here',{id:'s1',updatedAt:stamp},options))
  assert.deepEqual([(await db.lessons.get('p1')).date,(await db.lessons.get('p2')).date],['2026-09-15','2026-09-22'])
  assert.deepEqual([(await db.lessons.get('s1')).date,(await db.lessons.get('s2')).date],['2026-09-14','2026-09-21'])
  const preserved=await db.lessons.get('p1')
@@ -217,7 +223,7 @@ test('submitted lessons cannot move or change module; swapping keeps both lesson
  await api.lessonRepository.markGIAEPendingExplicit('l',stamp)
  await assert.rejects(api.lessonRepository.updateLesson('l',{moduleId:'c'}),/faltas/)
  const first=await db.lessons.get('l');const other=await db.lessons.get('other')
- const moved=await api.lessonRepository.moveLesson('l',{date:other.date,startTime:other.startTime,endTime:other.endTime},first.updatedAt,{id:other.id,updatedAt:other.updatedAt})
+ const moved=await moveWithRecordsConfirmation(options=>api.lessonRepository.moveLesson('l',{date:other.date,startTime:other.startTime,endTime:other.endTime},first.updatedAt,{id:other.id,updatedAt:other.updatedAt},options))
  assert.equal(moved.date,'2026-09-15');assert.equal((await db.lessons.get('other')).date,'2026-09-14');assert.equal(await db.lessons.count(),2);assert.equal((await db.lessonAttendance.get('f')).lessonId,'l')
 })
 

@@ -651,6 +651,11 @@ export function validateMAProfessorBackupDataIntegrity(
     const path =
       `data.weeklyScheduleSlots[${index}]`
 
+    if (value.excludedDates !== undefined &&
+        (!Array.isArray(value.excludedDates) || !value.excludedDates.every(isIsoDate))) {
+      addIssue(`${path}.excludedDates`, 'As exceções do bloco de horário devem conter datas válidas.')
+    }
+
     if (
       typeof value.weekday !== 'number' ||
       !Number.isInteger(value.weekday) ||

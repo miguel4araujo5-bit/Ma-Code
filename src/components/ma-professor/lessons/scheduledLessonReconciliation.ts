@@ -356,7 +356,8 @@ export function planScheduledLessonReconciliation(
       if (
         slot.weekday !== weekday ||
         date < slot.validFrom ||
-        date > slot.validUntil
+        date > slot.validUntil ||
+        slot.excludedDates?.includes(date)
       ) {
         continue
       }

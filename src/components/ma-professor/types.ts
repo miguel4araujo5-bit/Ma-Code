@@ -179,6 +179,7 @@ export interface WeeklyScheduleSlot extends AuditFields {
   endTime: LocalTime
   periodCount: number
   summaryReminderText?: string
+  excludedDates?: ISODate[]
   validFrom: ISODate
   validUntil: ISODate
   active: boolean

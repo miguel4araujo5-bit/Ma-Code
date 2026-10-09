@@ -464,6 +464,7 @@ function countScheduledLessonsUntilCompletion(
               slot.weekday === weekday &&
               slot.validFrom <= cursor &&
               slot.validUntil >= cursor &&
+              !slot.excludedDates?.includes(cursor) &&
               (
                 cursor > lesson.date ||
                 slot.startTime > lesson.startTime

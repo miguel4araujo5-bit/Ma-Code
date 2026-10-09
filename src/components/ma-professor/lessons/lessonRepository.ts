@@ -34,6 +34,17 @@ import {
   resolveLessonStatusFromEvidence
 } from './lessonTemporalSafety'
 
+import {
+  selectLessonMoveDestinations,
+  validateLessonMovePositions,
+  prepareLessonMoveRecords,
+  applyLessonMoveRecords,
+  type LessonMoveOptions
+} from './lessonMoveDecisions'
+
+export { LessonMoveBlockedError, LessonMoveRecordsError } from './lessonMoveDecisions'
+export type { LessonMoveOptions } from './lessonMoveDecisions'
+
 export type {
   LessonDraft,
   LessonChanges,
@@ -53,18 +64,6 @@ export type LessonMoveScope =
   | 'single'
   | 'from_here'
   | 'whole_schedule'
-
-export class LessonMoveBlockedError extends Error {
-  readonly lessons: Array<Pick<Lesson, 'id' | 'date' | 'startTime' | 'endTime'>>
-
-  constructor(lessons: Lesson[], message = 'Existem aulas neste âmbito já submetidas no programa oficial. Retire primeiro o visto dessas aulas; nenhuma alteração foi aplicada.') {
-    super(message)
-    this.name = 'LessonMoveBlockedError'
-    this.lessons = lessons
-      .map(({ id, date, startTime, endTime }) => ({ id, date, startTime, endTime }))
-      .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id))
-  }
-}
 
 function createScheduleEntityId() {
   const uuid =
@@ -309,30 +308,40 @@ export class LessonRepository
     return lessons.find(row => row.id !== id && row.status !== 'cancelled' && row.date === position.date && row.startTime < position.endTime && row.endTime > position.startTime) ?? null
   }
 
-  async moveLesson(id: EntityId, requestedPosition: Pick<Lesson, 'date' | 'startTime' | 'endTime'>, expectedUpdatedAt: string, swap?: { id: EntityId; updatedAt: string }) {
+  async moveLesson(id: EntityId, requestedPosition: Pick<Lesson, 'date' | 'startTime' | 'endTime'>, expectedUpdatedAt: string, swap?: { id: EntityId; updatedAt: string }, options: LessonMoveOptions = {}) {
     await this.initialize()
     const { date, startTime, endTime } = requestedPosition
     const position = { date, startTime, endTime }
     return maProfessorDb.transaction('rw', maProfessorDb.tables, async () => {
       const current = await maProfessorDb.lessons.get(id)
       if (!current || current.updatedAt !== expectedUpdatedAt) throw new Error('Esta aula foi alterada entretanto. Atualize antes de a mover.')
-      if (current.giaeStatus === 'submitted') throw new LessonMoveBlockedError([current], 'Esta aula já está marcada como submetida no programa oficial. Para alterar a data ou hora, retire primeiro esse visto.')
       const collision = await this.findMoveCollision(id, position)
-      if (collision && (!swap || swap.id !== collision.id)) throw new Error('Já existe uma aula nesse horário. Escolha Permutar/substituir ou outra hora.')
       const other = swap ? await maProfessorDb.lessons.get(swap.id) : null
       if (swap && (!other || !collision || other.updatedAt !== swap.updatedAt)) throw new Error('A aula de destino foi alterada entretanto. Escolha novamente o destino.')
-      if (other?.giaeStatus === 'submitted') throw new LessonMoveBlockedError([other], 'Uma ou mais aulas que está a tentar permutar estão marcadas como submetidas no programa oficial. Retire primeiro esse visto para prosseguir.')
+      const contextKey = JSON.stringify({ id, position, swap, scope: 'single' })
+      const destinations = selectLessonMoveDestinations([
+        { lesson: current, ...position },
+        ...(other ? [{ lesson: other, date: current.date, startTime: current.startTime, endTime: current.endTime }] : [])
+      ], id, options, contextKey)
+      if (collision && (!swap || swap.id !== collision.id)) throw new Error('Já existe uma aula nesse horário. Escolha «Trocar as duas aulas de horário» ou outro horário.')
       if (other && (other.startTime !== position.startTime || other.endTime !== position.endTime || other.periodCount !== current.periodCount)) throw new Error('A permuta exige células com o mesmo número de tempos. Escolha outra hora.')
       const all = await maProfessorDb.lessons.where('academicYearId').equals(current.academicYearId).toArray()
-      for (const [, destination] of other ? [[current, position], [other, current]] as const : [[current, position]] as const) {
-        if (all.some(row => row.id !== current.id && row.id !== other?.id && row.status !== 'cancelled' && row.date === destination.date && row.startTime < destination.endTime && row.endTime > destination.startTime)) throw new Error('A permuta sobrepõe-se a outra aula. Escolha outra hora.')
+      const movingIds = new Set(destinations.map(row => row.lesson.id))
+      for (const destination of destinations) {
+        const occupied = all.find(row => !movingIds.has(row.id) && row.status !== 'cancelled' && row.date === destination.date && row.startTime < destination.endTime && row.endTime > destination.startTime)
+        if (occupied) throw new Error('A alteração sobrepõe-se à aula de ' + occupied.date + ' · ' + occupied.startTime + '. Nenhuma alteração foi aplicada.')
       }
+      const records = await prepareLessonMoveRecords(destinations, options, contextKey, Boolean(other))
+      await validateLessonMovePositions(destinations)
       const timestamp = new Date().toISOString()
-      if (other) await maProfessorDb.lessons.put({ ...other, date: current.date, startTime: current.startTime, endTime: current.endTime, scheduleOriginalPosition: other.scheduleOriginalPosition ?? { date: other.date, startTime: other.startTime }, updatedAt: timestamp })
-      const saved = await super.updateLesson(id, position, { expectedUpdatedAt })
-      const moved = { ...saved, scheduleOriginalPosition: current.scheduleOriginalPosition ?? { date: current.date, startTime: current.startTime } }
-      await maProfessorDb.lessons.put(moved)
-      return moved
+      await applyLessonMoveRecords(records, options, timestamp)
+      for (const { lesson, date, startTime, endTime } of destinations) {
+        await maProfessorDb.lessons.put({ ...lesson, date, startTime, endTime,
+          ...(lesson.origin === 'scheduled' ? { scheduleOriginalPosition: lesson.scheduleOriginalPosition ?? { date: lesson.date, startTime: lesson.startTime } } : {}),
+          ...(lesson.giaeStatus === 'submitted' ? { giaeStatus: 'pending' as const, giaeSubmittedAt: null } : {}),
+          updatedAt: timestamp })
+      }
+      return super.updateLesson(id, {}, { expectedUpdatedAt: timestamp })
     })
   }
 
@@ -344,14 +353,16 @@ export class LessonRepository
     swap?: {
       id: EntityId
       updatedAt: string
-    }
+    },
+    options: LessonMoveOptions = {}
   ) {
     if (scope === 'single') {
       return this.moveLesson(
         id,
         requestedPosition,
         expectedUpdatedAt,
-        swap
+        swap,
+        options
       )
     }
 
@@ -537,30 +548,6 @@ export class LessonRepository
               )
             : []
 
-        const movingIds =
-          new Set([
-            ...primaryLessons.map(
-              lesson => lesson.id
-            ),
-            ...secondaryLessons.map(
-              lesson => lesson.id
-            )
-          ])
-
-        const submittedLessons =
-          [
-            ...primaryLessons,
-            ...secondaryLessons
-          ].filter(
-            lesson =>
-              lesson.giaeStatus ===
-                'submitted'
-          )
-
-        if (submittedLessons.length) {
-          throw new LessonMoveBlockedError(submittedLessons)
-        }
-
         const primaryTarget = {
           weekday:
             targetWeekday,
@@ -582,7 +569,7 @@ export class LessonRepository
               }
             : null
 
-        const destinationRows = [
+        const allDestinationRows = [
           ...primaryLessons.map(
             lesson => ({
               lesson,
@@ -617,6 +604,13 @@ export class LessonRepository
           )
         ]
 
+        const contextKey = JSON.stringify({
+          id, scope, currentSlot, destinationSlot,
+          position: { date: requestedPosition.date, startTime: requestedPosition.startTime, endTime: requestedPosition.endTime }
+        })
+        const destinationRows = selectLessonMoveDestinations(allDestinationRows, id, options, contextKey, true)
+        const movingIds = new Set(destinationRows.map(row => row.lesson.id))
+
         for (const destination of destinationRows) {
           const collision =
             allLessons.find(
@@ -636,7 +630,7 @@ export class LessonRepository
 
           if (collision) {
             throw new Error(
-              'A alteração iria sobrepor-se a outra aula. Nenhuma alteração foi aplicada.'
+              'A alteração iria sobrepor-se à aula de ' + collision.date + ' · ' + collision.startTime + '. Nenhuma alteração foi aplicada.'
             )
           }
         }
@@ -733,6 +727,10 @@ export class LessonRepository
         const timestamp =
           new Date().toISOString()
 
+        const records = await prepareLessonMoveRecords(destinationRows, options, contextKey, Boolean(destinationSlot))
+        await validateLessonMovePositions(destinationRows.length ? destinationRows : [{ lesson: current, date: requestedPosition.date, startTime: requestedPosition.startTime, endTime: requestedPosition.endTime }])
+        await applyLessonMoveRecords(records, options, timestamp)
+
         async function updateSlotForScope(
           slot: WeeklyScheduleSlot,
           target: {
@@ -741,6 +739,17 @@ export class LessonRepository
             endTime: string
           }
         ) {
+          const validity = getChangedValidity(slot)
+          const excludedWeeks = new Set((slot.excludedDates ?? []).map(getStartOfWeek))
+          for (const lesson of allLessons) {
+            const originalDate = lesson.scheduleOriginalPosition?.date ?? lesson.date
+            if (lesson.scheduleSlotId === slot.id && !movingIds.has(lesson.id) &&
+                (scope === 'whole_schedule' || getStartOfWeek(originalDate) >= anchorWeekStart)) {
+              excludedWeeks.add(getStartOfWeek(originalDate))
+            }
+          }
+          const excludedDates = [...excludedWeeks].map(week => dateForWeekday(week, target.weekday))
+            .filter(date => date >= validity.validFrom && date <= validity.validUntil).sort()
           if (
             !splitStart ||
             splitStart <=
@@ -749,6 +758,7 @@ export class LessonRepository
             const updatedSlot = {
               ...slot,
               ...target,
+              excludedDates,
               updatedAt:
                 timestamp
             }
@@ -776,6 +786,7 @@ export class LessonRepository
             id:
               createScheduleEntityId(),
             ...target,
+            excludedDates,
             validFrom:
               splitStart,
             createdAt:
@@ -793,6 +804,7 @@ export class LessonRepository
                   splitStart,
                   -1
                 ),
+              excludedDates: (slot.excludedDates ?? []).filter(date => date < splitStart),
               updatedAt:
                 timestamp
             })
@@ -845,6 +857,9 @@ export class LessonRepository
               destination.startTime,
             endTime:
               destination.endTime,
+            ...(destination.lesson.giaeStatus === 'submitted'
+              ? { giaeStatus: 'pending' as const, giaeSubmittedAt: null }
+              : {}),
             updatedAt:
               timestamp
           })
