@@ -261,6 +261,8 @@ export default function LessonEditorDialog(
       Planeada: 'planned',
       Dada: 'taught',
       Cancelada: 'cancelled',
+      'Aula não realizada': 'cancelled',
+      'Repor como planeada': 'planned',
       'Marcar como dada': 'taught'
     }
 
