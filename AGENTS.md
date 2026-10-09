@@ -9,6 +9,7 @@ Estas instruções aplicam-se a todas as tarefas do MA-Professor, mesmo sem ativ
 - O utilizador está a usar o programa ao vivo, com dados reais. Preservar o funcionamento atual, os dados guardados e o trabalho em curso é prioritário.
 - Investigar a causa antes de corrigir e limitar cada alteração ao problema autorizado. Evitar refatorações e alterações paralelas sem necessidade comprovada.
 - Quando o utilizador pedir primeiro um diagnóstico, apresentar a causa, a evidência e a correção proposta antes de implementar ou publicar a correção. Um pedido de investigação não autoriza alterar o funcionamento da app.
+- Antes de introduzir qualquer novo bloqueio funcional (incluindo por segurança, proteção de dados ou conflitos), perguntar explicitamente ao utilizador se pretende esse bloqueio. Explicar primeiro o motivo, os riscos de desbloquear e as alternativas, como um aviso com confirmação consciente. Não implementar bloqueios novos ou permanentes sem a decisão do utilizador; preservar as proteções existentes até existir decisão e uma solução tecnicamente segura.
 - Validar as correções com dados fictícios e testes adequados ao risco, incluindo regressões nos fluxos afetados. Não usar os dados, a conta ou a cópia online real do utilizador para testes.
 - Não tratar o utilizador pelo nome.
 
