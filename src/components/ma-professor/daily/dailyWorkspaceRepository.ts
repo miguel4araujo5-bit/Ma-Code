@@ -125,6 +125,8 @@ export interface DailyLessonSaveDraft {
   summarySource: SummarySource
   planificationItemIds: EntityId[]
   notes: string
+  nonRealizationReason?: Lesson['nonRealizationReason']
+  nonRealizationDetails?: string
   giaeStatus: GIAEStatus
   students: DailyStudentSaveDraft[]
   assessment: DailyAssessmentSaveDraft
@@ -1245,7 +1247,9 @@ export class DailyWorkspaceRepository {
               planificationItemIds:
                 input.planificationItemIds,
               notes:
-                input.notes
+                input.notes,
+              nonRealizationReason: input.nonRealizationReason,
+              nonRealizationDetails: input.nonRealizationDetails
             }
           )
 
