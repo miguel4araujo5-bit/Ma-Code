@@ -4180,6 +4180,48 @@ export default function DailyWorkspaceView({
                                         </label>
                                     </div>
 
+                                    {lessonForm.status === 'cancelled' ? (
+                                        <div className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.045] p-3">
+                                            <label className="block text-xs font-bold text-slate-200">
+                                                Motivo (facultativo)
+                                                <select
+                                                    value={lessonForm.nonRealizationReason ?? ''}
+                                                    onChange={event => setLessonForm(current => current ? {
+                                                        ...current,
+                                                        nonRealizationReason: event.target.value
+                                                            ? event.target.value as NonNullable<Lesson['nonRealizationReason']>
+                                                            : undefined,
+                                                        nonRealizationDetails: event.target.value === 'other'
+                                                            ? current.nonRealizationDetails
+                                                            : undefined
+                                                    } : current)}
+                                                    disabled={saving}
+                                                    className={`${compactInputClassName} mt-2`}
+                                                >
+                                                    <option value="">Sem indicação</option>
+                                                    <option value="teacher_absence">Professor faltou</option>
+                                                    <option value="strike">Greve</option>
+                                                    <option value="other">Outro</option>
+                                                </select>
+                                            </label>
+                                            {lessonForm.nonRealizationReason === 'other' ? (
+                                                <label className="mt-3 block text-xs font-bold text-slate-200">
+                                                    Qual foi o motivo? (facultativo)
+                                                    <textarea
+                                                        value={lessonForm.nonRealizationDetails ?? ''}
+                                                        onChange={event => updateLessonForm(
+                                                            'nonRealizationDetails',
+                                                            event.target.value || undefined
+                                                        )}
+                                                        rows={2}
+                                                        disabled={saving}
+                                                        className={`${compactInputClassName} mt-2 resize-y`}
+                                                    />
+                                                </label>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+
                                     <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-300">
                                         <input
                                             type="checkbox"
