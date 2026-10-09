@@ -157,6 +157,9 @@ function repositoryHarness() {
     }
   }
   const runtime = compile(repositorySource, {
+    // Este teste isola a persistência da grelha; sugestões históricas
+    // são verificadas separadamente em daily-last-grades.test.mjs.
+    './dailyPreviousScores': { loadDailyPreviousScores: async () => ({}) },
     '../assessments/assessmentRepository': { assessmentRepository },
     '../assessmentAtomicPersistenceRepository': {
       assessmentAtomicPersistenceRepository: {
