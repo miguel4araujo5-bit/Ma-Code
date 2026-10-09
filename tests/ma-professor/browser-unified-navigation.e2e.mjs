@@ -701,12 +701,14 @@ try {
     return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.assessmentProfilesByAssignment?.[fixture.assignmentId] === 'acs'
   })
   const navigationDialogs = []
-  page.on('dialog', async dialog => {
+  const handleNavigationDialog = async dialog => {
     navigationDialogs.push(dialog.message())
     await dialog.accept()
-  })
+  }
+  page.on('dialog', handleNavigationDialog)
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
+  page.off('dialog', handleNavigationDialog)
   assert.deepEqual(navigationDialogs, [], 'a saved ACS edit must not trigger an unsaved-work warning')
   const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
   await scheduledLesson.click()
