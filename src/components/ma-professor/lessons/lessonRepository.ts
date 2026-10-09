@@ -1018,6 +1018,11 @@ export class LessonRepository
           latest.status !== 'cancelled' &&
           nextStatus === 'cancelled'
 
+        // A marcação de não realizada nunca retira automaticamente um visto GIAE.
+        if (cancelsLesson && latest.giaeStatus === 'submitted') {
+          throw new Error('Esta aula está marcada como submetida no programa oficial. Retire expressamente esse visto antes de a marcar como não realizada.')
+        }
+
         const relatedEvidenceRequired =
           relatedContextChanged ||
           leavesTaughtStatus ||
