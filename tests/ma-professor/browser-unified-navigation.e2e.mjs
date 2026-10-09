@@ -700,6 +700,10 @@ try {
     await dialog.accept()
   })
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
+  await page.waitForTimeout(300)
+  console.error('ACS_POST_SAVE_NAV', JSON.stringify({dialogs: navigationDialogs,
+    current: await page.getByRole('button', { name: 'Hoje', exact: false }).first().getAttribute('aria-current'),
+    screen: (await page.locator('main').innerText().catch(() => page.locator('body').innerText())).slice(0, 500)}))
   await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
   assert.deepEqual(navigationDialogs, [], 'a saved ACS edit must not trigger an unsaved-work warning')
   const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
