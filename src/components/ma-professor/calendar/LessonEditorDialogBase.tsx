@@ -43,11 +43,6 @@ import {
   assertCalendarLessonRelatedDataCompatibility
 } from './calendarLessonSaveSafety'
 
-import PlanificationSummaryTextarea, {
-  appendPlanificationSuggestion,
-  getPlanificationSuggestionText
-} from './PlanificationSummaryTextarea'
-
 import LessonAttendanceSection, {
   type LessonAttendanceSectionHandle
 } from './LessonAttendanceSection'
@@ -339,7 +334,6 @@ export default function LessonEditorDialog({
     useState<LessonMoveScope>('single')
   const [planificationItems, setPlanificationItems] =
     useState<PlanificationItem[]>([])
-  const [planificationIndex, setPlanificationIndex] = useState(0)
   const [planificationLoading, setPlanificationLoading] = useState(false)
 
   const attendanceSectionRef =
@@ -377,25 +371,8 @@ export default function LessonEditorDialog({
         )
     )
 
-  const currentPlanificationIndex =
-    availablePlanificationItems.length === 0
-      ? 0
-      : Math.min(
-          planificationIndex,
-          availablePlanificationItems.length - 1
-        )
-
   const planificationItem =
-    availablePlanificationItems[
-      currentPlanificationIndex
-    ] ?? null
-
-  const planificationSuggestionText =
-    planificationItem
-      ? getPlanificationSuggestionText(
-          planificationItem
-        )
-      : ''
+    availablePlanificationItems[0] ?? null
 
   const canSubmitToGIAE =
     form.status === 'taught' &&
@@ -411,8 +388,6 @@ export default function LessonEditorDialog({
 
   useEffect(() => {
     let cancelled = false
-
-    setPlanificationIndex(0)
 
     if (!form.moduleId) {
       setPlanificationItems([])
@@ -528,35 +503,6 @@ export default function LessonEditorDialog({
       summarySource: 'manual',
       planificationItemIds: []
     }))
-  }
-
-  function usePlanificationItem() {
-    if (
-      !planificationItem ||
-      !planificationSuggestionText
-    ) {
-      return
-    }
-
-    setForm(current => ({
-      ...current,
-      summary:
-        appendPlanificationSuggestion(
-          current.summary,
-          planificationSuggestionText
-        ),
-      summarySource:
-        'planification',
-      planificationItemIds:
-        Array.from(
-          new Set([
-            ...current.planificationItemIds,
-            planificationItem.id
-          ])
-        )
-    }))
-
-    setPlanificationIndex(0)
   }
 
   function disconnectPlanification() {
@@ -1122,72 +1068,12 @@ export default function LessonEditorDialog({
                           </p>
                         ) : null}
 
-                        <div className="mt-5 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPlanificationIndex(
-                                current =>
-                                  Math.max(
-                                    0,
-                                    current - 1
-                                  )
-                              )
-                            }
-                            disabled={
-                              saving ||
-                              planificationLoading ||
-                              currentPlanificationIndex <= 0
-                            }
-                            aria-label="Item anterior da planificação"
-                            className="grid h-11 w-11 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-300/[0.07] text-lg font-black text-cyan-50 disabled:opacity-35"
-                          >
-                            −
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPlanificationIndex(
-                                current =>
-                                  Math.min(
-                                    availablePlanificationItems.length - 1,
-                                    current + 1
-                                  )
-                              )
-                            }
-                            disabled={
-                              saving ||
-                              planificationLoading ||
-                              currentPlanificationIndex >=
-                                availablePlanificationItems.length - 1
-                            }
-                            aria-label="Item seguinte da planificação"
-                            className="grid h-11 w-11 place-items-center rounded-xl border border-cyan-200/20 bg-cyan-300/[0.07] text-lg font-black text-cyan-50 disabled:opacity-35"
-                          >
-                            +
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={usePlanificationItem}
-                            disabled={
-                              saving ||
-                              planificationLoading
-                            }
-                            className="min-h-11 flex-1 rounded-xl border border-cyan-200/25 bg-cyan-300/10 px-4 py-2.5 text-sm font-black text-cyan-50 disabled:opacity-50"
-                          >
-                            Adicionar
-                          </button>
-                        </div>
-
-                        <p className="mt-3 text-xs leading-5 text-slate-500">
-                          A sugestão aparece em cinzento dentro do Sumário. Navegar não a marca como utilizada.
-                        </p>
                       </>
                     ) : (
                       <p className="mt-4 text-sm leading-6 text-slate-400">
-                        {selectedModule
+                        {planificationLoading
+                          ? 'A carregar a planificação…'
+                          : selectedModule
                           ? 'Não existe outro item disponível na planificação desta UFCD.'
                           : 'Selecione uma UFCD para consultar a planificação.'}
                       </p>
@@ -1263,15 +1149,12 @@ export default function LessonEditorDialog({
                         Sumário
                       </FieldLabel>
 
-                      <PlanificationSummaryTextarea
+                      <textarea
                         value={form.summary}
-                        suggestion={
-                          planificationSuggestionText
-                        }
-                        onChange={value =>
+                        onChange={event =>
                           setForm(current => ({
                             ...current,
-                            summary: value,
+                            summary: event.target.value,
                             summarySource:
                               current.planificationItemIds.length > 0
                                 ? 'planification'
@@ -1281,6 +1164,7 @@ export default function LessonEditorDialog({
                         disabled={saving}
                         rows={5}
                         placeholder="Escreva o sumário que será registado no GIAE."
+                        className={textAreaClassName}
                       />
                     </label>
 

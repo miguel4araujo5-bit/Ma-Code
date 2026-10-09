@@ -8,6 +8,8 @@ type Props = {
   rows?: number
   placeholder?: string
   className?: string
+  containerClassName?: string
+  ariaLabel?: string
 }
 
 export function getPlanificationSuggestionText(item: {
@@ -31,11 +33,14 @@ export default function PlanificationSummaryTextarea({
   disabled,
   rows = 5,
   placeholder,
-  className = ''
+  className = '',
+  containerClassName = '',
+  ariaLabel
 }: Props) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/90 focus-within:border-cyan-300/50 focus-within:ring-4 focus-within:ring-cyan-300/10">
+    <div className={`overflow-hidden rounded-2xl border border-white/10 bg-slate-900/90 focus-within:border-cyan-300/50 focus-within:ring-4 focus-within:ring-cyan-300/10 ${containerClassName}`}>
       <textarea
+        aria-label={ariaLabel}
         value={value}
         onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value)}
         disabled={disabled}
@@ -46,7 +51,7 @@ export default function PlanificationSummaryTextarea({
       {suggestion ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none border-t border-white/[0.04] px-4 pb-3 pt-2 text-sm leading-6 text-slate-600"
+          className="pointer-events-none whitespace-pre-line border-t border-white/[0.04] px-4 pb-3 pt-2 text-sm leading-6 text-slate-600"
         >
           {suggestion}
         </div>

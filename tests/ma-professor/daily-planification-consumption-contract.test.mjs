@@ -67,11 +67,11 @@ test(
 )
 
 test(
-  'using the Daily suggestion copies editable planification text into the lesson draft and records its item id',
+  'Daily appends the suggestion to the draft and preserves all previously selected item IDs',
   () => {
     assert.match(
       dailyViewSource,
-      /item\.suggestedSummary\.trim\(\)\s*\|\|\s*item\.content\.trim\(\)/
+      /getPlanificationSuggestionText\(planificationItem\)/
     )
     assert.match(
       dailyViewSource,
@@ -83,7 +83,7 @@ test(
     )
     assert.match(
       dailyViewSource,
-      /planificationItemIds:\s*\[\s*item\.id\s*\]/
+      /planificationItemIds:\s*\[\s*\.\.\.current\.planificationItemIds,\s*item\.id\s*\]/
     )
   }
 )

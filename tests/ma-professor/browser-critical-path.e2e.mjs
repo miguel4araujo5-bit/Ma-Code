@@ -891,7 +891,51 @@ try {
   await selectSchool(page)
   await configureMinimumSetup(page)
 
+  // Exercise planification in the actual Today screen with fictitious local data.
+  const planificationLessonId = await page.evaluate(async () => {
+    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
+    const {dailyWorkspaceRepository} = await import('/src/components/ma-professor/daily/dailyWorkspaceRepository.ts')
+    const year = (await maProfessorDb.academicYears.toArray()).find(year => year.active)
+    const workspace = await dailyWorkspaceRepository.getDateWorkspace(year.id, '2026-09-21')
+    const lesson = workspace.selectedLesson.context.lessonRow.lesson
+    const audit = {createdAt:'2026-09-21T08:00:00.000Z',updatedAt:'2026-09-21T08:00:00.000Z'}
+    await maProfessorDb.planifications.add({id:'e2e-daily-planification',academicYearId:year.id,teachingAssignmentId:lesson.teachingAssignmentId,moduleId:lesson.moduleId,title:'Planificação E2E',description:'',active:true,...audit})
+    await maProfessorDb.planificationItems.bulkAdd([1,2,3].map(n => ({id:`e2e-daily-item-${n}`,planificationId:'e2e-daily-planification',order:n,content:`Conteúdo E2E ${n}`,activity:`Atividade E2E ${n}`,objectives:'',suggestedSummary:`Sugestão E2E ${n}`,status:'planned',usedLessonId:null,usedAt:null,...audit})))
+    return lesson.id
+  })
+  await page.reload({waitUntil:'domcontentloaded'})
   const editor = await summaryEditor(page)
+  const planificationControls = editor.section.getByRole('group', {name:'Planificação do sumário'})
+  const ghost = editor.textarea.locator('..').locator('[aria-hidden="true"]')
+  await ghost.filter({hasText:'Sugestão E2E 1'}).waitFor({state:'visible'})
+  assert.equal(await editor.textarea.inputValue(), '')
+  await planificationControls.getByRole('button', {name:'Item seguinte da planificação',exact:true}).click()
+  assert.equal(await ghost.textContent(), 'Sugestão E2E 2')
+  assert.equal(await editor.textarea.inputValue(), '')
+  await planificationControls.getByRole('button', {name:'Item anterior da planificação',exact:true}).click()
+  await editor.textarea.fill('Texto já escrito.')
+  await planificationControls.getByRole('button', {name:'Adicionar',exact:true}).click()
+  assert.equal(await editor.textarea.inputValue(), 'Texto já escrito.\nSugestão E2E 1')
+  assert.equal(await ghost.textContent(), 'Sugestão E2E 2')
+  await planificationControls.getByRole('button', {name:'Adicionar',exact:true}).click()
+  assert.equal(await editor.textarea.inputValue(), 'Texto já escrito.\nSugestão E2E 1\nSugestão E2E 2')
+  assert.equal(await ghost.textContent(), 'Sugestão E2E 3')
+  const unconsumed = await page.evaluate(async () => {
+    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
+    return (await maProfessorDb.planificationItems.where('planificationId').equals('e2e-daily-planification').toArray()).every(item => item.status==='planned'&&!item.usedLessonId)
+  })
+  assert.equal(unconsumed, true, 'Adding and browsing must not consume planification before saving')
+  for (const viewport of [{width:390,height:844},{width:1280,height:720}]) {
+    await page.setViewportSize(viewport)
+    const geometry = await planificationControls.evaluate(group => {
+      const rect=group.getBoundingClientRect()
+      const textarea=group.closest('section').querySelector('textarea').getBoundingClientRect()
+      return {left:rect.left,right:rect.right,bottom:rect.bottom,editorTop:textarea.top,viewport:window.innerWidth}
+    })
+    assert.ok(geometry.left>=0 && geometry.right<=geometry.viewport, 'All planification controls must fit at mobile and desktop widths')
+    assert.ok(geometry.bottom<=geometry.editorTop, 'Planification must remain above the summary')
+    assert.equal(await editor.section.getByRole('button',{name:'Aula não realizada',exact:true}).isVisible(),true)
+  }
   await editor.textarea.fill(SUMMARY)
   await editor.section.getByRole('button', {
     name: 'Guardar',
@@ -906,6 +950,12 @@ try {
   assert.equal(first.lesson?.status, 'taught')
   assert.equal(first.lesson?.origin, 'scheduled')
   assert.ok(first.lesson?.scheduleSlotId)
+  const planificationSaved = await page.evaluate(async lessonId => {
+    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
+    return {lesson:await maProfessorDb.lessons.get(lessonId),items:await maProfessorDb.planificationItems.where('planificationId').equals('e2e-daily-planification').sortBy('order')}
+  }, planificationLessonId)
+  assert.deepEqual(planificationSaved.lesson.planificationItemIds,['e2e-daily-item-1','e2e-daily-item-2'])
+  assert.deepEqual(planificationSaved.items.map(item=>[item.status,item.usedLessonId]),[['used',planificationLessonId],['used',planificationLessonId],['planned',null]])
 
   // A real new account has no D1 profile. Its first backup must be born v3.
   const protectedCopy = await page.evaluate(async () => {

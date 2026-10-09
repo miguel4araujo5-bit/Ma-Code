@@ -274,23 +274,12 @@ test(
 
 
 test(
-  'existing lesson editor uses navigable planification without consuming items until Adicionar',
+  'planification navigation and insertion have moved out of the old lesson editor',
   () => {
-    assert.match(
-      editorSource,
-      /PlanificationSummaryTextarea/
-    )
+    assert.doesNotMatch(editorSource, /PlanificationSummaryTextarea|function usePlanificationItem|Item anterior da planificação|Item seguinte da planificação/)
     assert.match(
       editorSource,
       /getAvailablePlanificationItems\(\s*form\.moduleId,\s*lesson\.id/
-    )
-    assert.match(
-      editorSource,
-      /aria-label="Item anterior da planificação"[\s\S]*aria-label="Item seguinte da planificação"[\s\S]*Adicionar/s
-    )
-    assert.match(
-      editorSource,
-      /appendPlanificationSuggestion\(\s*current\.summary,\s*planificationSuggestionText/
     )
   }
 )
@@ -302,7 +291,7 @@ test(
       'function copyPreviousLesson()'
     )
     const end = editorSource.indexOf(
-      'function usePlanificationItem()',
+      'function disconnectPlanification()',
       start
     )
     const block = editorSource.slice(start, end)

@@ -2,6 +2,10 @@ import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfi
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
 import { lessonRepository } from '../lessons/lessonRepository';
+import PlanificationSummaryTextarea, {
+    appendPlanificationSuggestion,
+    getPlanificationSuggestionText
+} from '../calendar/PlanificationSummaryTextarea';
 import { getUfcdEmissionFingerprint } from '../assessments/ufcdCfpModel';
 import { exportUfcdFinalGradeExcel } from '../assessments/ufcdFinalGradeExcelExport';
 import { exportUfcdCfpPdf } from '../assessments/ufcdCfpPdfExport';
@@ -47,6 +51,7 @@ import type {
     ISODate,
     LessonStatus,
     Lesson,
+    PlanificationItem,
     Score,
     SummarySource
 } from '../types';
@@ -537,6 +542,12 @@ export default function DailyWorkspaceView({
     const [students, setStudents] =
         useState<StudentEditorRow[]>([]);
 
+    const [planificationState, setPlanificationState] = useState<{
+        key: string;
+        items: PlanificationItem[];
+    } | null>(null);
+    const [planificationIndex, setPlanificationIndex] = useState(0);
+
     const [
         savedSignature,
         setSavedSignature
@@ -978,6 +989,53 @@ export default function DailyWorkspaceView({
     const lessonRow =
         selectedLesson?.context
             .lessonRow ?? null;
+
+    const planificationLessonId = lessonRow?.lesson.id ?? null;
+    const planificationModuleId = lessonRow?.lesson.moduleId ?? null;
+    const planificationKey = lessonRow
+        ? `${lessonRow.lesson.id}:${lessonRow.lesson.moduleId}:${lessonRow.lesson.updatedAt}`
+        : '';
+
+    useEffect(() => {
+        let cancelled = false;
+        setPlanificationIndex(0);
+        setPlanificationState(null);
+
+        if (planificationLessonId && planificationModuleId) {
+            void lessonRepository.getAvailablePlanificationItems(
+                planificationModuleId,
+                planificationLessonId
+            ).then(items => {
+                if (!cancelled) {
+                    setPlanificationState({ key: planificationKey, items });
+                }
+            }).catch(loadError => {
+                if (!cancelled) {
+                    setPlanificationState({ key: planificationKey, items: [] });
+                    setError(dailyWorkspaceRepository.describeError(loadError));
+                }
+            });
+        }
+
+        return () => { cancelled = true; };
+    }, [planificationKey, planificationLessonId, planificationModuleId]);
+
+    const planificationLoading = Boolean(
+        planificationKey && planificationState?.key !== planificationKey
+    );
+    const availablePlanificationItems = planificationState?.key === planificationKey
+        ? planificationState.items.filter(item =>
+            !lessonForm?.planificationItemIds.includes(item.id)
+        )
+        : [];
+    const currentPlanificationIndex = Math.min(
+        planificationIndex,
+        availablePlanificationItems.length
+    );
+    const planificationItem = availablePlanificationItems[currentPlanificationIndex] ?? null;
+    const planificationSuggestionText = planificationItem
+        ? getPlanificationSuggestionText(planificationItem)
+        : '';
 
     const scheduleSlotId =
         lessonRow?.lesson
@@ -2459,49 +2517,42 @@ export default function DailyWorkspaceView({
         );
     }
 
-    function useNextPlanificationItem() {
+    function addPlanificationItem() {
         if (
             !selectedLesson ||
-            !lessonForm
+            !lessonForm ||
+            !planificationItem ||
+            !planificationSuggestionText
         ) {
             return;
         }
 
-        const item =
-            selectedLesson.context
-                .nextPlanificationItem;
-
-        if (!item) {
-            return;
-        }
-
-        const nextSummary =
-            item.suggestedSummary.trim() ||
-            item.content.trim();
-
-        setLessonForm({
-            ...lessonForm,
-            status:
-                lessonForm.status ===
-                'planned'
-                    ? 'taught'
-                    : lessonForm.status,
-            plannedActivity:
-                item.activity.trim() ||
-                item.content.trim(),
-            summary: nextSummary,
-            summarySource:
-                'planification',
-            planificationItemIds: [
-                item.id
-            ],
-            giaeStatus:
-                resolveGIAEStatusAfterSummaryChange(
-                    lessonForm.giaeStatus,
-                    lessonForm.summary,
+        const item = planificationItem;
+        setLessonForm(current => {
+            if (!current || current.planificationItemIds.includes(item.id)) return current;
+            const nextSummary = appendPlanificationSuggestion(
+                current.summary,
+                planificationSuggestionText
+            );
+            return {
+                ...current,
+                status: current.status === 'planned' ? 'taught' : current.status,
+                plannedActivity: appendPlanificationSuggestion(
+                    current.plannedActivity,
+                    item.activity.trim() || item.content.trim()
+                ),
+                summary: nextSummary,
+                summarySource: 'planification',
+                planificationItemIds: [...current.planificationItemIds, item.id],
+                giaeStatus: resolveGIAEStatusAfterSummaryChange(
+                    current.giaeStatus,
+                    current.summary,
                     nextSummary
                 )
+            };
         });
+        // Removing this draft item leaves the following suggestion at the same index.
+        setPlanificationIndex(currentPlanificationIndex);
     }
 
     function copyPreviousLesson() {
@@ -3279,9 +3330,9 @@ export default function DailyWorkspaceView({
                                                 type="button"
                                                 onClick={() => void toggleLessonNotHeld()}
                                                 disabled={saving || loading}
-                                                className={`rounded-lg border px-2.5 py-1.5 text-[0.68rem] font-black transition disabled:opacity-40 ${lessonForm.status === 'cancelled'
+                                                className={`rounded-lg border px-2 py-1 text-[0.6rem] font-bold transition disabled:opacity-40 ${lessonForm.status === 'cancelled'
                                                     ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-100'
-                                                    : 'border-rose-300/30 bg-rose-300/[0.07] text-rose-100 hover:bg-rose-300/15'}`}
+                                                    : 'border-rose-300/15 bg-rose-300/[0.03] text-rose-200/75 hover:bg-rose-300/10'}`}
                                             >
                                                 {lessonForm.status === 'cancelled' ? 'Voltar a planeada' : 'Aula não realizada'}
                                             </button>
@@ -3308,23 +3359,35 @@ export default function DailyWorkspaceView({
                                                 </button>
                                             ) : null}
 
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    useNextPlanificationItem
-                                                }
-                                                disabled={
-                                                    saving ||
-                                                    !selectedLesson
-                                                        .context
-                                                        .nextPlanificationItem ||
-                                                    lessonForm.status ===
-                                                        'cancelled'
-                                                }
-                                                className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1.5 text-[0.68rem] font-black text-cyan-100 transition hover:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-35"
+                                            <div
+                                                role="group"
+                                                aria-label="Planificação do sumário"
+                                                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-cyan-300/20 bg-cyan-300/[0.05] p-1"
                                             >
-                                                Planificação
-                                            </button>
+                                                <span className="px-1 text-[0.68rem] font-bold text-cyan-100">Planificação</span>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Item anterior da planificação"
+                                                    title="Item anterior da planificação"
+                                                    onClick={() => setPlanificationIndex(Math.max(0, currentPlanificationIndex - 1))}
+                                                    disabled={saving || loading || planificationLoading || lessonForm.status === 'cancelled' || currentPlanificationIndex <= 0 || availablePlanificationItems.length === 0}
+                                                    className="grid h-8 w-8 place-items-center rounded-md border border-cyan-300/15 text-base font-bold text-cyan-100 transition hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-35"
+                                                >−</button>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Item seguinte da planificação"
+                                                    title="Item seguinte da planificação"
+                                                    onClick={() => setPlanificationIndex(currentPlanificationIndex + 1)}
+                                                    disabled={saving || loading || planificationLoading || lessonForm.status === 'cancelled' || currentPlanificationIndex >= availablePlanificationItems.length - 1}
+                                                    className="grid h-8 w-8 place-items-center rounded-md border border-cyan-300/15 text-base font-bold text-cyan-100 transition hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-35"
+                                                >+</button>
+                                                <button
+                                                    type="button"
+                                                    onClick={addPlanificationItem}
+                                                    disabled={saving || loading || planificationLoading || lessonForm.status === 'cancelled' || !planificationSuggestionText}
+                                                    className="h-8 rounded-md bg-cyan-300 px-2.5 text-[0.68rem] font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
+                                                >Adicionar</button>
+                                            </div>
 
                                             <button
                                                 type="button"
@@ -3367,16 +3430,13 @@ export default function DailyWorkspaceView({
                                     </div>
 
                                     <div className="flex min-h-0 flex-1 flex-col p-3">
-                                        <textarea
+                                        <PlanificationSummaryTextarea
+                                            ariaLabel="Sumário da aula"
                                             value={
                                                 lessonForm.summary
                                             }
-                                            onChange={event => {
-                                                const value =
-                                                    event
-                                                        .target
-                                                        .value;
-
+                                            suggestion={lessonForm.status === 'cancelled' ? '' : planificationSuggestionText}
+                                            onChange={value => {
                                                 setLessonForm(
                                                     current =>
                                                         current
@@ -3385,7 +3445,7 @@ export default function DailyWorkspaceView({
                                                                   summary:
                                                                       value,
                                                                   summarySource:
-                                                                      'manual',
+                                                                      current.planificationItemIds.length > 0 ? 'planification' : 'manual',
                                                                   status:
                                                                       current.status ===
                                                                           'planned' &&
@@ -3409,7 +3469,8 @@ export default function DailyWorkspaceView({
                                             }
                                             rows={5}
                                             placeholder="Escreva o sumário da aula…"
-                                            className={`${inputClassName} min-h-36 flex-1 resize-none text-sm leading-6`}
+                                            containerClassName="flex min-h-36 flex-1 flex-col"
+                                            className="min-h-24 flex-1 resize-none"
                                         />
 
                                         {selectedLesson.assessmentOverview?.selectedModule?.lastEmissionFingerprint && selectedLesson.assessmentOverview.selectedModule.lastEmissionFingerprint !== getUfcdEmissionFingerprint(selectedLesson.assessmentOverview) ? <p role="status" className="mt-2 text-xs text-amber-200">
