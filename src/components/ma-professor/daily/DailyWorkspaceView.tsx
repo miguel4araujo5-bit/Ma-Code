@@ -113,6 +113,8 @@ interface StudentEditorRow extends DailyStudentRow {
         EntityId,
         boolean
     >;
+    criterionPreviousScores: Record<EntityId, string>;
+    criterionScoreInherited: Record<EntityId, boolean>;
 }
 
 interface SaveOptions {
@@ -361,6 +363,18 @@ function buildStudentRows(
                 ])
             );
 
+        const previousScores =
+            criteriaGrid?.previousScoresByStudentId[row.student.id] ?? {};
+
+        const criterionPreviousScores = Object.fromEntries(
+            criteria.map(criterion => [
+                criterion.id,
+                typeof previousScores[criterion.id] === 'number'
+                    ? String(previousScores[criterion.id])
+                    : ''
+            ])
+        );
+
         const criterionScorePersisted =
             Object.fromEntries(
                 criteria.map(criterion => [
@@ -382,7 +396,9 @@ function buildStudentRows(
             assessmentNote: '',
             assessmentScoreText: '',
             criterionScores,
-            criterionScorePersisted
+            criterionScorePersisted,
+            criterionPreviousScores,
+            criterionScoreInherited: {}
         };
     });
 }
@@ -413,7 +429,18 @@ function buildActivatedStudentRows(
                     ? ''
                     : row.criterionScores[criterion.id]?.trim()
                         ? row.criterionScores[criterion.id]
-                        : row.usesAcsCriteria ? '' : '10'
+                        : row.criterionPreviousScores[criterion.id]?.trim()
+                            ? row.criterionPreviousScores[criterion.id]
+                            : row.usesAcsCriteria ? '' : '10'
+            ])
+        ),
+        criterionScoreInherited: Object.fromEntries(
+            criteria.map(criterion => [
+                criterion.id,
+                (!row.applicableCriterionIds || row.applicableCriterionIds.includes(criterion.id)) &&
+                !row.criterionScores[criterion.id]?.trim() &&
+                !row.criterionScorePersisted[criterion.id] &&
+                Boolean(row.criterionPreviousScores[criterion.id]?.trim())
             ])
         )
     }));
@@ -2066,6 +2093,7 @@ export default function DailyWorkspaceView({
                 students.map(
                     row => ({
                         ...row,
+                        criterionScoreInherited: {},
                         criterionScorePersisted:
                             Object.fromEntries(
                                 criteria.map(
@@ -2576,6 +2604,10 @@ export default function DailyWorkspaceView({
                     ...row.criterionScores,
                     [criterionId]:
                         normalizedValue
+                },
+                criterionScoreInherited: {
+                    ...row.criterionScoreInherited,
+                    [criterionId]: false
                 }
             }
         );
@@ -3805,7 +3837,12 @@ export default function DailyWorkspaceView({
                                                                                     absent || !applicable
                                                                                 }
                                                                                 aria-label={`${criterion.name} de ${row.student.name}`}
-                                                                                className="w-full min-w-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-center text-[0.68rem] font-black text-white outline-none transition focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
+                                                                                title={row.criterionScoreInherited[criterion.id] && !absent && applicable
+                                                                                    ? 'Nota proposta da avaliação anterior; pode manter ou alterar.'
+                                                                                    : undefined}
+                                                                                className={`w-full min-w-0 rounded-md border px-1.5 py-1 text-center text-[0.68rem] font-black outline-none transition focus:border-cyan-300/55 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45 ${row.criterionScoreInherited[criterion.id] && !absent && applicable
+                                                                                    ? 'border-amber-300/50 bg-amber-300/10 text-amber-100'
+                                                                                    : 'border-white/10 bg-slate-950 text-white'}`}
                                                                             >
                                                                                 <option value="">
                                                                                     —
