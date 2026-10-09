@@ -1,4 +1,4 @@
-import { persistStudentsWithAssessmentProfiles } from './students/studentAssessmentProfileRepository'
+import { persistStudentsWithAssessmentProfiles, type StudentAssessmentProfileUpdate } from './students/studentAssessmentProfileRepository'
 import {
   ensureDefaultMAProfessorSettings,
   maProfessorDb,
@@ -46,11 +46,10 @@ export type UpdateEntityInput<T extends PersistentEntity> = Partial<
   Omit<T, 'id' | 'createdAt' | 'updatedAt'>
 >
 
-export interface StudentDraft {
+export interface StudentDraft extends StudentAssessmentProfileUpdate {
   number: string
   name: string
   notes?: string
-  usesAcs?: boolean
 }
 
 export interface AssessmentCriterionDraft {
@@ -1829,7 +1828,7 @@ export class MAProfessorRepository {
         }
       )
 
-    return persistStudentsWithAssessmentProfiles(records, drafts.map(draft => draft.usesAcs))
+    return persistStudentsWithAssessmentProfiles(records, drafts)
   }
 
   async listStudents(

@@ -73,7 +73,7 @@ export function AttendanceProductWorkspace({
 
         const nextAcsAssessmentCriteria =
           nextSnapshot.selectedAssignment && nextSnapshot.selectedModule &&
-          nextSnapshot.rows.some(row => studentAssessmentProfile(row.student, nextSnapshot.selectedModule!.id) === 'acs')
+          nextSnapshot.rows.some(row => studentAssessmentProfile(row.student, nextSnapshot.selectedModule!.id, nextSnapshot.selectedModule!.teachingAssignmentId) === 'acs')
             ? await recoveryAssessmentRepository.listCriteria(
                 nextSnapshot.selectedAssignment.id,
                 nextSnapshot.selectedModule.id,

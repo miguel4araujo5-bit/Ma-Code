@@ -1,4 +1,4 @@
-import { persistStudentsWithAssessmentProfiles } from '../students/studentAssessmentProfileRepository'
+import { persistStudentsWithAssessmentProfiles, type StudentAssessmentProfileUpdate } from '../students/studentAssessmentProfileRepository'
 import { removeStudentFromMAProfessorDailyDrafts } from '../daily/dailyDraftStorage'
 import {
   maProfessorDb,
@@ -86,8 +86,7 @@ export interface UpdateGroupWorkspaceInput {
   active?: boolean
 }
 
-export interface UpdateStudentWorkspaceInput {
-  usesAcs?: boolean
+export interface UpdateStudentWorkspaceInput extends StudentAssessmentProfileUpdate {
   number?: string
   name?: string
   notes?: string
@@ -672,7 +671,7 @@ export class GroupsWorkspaceRepository {
         now()
     }
 
-    const [saved] = await persistStudentsWithAssessmentProfiles([updated], [changes.usesAcs])
+    const [saved] = await persistStudentsWithAssessmentProfiles([updated], [changes])
     return saved
   }
 

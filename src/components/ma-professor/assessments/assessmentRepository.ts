@@ -896,11 +896,11 @@ export class AssessmentRepository {
         evidenceStudentIds
       )
 
-    const hasAcsStudents = students.some(student => studentAssessmentProfile(student, module.id) === 'acs')
+    const hasAcsStudents = students.some(student => studentAssessmentProfile(student, module.id, module.teachingAssignmentId) === 'acs')
     const acsCriteria = hasAcsStudents ? acsContext.criteria : []
     const allCriteria = [...schemeContext.criteria, ...acsCriteria]
     const criterionIdsByStudentId = Object.fromEntries(students.map(student => [student.id,
-      (studentAssessmentProfile(student, module.id) === 'acs' ? acsCriteria : schemeContext.criteria).map(criterion => criterion.id)
+      (studentAssessmentProfile(student, module.id, module.teachingAssignmentId) === 'acs' ? acsCriteria : schemeContext.criteria).map(criterion => criterion.id)
     ]))
 
     const assessmentItems =
@@ -924,7 +924,7 @@ export class AssessmentRepository {
                 assessment.id
               ) ??
               []
-            const eligibleIds = new Set(students.filter(student => studentAssessmentProfile(student, module.id) === schemeAssessmentProfile(scheme)).map(student => student.id))
+            const eligibleIds = new Set(students.filter(student => studentAssessmentProfile(student, module.id, module.teachingAssignmentId) === schemeAssessmentProfile(scheme)).map(student => student.id))
             const applicableResults = results.filter(result => eligibleIds.has(result.studentId))
 
             if (
@@ -1010,7 +1010,7 @@ export class AssessmentRepository {
 
       criteria: allCriteria,
       acsCriterionIds: acsCriteria.map(criterion => criterion.id),
-      acsStudentIds: students.filter(student => studentAssessmentProfile(student, module.id) === 'acs').map(student => student.id),
+      acsStudentIds: students.filter(student => studentAssessmentProfile(student, module.id, module.teachingAssignmentId) === 'acs').map(student => student.id),
       criterionIdsByStudentId,
 
       students,
@@ -1328,7 +1328,7 @@ export class AssessmentRepository {
               result.studentId
           )
         )
-      )).filter(student => studentAssessmentProfile(student, module.id) === schemeAssessmentProfile(scheme))
+      )).filter(student => studentAssessmentProfile(student, module.id, module.teachingAssignmentId) === schemeAssessmentProfile(scheme))
 
     if (
       scheme.teachingAssignmentId !==
@@ -1479,7 +1479,7 @@ export class AssessmentRepository {
               result.studentId
           )
         )
-      )).filter(student => studentAssessmentProfile(student, lesson.moduleId) === schemeAssessmentProfile(scheme))
+      )).filter(student => studentAssessmentProfile(student, lesson.moduleId, lesson.teachingAssignmentId) === schemeAssessmentProfile(scheme))
 
     const studentById =
       new Map(

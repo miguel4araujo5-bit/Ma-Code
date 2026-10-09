@@ -1,3 +1,5 @@
+import { StudentAssessmentProfileFields } from '../students/StudentAssessmentProfileFields'
+import { confirmStudentAssessmentProfileUpdate } from '../students/studentAssessmentProfileConfirmation'
 import {
   type ChangeEvent,
   type FormEvent,
@@ -17,6 +19,7 @@ import {
 } from '../navigation/useUnsavedWorkspaceProtection'
 
 import type {
+  AssessmentProfile,
   EducationType,
   EntityId,
   Student
@@ -70,7 +73,7 @@ interface GroupFormState {
 }
 
 interface StudentFormState {
-  usesAcs: boolean
+  assessmentProfilesByAssignment: Record<EntityId, AssessmentProfile>
   number: string
   name: string
   notes: string
@@ -117,7 +120,7 @@ function createEmptyStudentForm(): StudentFormState {
     number: '',
     name: '',
     notes: '',
-    usesAcs: false
+    assessmentProfilesByAssignment: {}
   }
 }
 
@@ -149,7 +152,7 @@ function createStudentForms(
         number: student.number,
         name: student.name,
         notes: student.notes,
-        usesAcs: student.usesAcs === true
+        assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
       }
     ])
   ) as StudentForms
@@ -734,7 +737,7 @@ export default function GroupsWorkspaceView({
         notes:
           current[studentId]?.notes ??
           '',
-        usesAcs: current[studentId]?.usesAcs ?? false,
+        assessmentProfilesByAssignment: current[studentId]?.assessmentProfilesByAssignment ?? {},
         ...changes
       }
     }))
@@ -790,7 +793,7 @@ export default function GroupsWorkspaceView({
           number: student.number,
           name: student.name,
           notes: student.notes,
-          usesAcs: student.usesAcs === true
+          assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
         }
     }))
     setEditingStudentId(student.id)
@@ -820,7 +823,7 @@ export default function GroupsWorkspaceView({
           number: student.number,
           name: student.name,
           notes: student.notes,
-          usesAcs: student.usesAcs === true
+          assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
         }
     }))
     setEditingStudentId(null)
@@ -988,12 +991,21 @@ export default function GroupsWorkspaceView({
       return
     }
 
+    let profileUpdate
+    try {
+      profileUpdate = await confirmStudentAssessmentProfileUpdate(student, form.assessmentProfilesByAssignment)
+    } catch (error) {
+      setFeedback({ tone: 'error', message: getErrorMessage(error) })
+      return
+    }
+    if (!profileUpdate) return
+
     const saved = await runAction(
       `student-${student.id}`,
       () =>
         onUpdateStudent(
           student.id,
-          form
+          { ...form, assessmentProfilesByAssignment: undefined, ...profileUpdate }
         ),
       `Os dados de ${student.name} foram guardados.`
     )
@@ -1544,12 +1556,10 @@ export default function GroupsWorkspaceView({
                       className={fieldClass}
                     />
                   </label>
-                          <label className="flex items-center gap-2 text-sm font-bold text-emerald-100">
-                            <input type="checkbox" checked={newStudent.usesAcs}
-                              onChange={event => updateNewStudent({ usesAcs: event.target.checked })} disabled={busy} className="h-4 w-4 rounded" />
-                            Aluno com critérios ACS
-                          </label>
-                          {newStudent.usesAcs ? <p className="text-xs text-slate-400">Este aluno passa a usar critérios ACS. As avaliações concluídas mantêm-se.</p> : null}
+                  <StudentAssessmentProfileFields
+                    assignments={snapshot.teachingRows.filter(row => row.assignment.active).map(row => ({ id: row.assignment.id, label: row.subject.name }))}
+                    profiles={newStudent.assessmentProfilesByAssignment} disabled={busy}
+                    onChange={assessmentProfilesByAssignment => updateNewStudent({ assessmentProfilesByAssignment })} />
 
 
                   <button
@@ -1677,7 +1687,7 @@ export default function GroupsWorkspaceView({
                       number: student.number,
                       name: student.name,
                       notes: student.notes,
-                      usesAcs: student.usesAcs === true
+                      assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
                     }
 
                   const editing =
@@ -1753,12 +1763,10 @@ export default function GroupsWorkspaceView({
                               className={fieldClass}
                             />
                           </label>
-                          <label className="flex items-center gap-2 text-sm font-bold text-emerald-100">
-                            <input type="checkbox" checked={form.usesAcs}
-                              onChange={event => updateStudentForm(student.id, { usesAcs: event.target.checked })} disabled={busy} className="h-4 w-4 rounded" />
-                            Aluno com critérios ACS
-                          </label>
-                          {form.usesAcs !== (student.usesAcs === true) ? <p className="text-xs text-slate-400">Este aluno passa a usar critérios {form.usesAcs ? 'ACS' : 'gerais'}. As avaliações concluídas mantêm-se.</p> : null}
+                          <StudentAssessmentProfileFields
+                            assignments={snapshot.teachingRows.filter(row => row.assignment.active).map(row => ({ id: row.assignment.id, label: row.subject.name }))}
+                            student={student} profiles={form.assessmentProfilesByAssignment} disabled={busy}
+                            onChange={assessmentProfilesByAssignment => updateStudentForm(student.id, { assessmentProfilesByAssignment })} />
 
 
                           <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">

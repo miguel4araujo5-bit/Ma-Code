@@ -95,6 +95,8 @@ export interface Student extends AuditFields {
   usesAcs?: boolean
   acsEnabledAt?: ISODateTime
   assessmentProfilesByModule?: Record<EntityId, AssessmentProfile>
+  assessmentProfilesByAssignment?: Record<EntityId, AssessmentProfile>
+  assessmentResetAtByModule?: Record<EntityId, ISODateTime>
 }
 
 export type AssessmentProfile = 'general' | 'acs'

@@ -646,28 +646,70 @@ try {
     await dailyCriteriaGridRepository.saveLessonGrid({ lesson, summary, activity: 'Atividade E2E', rows: pupils.map(student => ({
       studentId: student.id, attendanceStatus: 'present', scores: Object.fromEntries(general.criteria.map((criterion, index) => [criterion.id, String([16, 12, 10][index])]))
     })) })
+    const secondSubject = { ...(await db.subjects.get(assignment.subjectId)), id: 'acs-second-subject', name: 'Animação Sociocultural', shortName: 'AS', code: 'AS' }
+    const secondAssignment = { ...assignment, id: 'acs-second-assignment', subjectId: secondSubject.id, displayName: 'AS · 11.º E' }
+    const secondModule = { ...(await db.modules.get(lesson.moduleId)), id: 'acs-second-module', teachingAssignmentId: secondAssignment.id }
+    const secondLesson = { ...lesson, id: 'acs-second-lesson', teachingAssignmentId: secondAssignment.id, moduleId: secondModule.id, summary: 'Sumário AS E2E', scheduleSlotId: null, origin: 'extra' }
+    await db.subjects.add(secondSubject)
+    await db.teachingAssignments.add(secondAssignment)
+    await db.modules.add(secondModule)
+    await db.lessons.add(secondLesson)
+    // A segunda disciplina ativa também precisa de horário para a configuração
+    // continuar operacional e permitir regressar a Hoje após guardar o aluno.
+    const originalSlot = await db.weeklyScheduleSlots.where('teachingAssignmentId').equals(assignment.id).first()
+    if (!originalSlot) throw new Error('the primary teaching assignment must have a schedule slot')
+    await db.weeklyScheduleSlots.add({ ...originalSlot, id: 'acs-second-schedule',
+      teachingAssignmentId: secondAssignment.id, weekday: 4 })
+    const [secondCriteria] = await assessmentCriteriaBatchRepository.createSubjectSchemes({ academicYearId: lesson.academicYearId,
+      teachingAssignmentIds: [secondAssignment.id], name: 'AS Gerais E2E', criteria: [{ name: 'Critério AS', weightPercent: 100 }] })
+    await dailyCriteriaGridRepository.saveLessonGrid({ lesson: secondLesson, summary: secondLesson.summary, activity: '', rows: pupils.map(student => ({
+      studentId: student.id, attendanceStatus: 'present', scores: { [secondCriteria.criteria[0].id]: '11' }
+    })) })
     window.localStorage.setItem('ma-professor-e2e-acs-fixture', JSON.stringify({ yearId: lesson.academicYearId, assignmentId: assignment.id, moduleId: lesson.moduleId,
+      secondAssignmentId: secondAssignment.id, secondModuleId: secondModule.id,
       pupilId: pupils[1].id, normalId: pupils[0].id, lessonId: lesson.id, date: lesson.date }))
   }, SUMMARY)
   await page.reload()
   await openDestination(page, 'Turmas e alunos', 1366)
   const pupilCard = page.locator('article').filter({ hasText: 'Aluno ACS E2E' })
   await pupilCard.getByRole('button', { name: 'Editar', exact: true }).click()
-  const pupilEditor = page.locator('article').filter({ has: page.getByLabel('Aluno com critérios ACS', { exact: true }) })
-  await pupilEditor.getByLabel('Aluno com critérios ACS', { exact: true }).check()
-  await pupilEditor.getByText('Este aluno passa a usar critérios ACS. As avaliações concluídas mantêm-se.', { exact: true }).waitFor()
+  const pupilEditor = page.locator('article').filter({ has: page.getByRole('group', { name: 'Critérios ACS por disciplina', exact: true }) })
+  await pupilEditor.getByRole('checkbox', { name: 'Área de Expressões', exact: true }).check()
+  assert.equal(await pupilEditor.getByRole('checkbox', { name: 'Animação Sociocultural', exact: true }).isChecked(), false)
+  let confirmationMessage = ''
+  page.once('dialog', dialog => { confirmationMessage = dialog.message(); return dialog.dismiss() })
+  await pupilEditor.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.waitForTimeout(100)
+  assert.match(confirmationMessage, /eliminar todas as avaliações/)
+  assert.match(confirmationMessage, /UFCD\/UC\/módulo em curso/)
+  assert.equal(await pupilEditor.isVisible(), true)
+  const cancelledProfile = await page.evaluate(async () => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
+    return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId)).assessmentProfilesByAssignment?.[fixture.assignmentId] ?? 'general'
+  })
+  assert.equal(cancelledProfile, 'general')
   // Saving produces a new snapshot timestamp, as it does with a running clock.
   await page.clock.setFixedTime(new Date('2026-09-21T09:30:01+01:00'))
+  page.once('dialog', dialog => dialog.accept())
   await pupilEditor.getByRole('button', { name: 'Guardar', exact: true }).click()
   await page.getByText('Os dados de Aluno ACS E2E foram guardados.', { exact: true }).waitFor()
   await pupilEditor.waitFor({ state: 'hidden' })
   await page.waitForFunction(async () => {
     const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
     const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
-    return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.usesAcs === true
+    return (await (await openMAProfessorDatabase()).students.get(fixture.pupilId))?.assessmentProfilesByAssignment?.[fixture.assignmentId] === 'acs'
   })
+  const navigationDialogs = []
+  const handleNavigationDialog = async dialog => {
+    navigationDialogs.push(dialog.message())
+    await dialog.accept()
+  }
+  page.on('dialog', handleNavigationDialog)
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
+  page.off('dialog', handleNavigationDialog)
+  assert.deepEqual(navigationDialogs, [], 'a saved ACS edit must not trigger an unsaved-work warning')
   const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
   await scheduledLesson.click()
   assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
@@ -716,7 +758,25 @@ try {
   await page.getByLabel('Tipo de critérios').selectOption('general')
   await page.getByText('Conhecimentos', { exact: true }).first().waitFor()
   assert.equal((await persistedLesson(page)).matchCount, 1)
-  evidence.push('ACS na ficha do aluno, grelha mista com critérios próprios, cálculo, recarregamento e seleção de critérios por tipo')
+  await openDestination(page, 'Turmas e alunos', 1366)
+  await pupilCard.getByRole('button', { name: 'Editar', exact: true }).click()
+  await pupilEditor.getByRole('checkbox', { name: 'Área de Expressões', exact: true }).uncheck()
+  await page.clock.setFixedTime(new Date('2026-09-21T09:30:02+01:00'))
+  page.once('dialog', dialog => { confirmationMessage = dialog.message(); return dialog.accept() })
+  await pupilEditor.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.getByText('Os dados de Aluno ACS E2E foram guardados.', { exact: true }).waitFor()
+  await pupilEditor.waitFor({ state: 'hidden' })
+  assert.match(confirmationMessage, /critérios gerais/)
+  await page.waitForFunction(async () => {
+    const { assessmentWorkspaceRepository } = await import('/src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts')
+    const fixture = JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture'))
+    const own = await assessmentWorkspaceRepository.getWorkspace(fixture.yearId, { teachingAssignmentId: fixture.assignmentId, moduleId: fixture.moduleId })
+    const other = await assessmentWorkspaceRepository.getWorkspace(fixture.yearId, { teachingAssignmentId: fixture.secondAssignmentId, moduleId: fixture.secondModuleId })
+    return own.studentRows.find(row => row.student.id === fixture.pupilId)?.gradeSummary.provisionalAverage === null &&
+      own.studentRows.find(row => row.student.id === fixture.normalId)?.gradeSummary.provisionalAverage === 14 &&
+      other.studentRows.find(row => row.student.id === fixture.pupilId)?.gradeSummary.provisionalAverage === 11
+  })
+  evidence.push('ACS por disciplina, cancelamento e confirmação nos dois sentidos, grelha mista, cálculo, recarregamento e preservação da outra disciplina')
   assert.deepEqual(pageErrors, [])
   console.log('MA-Professor unified navigation: OK\n' + evidence.join('\n'))
 } catch (error) {
