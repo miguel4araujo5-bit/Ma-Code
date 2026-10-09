@@ -8,6 +8,8 @@ import {
   type LessonAssessmentWorkspace
 } from '../assessments/assessmentRepository'
 
+import { loadDailyPreviousScores } from './dailyPreviousScores'
+
 import type {
   AssessmentCriterion,
   EntityId,
@@ -25,6 +27,10 @@ const DAILY_SCORE_PATTERN =
 export interface DailyCriteriaGridSnapshot {
   criteria: AssessmentCriterion[]
   scoresByStudentId: Record<
+    EntityId,
+    Record<EntityId, Score>
+  >
+  previousScoresByStudentId: Record<
     EntityId,
     Record<EntityId, Score>
   >
@@ -288,10 +294,20 @@ export class DailyCriteriaGridRepository {
           )
       )?.description ?? ''
 
+    const previousScoresByStudentId =
+      await loadDailyPreviousScores(
+        workspace.lesson,
+        workspace.students,
+        workspace.criteria,
+        workspace.acsCriterionIds ?? [],
+        workspace.criterionIdsByStudentId
+      )
+
     return {
       criteria:
         workspace.criteria,
       scoresByStudentId,
+      previousScoresByStudentId,
       criterionIdsByStudentId: workspace.criterionIdsByStudentId,
       acsCriterionIds: workspace.acsCriterionIds,
       acsStudentIds: workspace.acsStudentIds,
