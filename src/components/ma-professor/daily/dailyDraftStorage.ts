@@ -35,6 +35,8 @@ export interface MAProfessorDailyDraftLesson {
     | 'ai'
   planificationItemIds: string[]
   notes: string
+  nonRealizationReason?: 'teacher_absence' | 'strike' | 'other' | null
+  nonRealizationDetails?: string
   giaeStatus:
     | 'pending'
     | 'submitted'
@@ -433,6 +435,11 @@ function isDraftLesson(
     isString(
       lesson.notes
     ) &&
+    (lesson.nonRealizationReason === undefined || lesson.nonRealizationReason === null ||
+      lesson.nonRealizationReason === 'teacher_absence' ||
+      lesson.nonRealizationReason === 'strike' ||
+      lesson.nonRealizationReason === 'other') &&
+    (lesson.nonRealizationDetails === undefined || isString(lesson.nonRealizationDetails)) &&
     (
       lesson.giaeStatus ===
         'pending' ||

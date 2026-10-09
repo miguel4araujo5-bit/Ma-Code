@@ -26,6 +26,8 @@ export interface LessonDraft {
   scheduleSlotId?: EntityId | null
   origin?: LessonOrigin
   status?: LessonStatus
+  nonRealizationReason?: Lesson['nonRealizationReason']
+  nonRealizationDetails?: string
   date: ISODate
   startTime: LocalTime
   endTime: LocalTime
@@ -45,6 +47,8 @@ export interface LessonChanges {
   scheduleOriginalPosition?: Lesson['scheduleOriginalPosition']
   origin?: LessonOrigin
   status?: LessonStatus
+  nonRealizationReason?: Lesson['nonRealizationReason']
+  nonRealizationDetails?: string
   date?: ISODate
   startTime?: LocalTime
   endTime?: LocalTime
@@ -1087,6 +1091,12 @@ function normalizeLessonForSave(
       normalizeMultilineText(
         lesson.notes
       ),
+    nonRealizationReason: lesson.status === 'cancelled'
+      ? (lesson.nonRealizationReason ?? null)
+      : null,
+    nonRealizationDetails: lesson.status === 'cancelled' && lesson.nonRealizationReason === 'other'
+      ? normalizeMultilineText(lesson.nonRealizationDetails ?? '')
+      : '',
     planificationItemIds:
       uniqueIds(
         lesson.planificationItemIds

@@ -997,7 +997,7 @@ function CompactFilters({
                 </option>
 
                 <option value="cancelled">
-                  Canceladas
+                  Não realizadas
                 </option>
               </select>
             </label>

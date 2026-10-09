@@ -812,6 +812,12 @@ export function validateMAProfessorBackupDataIntegrity(
       `${path}.status`,
       addIssue
     )
+    if (value.nonRealizationReason !== undefined && value.nonRealizationReason !== null) {
+      validateEnum(value.nonRealizationReason, ['teacher_absence', 'strike', 'other'], `${path}.nonRealizationReason`, addIssue)
+    }
+    if (value.nonRealizationDetails !== undefined && typeof value.nonRealizationDetails !== 'string') {
+      addIssue(`${path}.nonRealizationDetails`, 'O detalhe do motivo é inválido.')
+    }
     validateEnum(
       value.summarySource,
       ['manual', 'planification', 'ai'],

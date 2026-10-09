@@ -1,6 +1,7 @@
 import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfiles';
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
+import { lessonRepository } from '../lessons/lessonRepository';
 import { getUfcdEmissionFingerprint } from '../assessments/ufcdCfpModel';
 import { exportUfcdFinalGradeExcel } from '../assessments/ufcdFinalGradeExcelExport';
 import { exportUfcdCfpPdf } from '../assessments/ufcdCfpPdfExport';
@@ -45,6 +46,7 @@ import type {
     GIAEStatus,
     ISODate,
     LessonStatus,
+    Lesson,
     Score,
     SummarySource
 } from '../types';
@@ -89,6 +91,8 @@ interface LessonFormState {
     summarySource: SummarySource;
     planificationItemIds: EntityId[];
     notes: string;
+    nonRealizationReason?: Lesson['nonRealizationReason'];
+    nonRealizationDetails?: string;
     giaeStatus: GIAEStatus;
 }
 
@@ -263,7 +267,7 @@ function lessonStatusLabel(
     > = {
         planned: 'Planeada',
         taught: 'Registada',
-        cancelled: 'Cancelada'
+        cancelled: 'Aula não realizada'
     };
 
     return labels[status];
@@ -310,6 +314,9 @@ function buildLessonForm(
             ...lesson.planificationItemIds
         ],
         notes: lesson.notes,
+        // As propriedades ausentes não invalidam assinaturas de rascunhos antigos.
+        nonRealizationReason: lesson.nonRealizationReason ?? undefined,
+        nonRealizationDetails: lesson.nonRealizationDetails || undefined,
         giaeStatus: lesson.giaeStatus
     };
 }
@@ -2018,6 +2025,8 @@ export default function DailyWorkspaceView({
                                 .planificationItemIds,
                         notes:
                             lessonForm.notes,
+                        nonRealizationReason: lessonForm.nonRealizationReason,
+                        nonRealizationDetails: lessonForm.nonRealizationDetails,
                         giaeStatus:
                             lessonForm
                                 .giaeStatus,
@@ -2572,6 +2581,51 @@ export default function DailyWorkspaceView({
         );
     }
 
+    async function toggleLessonNotHeld() {
+        const lesson = selectedLesson?.context.lessonRow.lesson;
+        if (!lesson || savingRef.current) return;
+        if (hasUnsavedChanges) {
+            setError('Guarde primeiro as alterações desta aula antes de alterar o seu estado.');
+            setSuccess('');
+            return;
+        }
+        const markNotHeld = lesson.status !== 'cancelled';
+        if (markNotHeld && lesson.giaeStatus === 'submitted') {
+            setError('Esta aula está submetida no programa oficial. Retire primeiro o visto na própria aula.');
+            setSuccess('');
+            return;
+        }
+        savingRef.current = true;
+        setSaving(true);
+        setError('');
+        setSuccess('');
+        try {
+            await lessonRepository.updateLesson(
+                lesson.id,
+                {
+                    status: markNotHeld ? 'cancelled' : 'planned',
+                    countTowardProgress: !markNotHeld,
+                    nonRealizationReason: null,
+                    nonRealizationDetails: ''
+                },
+                { expectedUpdatedAt: lesson.updatedAt }
+            );
+            const reloaded = await loadDate(date, lesson.id);
+            if (!reloaded) {
+                throw new Error('O estado foi guardado, mas não foi possível atualizar a vista. Reabra a aula para confirmar.');
+            }
+            setSuccess(markNotHeld
+                ? 'Aula não realizada registada. Este tempo não conta para o progresso.'
+                : 'Aula reposta como planeada. A previsão será recalculada.');
+            await notifySaved();
+        } catch (statusError) {
+            setError(dailyWorkspaceRepository.describeError(statusError));
+        } finally {
+            savingRef.current = false;
+            setSaving(false);
+        }
+    }
+
     function startAssessment() {
         if (
             savingRef.current ||
@@ -2898,19 +2952,19 @@ export default function DailyWorkspaceView({
                                                                                         .name
                                                                                 }`}
                                                                                 className={`w-full rounded-md border px-1.5 py-0.5 text-left leading-tight transition disabled:opacity-50 ${
-                                                                                    active
-                                                                                        ? 'border-cyan-300/60 bg-cyan-300/15'
-                                                                                        : cancelled
-                                                                                          ? 'border-rose-300/20 bg-rose-300/[0.06] opacity-70'
+                                                                                    cancelled
+                                                                                        ? 'border-rose-300/55 bg-rose-300/20 ring-1 ring-inset ring-rose-300/20'
+                                                                                        : active
+                                                                                          ? 'border-cyan-300/60 bg-cyan-300/15'
                                                                                           : 'border-white/10 bg-slate-900/65 hover:border-cyan-300/30 hover:bg-cyan-300/[0.055]'
                                                                                 }`}
                                                                             >
                                                                                 <span
                                                                                     className={`block truncate text-[0.61rem] font-black ${
-                                                                                        active
-                                                                                            ? 'text-cyan-100'
-                                                                                            : cancelled
-                                                                                              ? 'text-rose-100'
+                                                                                        cancelled
+                                                                                            ? 'text-rose-100'
+                                                                                            : active
+                                                                                              ? 'text-cyan-100'
                                                                                               : 'text-white'
                                                                                     }`}
                                                                                 >
@@ -2931,12 +2985,9 @@ export default function DailyWorkspaceView({
                                                                                 </span>
 
                                                                                 <span className="block truncate text-[0.55rem] font-semibold text-slate-500">
-                                                                                    {row
-                                                                                        .module
-                                                                                        .code ||
-                                                                                        row
-                                                                                            .module
-                                                                                            .name}
+                                                                                    {cancelled
+                                                                                        ? 'Aula não realizada'
+                                                                                        : (row.module.code || row.module.name)}
                                                                                 </span>
                                                                             </button>
                                                                         );
@@ -3087,10 +3138,8 @@ export default function DailyWorkspaceView({
                             {lessonForm.status ===
                             'cancelled' ? (
                                 <div className="mb-3 rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-2.5 text-sm font-bold text-rose-100">
-                                    Esta aula está
-                                    cancelada. Pode
-                                    alterar o estado
-                                    em “Mais opções”.
+                                    Aula não realizada. Este tempo não conta para o progresso.
+                                    Pode indicar o motivo facultativo em “Mais opções” ou voltar a marcar como planeada.
                                 </div>
                             ) : null}
 
@@ -3226,6 +3275,16 @@ export default function DailyWorkspaceView({
                                         </div>
 
                                         <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => void toggleLessonNotHeld()}
+                                                disabled={saving || loading}
+                                                className={`rounded-lg border px-2.5 py-1.5 text-[0.68rem] font-black transition disabled:opacity-40 ${lessonForm.status === 'cancelled'
+                                                    ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-100'
+                                                    : 'border-rose-300/30 bg-rose-300/[0.07] text-rose-100 hover:bg-rose-300/15'}`}
+                                            >
+                                                {lessonForm.status === 'cancelled' ? 'Voltar a planeada' : 'Aula não realizada'}
+                                            </button>
                                             {hasWeeklySummaryReminder ? (
                                                 <button
                                                     type="button"
@@ -4041,7 +4100,7 @@ export default function DailyWorkspaceView({
                                                 </option>
 
                                                 <option value="cancelled">
-                                                    Cancelada
+                                                    Aula não realizada
                                                 </option>
                                             </select>
                                         </label>
@@ -4120,6 +4179,48 @@ export default function DailyWorkspaceView({
                                             />
                                         </label>
                                     </div>
+
+                                    {lessonForm.status === 'cancelled' ? (
+                                        <div className="mt-4 rounded-xl border border-rose-300/20 bg-rose-300/[0.045] p-3">
+                                            <label className="block text-xs font-bold text-slate-200">
+                                                Motivo (facultativo)
+                                                <select
+                                                    value={lessonForm.nonRealizationReason ?? ''}
+                                                    onChange={event => setLessonForm(current => current ? {
+                                                        ...current,
+                                                        nonRealizationReason: event.target.value
+                                                            ? event.target.value as NonNullable<Lesson['nonRealizationReason']>
+                                                            : undefined,
+                                                        nonRealizationDetails: event.target.value === 'other'
+                                                            ? current.nonRealizationDetails
+                                                            : undefined
+                                                    } : current)}
+                                                    disabled={saving}
+                                                    className={`${compactInputClassName} mt-2`}
+                                                >
+                                                    <option value="">Sem indicação</option>
+                                                    <option value="teacher_absence">Professor faltou</option>
+                                                    <option value="strike">Greve</option>
+                                                    <option value="other">Outro</option>
+                                                </select>
+                                            </label>
+                                            {lessonForm.nonRealizationReason === 'other' ? (
+                                                <label className="mt-3 block text-xs font-bold text-slate-200">
+                                                    Qual foi o motivo? (facultativo)
+                                                    <textarea
+                                                        value={lessonForm.nonRealizationDetails ?? ''}
+                                                        onChange={event => updateLessonForm(
+                                                            'nonRealizationDetails',
+                                                            event.target.value || undefined
+                                                        )}
+                                                        rows={2}
+                                                        disabled={saving}
+                                                        className={`${compactInputClassName} mt-2 resize-y`}
+                                                    />
+                                                </label>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
 
                                     <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-300">
                                         <input

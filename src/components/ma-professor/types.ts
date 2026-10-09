@@ -232,6 +232,11 @@ export type LessonStatus =
   | 'taught'
   | 'cancelled'
 
+export type LessonNonRealizationReason =
+  | 'teacher_absence'
+  | 'strike'
+  | 'other'
+
 export type SummarySource =
   | 'manual'
   | 'planification'
@@ -250,6 +255,8 @@ export interface Lesson extends AuditFields {
   scheduleSlotId: EntityId | null
   origin: LessonOrigin
   status: LessonStatus
+  nonRealizationReason?: LessonNonRealizationReason | null
+  nonRealizationDetails?: string
   date: ISODate
   startTime: LocalTime
   endTime: LocalTime

@@ -70,6 +70,8 @@ interface LessonEditorFormState {
   summarySource: SummarySource
   planificationItemIds: EntityId[]
   notes: string
+  nonRealizationReason: Lesson['nonRealizationReason']
+  nonRealizationDetails: string
   giaeStatus: GIAEStatus
 }
 
@@ -92,9 +94,9 @@ const statusOptions: Array<{
   },
   {
     value: 'cancelled',
-    label: 'Cancelada',
+    label: 'Aula não realizada',
     description:
-      'A aula fica registada, mas não conta para o progresso.'
+      'Este tempo não foi lecionado e não conta para o progresso.'
   }
 ]
 
@@ -197,6 +199,8 @@ function buildInitialForm(
     summarySource: lesson.summarySource,
     planificationItemIds: [...lesson.planificationItemIds],
     notes: lesson.notes,
+    nonRealizationReason: lesson.nonRealizationReason ?? null,
+    nonRealizationDetails: lesson.nonRealizationDetails ?? '',
     giaeStatus: lesson.giaeStatus
   }
 }
@@ -486,6 +490,8 @@ export default function LessonEditorDialog({
     setForm(current => ({
       ...current,
       status,
+      nonRealizationReason: status === 'cancelled' ? current.nonRealizationReason : null,
+      nonRealizationDetails: status === 'cancelled' ? current.nonRealizationDetails : '',
       countTowardProgress:
         status === 'cancelled'
           ? false
@@ -683,7 +689,9 @@ export default function LessonEditorDialog({
               summarySource: form.summarySource,
               planificationItemIds:
                 form.planificationItemIds,
-              notes: form.notes
+              notes: form.notes,
+              nonRealizationReason: form.nonRealizationReason,
+              nonRealizationDetails: form.nonRealizationDetails
             },
             {
               expectedUpdatedAt: positionedLesson.updatedAt
@@ -1437,13 +1445,47 @@ export default function LessonEditorDialog({
                     </div>
 
                     <h3 className="mt-5 text-xl font-black text-white">
-                      Aula cancelada
+                      Aula não realizada
                     </h3>
 
                     <p className="mt-3 text-sm leading-7 text-slate-400">
                       A assiduidade e as avaliações ficam indisponíveis
-                      enquanto a aula estiver cancelada.
+                      enquanto a aula estiver marcada como não realizada. O tempo não conta para o progresso.
                     </p>
+
+                    <label className="mt-5 block text-xs font-bold text-slate-300">
+                      Motivo (facultativo)
+                      <select
+                        value={form.nonRealizationReason ?? ''}
+                        onChange={event => setForm(current => ({
+                          ...current,
+                          nonRealizationReason: event.target.value
+                            ? event.target.value as NonNullable<Lesson['nonRealizationReason']>
+                            : null,
+                          nonRealizationDetails: event.target.value === 'other'
+                            ? current.nonRealizationDetails : ''
+                        }))}
+                        disabled={saving}
+                        className={`${fieldClassName} mt-2`}
+                      >
+                        <option value="">Sem indicação</option>
+                        <option value="teacher_absence">Professor faltou</option>
+                        <option value="strike">Greve</option>
+                        <option value="other">Outro</option>
+                      </select>
+                    </label>
+                    {form.nonRealizationReason === 'other' ? (
+                      <label className="mt-4 block text-xs font-bold text-slate-300">
+                        Qual foi o motivo? (facultativo)
+                        <textarea
+                          value={form.nonRealizationDetails}
+                          onChange={event => updateForm('nonRealizationDetails', event.target.value)}
+                          disabled={saving}
+                          rows={2}
+                          className={`${textAreaClassName} mt-2`}
+                        />
+                      </label>
+                    ) : null}
 
                     <button
                       type="button"

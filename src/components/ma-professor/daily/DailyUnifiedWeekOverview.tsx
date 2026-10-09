@@ -1216,7 +1216,7 @@ export default function DailyUnifiedWeekOverview({
                                       summaryWritten &&
                                       row.lesson.giaeStatus === 'submitted'
                                     const summaryStatusLabel = cancelled
-                                      ? 'Aula cancelada'
+                                      ? 'Aula não realizada'
                                       : summarySubmitted
                                         ? 'Sumário assinalado como submetido no programa oficial'
                                         : summaryWritten
@@ -1235,10 +1235,10 @@ export default function DailyUnifiedWeekOverview({
                                         }
                                         title={`${row.group.name} · ${getSubjectLabel(row)} · ${summaryStatusLabel}`}
                                         className={`w-full rounded-lg border px-2 py-1.5 text-left transition ${
-                                          active
-                                            ? 'border-cyan-300/60 bg-cyan-300/15'
-                                            : cancelled
-                                              ? 'border-rose-300/20 bg-rose-300/[0.06] opacity-70'
+                                          cancelled
+                                            ? 'border-rose-300/60 bg-rose-300/20 ring-1 ring-inset ring-rose-300/20'
+                                            : active
+                                              ? 'border-cyan-300/60 bg-cyan-300/15'
                                               : 'border-cyan-300/15 bg-cyan-300/[0.055] hover:border-cyan-300/35'
                                         }`}
                                       >
@@ -1248,11 +1248,12 @@ export default function DailyUnifiedWeekOverview({
                                         </span>
 
                                         <span className="mt-0.5 block truncate text-[0.55rem] font-semibold text-slate-500">
-                                          {row.module.code ||
-                                            row.module.name}
+                                          {cancelled ? 'Aula não realizada' : (
+                                            row.module.code || row.module.name
+                                          )}
                                         </span>
 
-                                        <span className="mt-1 flex items-center justify-between gap-1 text-[0.52rem] font-black uppercase tracking-[0.08em] text-cyan-200/75">
+                                        <span className={`mt-1 flex items-center justify-between gap-1 text-[0.52rem] font-black uppercase tracking-[0.08em] ${cancelled ? 'text-rose-100' : 'text-cyan-200/75'}`}>
                                           <span>Componente letiva</span>
 
                                           <SummaryStatusIcon written={summaryWritten} submitted={summarySubmitted} />
