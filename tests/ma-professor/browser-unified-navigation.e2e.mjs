@@ -654,6 +654,12 @@ try {
     await db.teachingAssignments.add(secondAssignment)
     await db.modules.add(secondModule)
     await db.lessons.add(secondLesson)
+    // A segunda disciplina ativa também precisa de horário para a configuração
+    // continuar operacional e permitir regressar a Hoje após guardar o aluno.
+    const originalSlot = await db.weeklyScheduleSlots.where('teachingAssignmentId').equals(assignment.id).first()
+    assert.ok(originalSlot, 'the primary teaching assignment must have a schedule slot')
+    await db.weeklyScheduleSlots.add({ ...originalSlot, id: 'acs-second-schedule',
+      teachingAssignmentId: secondAssignment.id, weekday: 4 })
     const [secondCriteria] = await assessmentCriteriaBatchRepository.createSubjectSchemes({ academicYearId: lesson.academicYearId,
       teachingAssignmentIds: [secondAssignment.id], name: 'AS Gerais E2E', criteria: [{ name: 'Critério AS', weightPercent: 100 }] })
     await dailyCriteriaGridRepository.saveLessonGrid({ lesson: secondLesson, summary: secondLesson.summary, activity: '', rows: pupils.map(student => ({
@@ -700,10 +706,6 @@ try {
     await dialog.accept()
   })
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
-  await page.waitForTimeout(300)
-  console.error('ACS_POST_SAVE_NAV', JSON.stringify({dialogs: navigationDialogs,
-    current: await page.getByRole('button', { name: 'Hoje', exact: false }).first().getAttribute('aria-current'),
-    screen: (await page.locator('main').innerText().catch(() => page.locator('body').innerText())).slice(0, 500)}))
   await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
   assert.deepEqual(navigationDialogs, [], 'a saved ACS edit must not trigger an unsaved-work warning')
   const scheduledLesson = page.getByRole('button', { name: /11\.º E · AE.*10385.*Componente letiva/ }).first()
