@@ -1819,7 +1819,7 @@ export function getCalendarLessonStatusLabel(
       'Dada',
 
     cancelled:
-      'Cancelada'
+      'Aula não realizada'
   }
 
   return labels[
