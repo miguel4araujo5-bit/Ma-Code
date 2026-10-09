@@ -374,7 +374,7 @@ async function readRecoveryAssessmentContext(
     module.id,
     schemes,
     criteria,
-    student ? studentAssessmentProfile(student, module.id) : 'general'
+    student ? studentAssessmentProfile(student, module.id, module.teachingAssignmentId) : 'general'
   )
 }
 

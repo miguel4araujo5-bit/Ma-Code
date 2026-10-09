@@ -24,7 +24,10 @@ const bundle = await build({
     export { assessmentWorkspaceRepository } from '${base}assessments/assessmentWorkspaceRepository';
     export { dailyCriteriaGridRepository, calculateDailyCriteriaAverage } from '${base}daily/dailyCriteriaGridRepository';
     export { recoveryAssessmentRepository } from '${base}attendance/recoveryAssessmentRepository';
-    export { persistStudentsWithAssessmentProfiles } from '${base}students/studentAssessmentProfileRepository';
+    export { persistStudentsWithAssessmentProfiles, previewStudentAssessmentProfileChanges } from '${base}students/studentAssessmentProfileRepository';
+    export { studentAssessmentProfile, canRestoreStudentAssessmentDraft } from '${base}assessments/assessmentProfiles';
+    export { confirmStudentAssessmentProfileUpdate } from '${base}students/studentAssessmentProfileConfirmation';
+    export { StudentAssessmentProfileFields } from '${base}students/StudentAssessmentProfileFields';
     export { buildUfcdCfpModel } from '${base}assessments/ufcdCfpModel';
     export { createMAProfessorDatabaseSnapshot, restoreMAProfessorDatabaseSnapshot } from '${base}sync/databaseSnapshotService';
     export { createMAProfessorBackup, restoreMAProfessorBackup } from '${base}settings/backupRepository';
@@ -65,7 +68,14 @@ async function saveGrid(lessonId, scoresByStudent) {
 }
 const scores = (criteria, values) => Object.fromEntries(criteria.map((c, i) => [c.id, String(values[i])]))
 const workspace = moduleId => rt.assessmentWorkspaceRepository.getWorkspace('year', { teachingAssignmentId: 'assignment', moduleId })
-const activate = async () => rt.groupsWorkspaceRepository.updateStudent('changing', { usesAcs: true })
+async function changeProfile(profile, assignment = 'assignment', studentId = 'changing') {
+  const assessmentProfilesByAssignment = { [assignment]: profile }
+  const preview = await rt.previewStudentAssessmentProfileChanges(studentId, assessmentProfilesByAssignment)
+  return rt.groupsWorkspaceRepository.updateStudent(studentId, {
+    assessmentProfilesByAssignment, assessmentProfileChangeConfirmation: preview.confirmation
+  })
+}
+const activate = () => changeProfile('acs')
 
 test('independent general and ACS imports, editing and duplicate protection', async () => {
   assert.equal((await db.assessmentSchemes.toArray()).length, 2)
@@ -79,7 +89,7 @@ test('independent general and ACS imports, editing and duplicate protection', as
   assert.deepEqual((await rt.assessmentCriteriaManagementRepository.getSubjectContext('year', 'subject', 'acs')).criteria.map(c => c.weightPercent), [80, 20])
 })
 
-test('activation resets only this pupil in unfinished units and preserves finished grades, summaries and attendance', async () => {
+test('activation resets only this pupil in the current unit and preserves finished grades, summaries and attendance', async () => {
   const normalScores = scores(general.criteria, [16, 12, 10])
   await saveGrid('old', { regular: normalScores, changing: normalScores })
   await saveGrid('first', { regular: normalScores, changing: normalScores })
@@ -98,7 +108,7 @@ test('activation resets only this pupil in unfinished units and preserves finish
   assert.equal(await db.moduleFinalGrades.get('current-final'), undefined)
   assert.deepEqual(await db.assessmentResults.toArray(), beforeResults.filter(r => r.studentId !== 'changing' || oldAssessmentIds.has(r.assessmentId)))
   const saved = await db.students.get('changing')
-  assert.equal(saved.usesAcs, true)
+  assert.equal(saved.assessmentProfilesByAssignment.assignment, 'acs')
   assert.deepEqual(saved.assessmentProfilesByModule, { finished: 'general' })
   const completed = await workspace('finished')
   const oldRow = completed.studentRows.find(r => r.student.id === 'changing')
@@ -145,7 +155,7 @@ test('ACS without an imported set stays ungraded; a roster import does not reset
   await db.assessmentCriteria.bulkDelete(acs.criteria.map(c => c.id))
   await activate()
   await rt.maProfessorRepository.saveStudentsForGroup('year', 'group', [{ number: '2', name: 'Aluno 2' }])
-  assert.equal((await db.students.get('changing')).usesAcs, true)
+  assert.equal((await db.students.get('changing')).assessmentProfilesByAssignment.assignment, 'acs')
   const grid = await rt.dailyCriteriaGridRepository.getLessonGrid('first')
   assert.deepEqual(grid.criterionIdsByStudentId.changing, [])
   assert.deepEqual(grid.acsStudentIds, ['changing'])
@@ -173,7 +183,7 @@ test('ACS persists after a database reopen and survives both backup formats', as
   assert.equal((await db.assessmentSchemes.get(acs.scheme.id)).profile, 'acs')
 })
 
-test('the same pupil flag applies to every subject using its own ACS criteria', async () => {
+test('ACS is independent in each subject and preserves the other subject grades', async () => {
   await db.subjects.add({ id: 'second-subject', academicYearId: 'year', name: 'Animação', shortName: 'AS', code: 'AS', active: true, ...audit })
   await db.teachingAssignments.add({ id: 'second-assignment', academicYearId: 'year', groupId: 'group', subjectId: 'second-subject', displayName: 'AS · 10.º A', active: true, ...audit })
   await db.modules.bulkAdd(['second-finished', 'second-current'].map((id, i) => ({ id, academicYearId: 'year', teachingAssignmentId: 'second-assignment', code: id, name: id, plannedPeriods: i === 0 ? 1 : 10, order: i + 1, active: true, ...audit })))
@@ -185,6 +195,9 @@ test('the same pupil flag applies to every subject using its own ACS criteria', 
   const secondWorkspace = moduleId => rt.assessmentWorkspaceRepository.getWorkspace('year', { teachingAssignmentId: 'second-assignment', moduleId })
   await activate()
   assert.equal((await secondWorkspace('second-finished')).studentRows.find(r => r.student.id === 'changing').gradeSummary.provisionalAverage, 12)
+  assert.equal((await secondWorkspace('second-current')).studentRows.find(r => r.student.id === 'changing').gradeSummary.provisionalAverage, 8)
+  assert.equal((await secondWorkspace('second-current')).studentRows.find(r => r.student.id === 'changing').assessmentProfile, 'general')
+  await changeProfile('acs', 'second-assignment')
   assert.equal((await secondWorkspace('second-current')).studentRows.find(r => r.student.id === 'changing').gradeSummary.provisionalAverage, null)
   await saveGrid('first', { changing: scores(acs.criteria, [18, 10]) })
   await saveGrid('lesson-second-current', { changing: scores(secondAcs.criteria, [16, 20]) })
@@ -226,12 +239,136 @@ test('correcting the pupil flag never carries a final grade across profiles in a
   await activate()
   await saveGrid('first', { changing: scores(acs.criteria, [18, 10]) })
   await rt.assessmentWorkspaceRepository.saveModuleFinalGrade({ moduleId: 'current', studentId: 'changing', finalGrade: 16 })
-  await rt.groupsWorkspaceRepository.updateStudent('changing', { usesAcs: false })
+  await changeProfile('general')
   const generalAgain = (await workspace('current')).studentRows.find(r => r.student.id === 'changing')
   assert.equal(generalAgain.assessmentProfile, 'general')
   assert.equal(generalAgain.gradeSummary.confirmedFinalGrade, null)
+  assert.deepEqual(await db.assessmentResults.where('studentId').equals('changing').toArray(), [])
   await activate()
   assert.equal((await workspace('current')).studentRows.find(r => r.student.id === 'changing').gradeSummary.provisionalAverage, null)
+})
+
+test('both directions require confirmation and cancelling leaves all data intact', async () => {
+  await saveGrid('first', { changing: scores(general.criteria, [16, 12, 10]) })
+  for (const profile of ['acs', 'general']) {
+    const student = await db.students.get('changing')
+    const before = await rt.createMAProfessorDatabaseSnapshot()
+    await assert.rejects(rt.groupsWorkspaceRepository.updateStudent('changing', {
+      assessmentProfilesByAssignment: { assignment: profile }
+    }), /Confirme novamente/)
+    assert.deepEqual((await rt.createMAProfessorDatabaseSnapshot()).tables, before.tables)
+    let message = ''
+    window.confirm = text => { message = text; return false }
+    assert.equal(await rt.confirmStudentAssessmentProfileUpdate(student, { assignment: profile }), null)
+    assert.match(message, /Aluno 2/)
+    assert.match(message, /AE · 10.º A/)
+    assert.match(message, /UFCD\/UC\/módulo em curso/)
+    assert.match(message, /As unidades concluídas anteriormente/)
+    assert.match(message, /faltas e os vistos/)
+    assert.deepEqual((await rt.createMAProfessorDatabaseSnapshot()).tables, before.tables)
+    window.confirm = () => true
+    const update = await rt.confirmStudentAssessmentProfileUpdate(student, { assignment: profile })
+    await rt.groupsWorkspaceRepository.updateStudent('changing', update)
+  }
+})
+
+test('a concurrent assessment or change of current unit invalidates an earlier confirmation', async () => {
+  const requested = { assignment: 'acs' }
+  for (const mutation of [
+    () => saveGrid('first', { changing: scores(general.criteria, [16, 12, 10]) }),
+    () => db.modules.update('current', { plannedPeriods: 2 })
+  ]) {
+    const preview = await rt.previewStudentAssessmentProfileChanges('changing', requested)
+    await mutation()
+    const before = await rt.createMAProfessorDatabaseSnapshot()
+    await assert.rejects(rt.groupsWorkspaceRepository.updateStudent('changing', {
+      assessmentProfilesByAssignment: requested, assessmentProfileChangeConfirmation: preview.confirmation
+    }), /Confirme novamente/)
+    assert.deepEqual((await rt.createMAProfessorDatabaseSnapshot()).tables, before.tables)
+  }
+})
+
+test('future entered grades survive while newly created units inherit the chosen subject profile', async () => {
+  await db.lessons.add(lesson('future-lesson', 'future', '2026-11-01'))
+  await saveGrid('future-lesson', { changing: scores(general.criteria, [16, 12, 10]) })
+  const before = await db.assessmentResults.toArray()
+  await activate()
+  assert.deepEqual(await db.assessmentResults.toArray(), before)
+  const futureRow = (await workspace('future')).studentRows.find(row => row.student.id === 'changing')
+  assert.equal(futureRow.assessmentProfile, 'general')
+  assert.equal(futureRow.gradeSummary.provisionalAverage, 14)
+  await db.modules.add({ ...(await db.modules.get('future')), id: 'new-unit', order: 4 })
+  assert.equal((await workspace('new-unit')).studentRows.find(row => row.student.id === 'changing').assessmentProfile, 'acs')
+})
+
+test('removing ACS after a unit completes preserves its grades, profile and recovery history', async () => {
+  await activate()
+  await saveGrid('first', { changing: scores(acs.criteria, [18, 10]) })
+  await db.learningRecoveries.add({ id: 'finished-recovery', academicYearId: 'year', teachingAssignmentId: 'assignment',
+    moduleId: 'current', studentId: 'changing', status: 'completed', recoveryGrade: 17,
+    assessmentScores: Object.fromEntries(acs.criteria.map(c => [c.id, 17])), ...audit })
+  await db.modules.update('current', { plannedPeriods: 2 })
+  const beforeResults = await db.assessmentResults.toArray()
+  const beforeRecovery = await db.learningRecoveries.get('finished-recovery')
+  await changeProfile('general')
+  assert.deepEqual(await db.assessmentResults.toArray(), beforeResults)
+  assert.deepEqual(await db.learningRecoveries.get('finished-recovery'), beforeRecovery)
+  assert.equal((await workspace('current')).studentRows.find(row => row.student.id === 'changing').assessmentProfile, 'acs')
+  assert.equal((await workspace('future')).studentRows.find(row => row.student.id === 'changing').assessmentProfile, 'general')
+})
+
+test('recovery grades reset both ways without changing previously removed absences', async () => {
+  for (const profile of ['acs', 'general']) {
+    const recovery = { id: 'current-recovery', academicYearId: 'year', teachingAssignmentId: 'assignment',
+      moduleId: 'current', studentId: 'changing', status: 'completed', recoveryGrade: 18,
+      removedAbsences: [{ attendanceId: 'absence', lessonId: 'first', date: '2026-09-14', periods: 1 }],
+      assessmentScores: { test: 18 }, assessmentRecordedAt: audit.updatedAt, ...audit }
+    await db.learningRecoveries.put(recovery)
+    await changeProfile(profile)
+    const saved = await db.learningRecoveries.get(recovery.id)
+    assert.equal(saved.recoveryGrade, null)
+    assert.equal(saved.assessmentScores, null)
+    assert.deepEqual(saved.removedAbsences, recovery.removedAbsences)
+    assert.equal(saved.status, recovery.status)
+  }
+})
+
+test('legacy global profiles are preserved until a specific subject is changed', async () => {
+  await db.students.update('changing', { usesAcs: true, acsEnabledAt: audit.createdAt })
+  const legacy = await db.students.get('changing')
+  assert.equal(rt.studentAssessmentProfile(legacy, 'current', 'assignment'), 'acs')
+  await rt.maProfessorRepository.saveStudentsForGroup('year', 'group', [{ number: '2', name: 'Nome corrigido' }])
+  assert.equal((await db.students.get('changing')).usesAcs, true)
+  await changeProfile('general')
+  const saved = await db.students.get('changing')
+  assert.equal(rt.studentAssessmentProfile(saved, 'current', 'assignment'), 'general')
+  assert.equal(rt.studentAssessmentProfile(saved, 'other-unit', 'other-assignment'), 'acs')
+  assert.equal(saved.acsEnabledAt, audit.createdAt)
+})
+
+test('new pupils select individual subjects and cannot choose another group assignment', async () => {
+  await rt.maProfessorRepository.saveStudentsForGroup('year', 'group', [{ number: '3', name: 'Aluno Novo',
+    assessmentProfilesByAssignment: { assignment: 'acs' } }])
+  const saved = (await db.students.toArray()).find(student => student.number === '3')
+  assert.equal(rt.studentAssessmentProfile(saved, 'current', 'assignment'), 'acs')
+  assert.equal(rt.studentAssessmentProfile(saved, 'other-unit', 'other-assignment'), 'general')
+  await assert.rejects(rt.previewStudentAssessmentProfileChanges('changing', { 'foreign-assignment': 'acs' }), /não pertence/)
+})
+
+test('old drafts and an already open grid cannot restore marks after either profile reset', async () => {
+  for (const profile of ['acs', 'general']) {
+    const oldStudent = await db.students.get('changing')
+    await changeProfile(profile)
+    const saved = await db.students.get('changing')
+    assert.equal(rt.canRestoreStudentAssessmentDraft(saved, 'current', audit.updatedAt), false)
+    assert.equal(rt.canRestoreStudentAssessmentDraft(saved, 'finished', audit.updatedAt), true)
+    assert.equal(rt.canRestoreStudentAssessmentDraft(saved, 'current', '2099-01-01T00:00:00.000Z'), true)
+    await assert.rejects(rt.dailyCriteriaGridRepository.saveLessonGrid({ lesson: await db.lessons.get('first'),
+      summary: 'Sumário', activity: '', rows: [{ studentId: 'changing', attendanceStatus: 'present',
+        expectedAssessmentResetAt: oldStudent.assessmentResetAtByModule?.current ?? '',
+        scores: scores(profile === 'acs' ? acs.criteria : general.criteria, [18, 10, 12]) }] }), /Reabra a aula/)
+    assert.equal(await db.assessmentResults.count(), 0)
+  }
 })
 
 after(async () => { await db.delete(); dom.window.close(); rmSync(output, { recursive: true, force: true }) })

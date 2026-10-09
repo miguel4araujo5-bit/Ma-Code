@@ -36,6 +36,7 @@ export interface DailyCriteriaGridSnapshot {
 
 export interface DailyCriteriaGridSaveRow {
   studentId: EntityId
+  expectedAssessmentResetAt?: string
   attendanceStatus:
     | 'present'
     | 'absent'
@@ -328,6 +329,11 @@ export class DailyCriteriaGridRepository {
       workspace.criterionIdsByStudentId?.[studentId]?.includes(criterionId) ?? true
 
     for (const row of input.rows) {
+      const student = workspace.students.find(student => student.id === row.studentId)
+      if (row.expectedAssessmentResetAt !== undefined && row.expectedAssessmentResetAt !==
+        (student?.assessmentResetAtByModule?.[input.lesson.moduleId] ?? '')) {
+        throw new Error('Os critérios de avaliação deste aluno foram alterados. Reabra a aula antes de voltar a avaliar.')
+      }
       if (
         !workspaceStudentIds.has(
           row.studentId

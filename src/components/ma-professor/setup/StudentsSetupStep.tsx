@@ -1,3 +1,5 @@
+import { StudentAssessmentProfileFields } from '../students/StudentAssessmentProfileFields'
+import { confirmStudentAssessmentProfileUpdate } from '../students/studentAssessmentProfileConfirmation'
 import {
   type FormEvent,
   useMemo,
@@ -12,6 +14,7 @@ import {
 } from '../repository'
 
 import type {
+  AssessmentProfile,
   EntityId,
   Student
 } from '../types'
@@ -36,7 +39,7 @@ type StudentFormRow = {
   name: string
   notes: string
   persisted: boolean
-  usesAcs?: boolean
+  assessmentProfilesByAssignment?: Record<EntityId, AssessmentProfile>
 }
 
 const inputClassName =
@@ -82,7 +85,7 @@ function createStudentRow(
     number: student.number,
     name: student.name,
     notes: student.notes,
-    usesAcs: student.usesAcs === true,
+    assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment },
     persisted: true
   }
 }
@@ -207,7 +210,7 @@ function isMeaningfulRow(
     row.number.trim() ||
       row.name.trim() ||
       row.notes.trim() ||
-      row.usesAcs === true
+      Object.values(row.assessmentProfilesByAssignment ?? {}).includes('acs')
   )
 }
 
@@ -591,8 +594,8 @@ export default function StudentsSetupStep({
               persistedStudent.name ||
             row.notes !==
               persistedStudent.notes ||
-            (row.usesAcs === true) !==
-              (persistedStudent.usesAcs === true)
+            JSON.stringify(row.assessmentProfilesByAssignment ?? {}) !==
+              JSON.stringify(persistedStudent.assessmentProfilesByAssignment ?? {})
           )
         )
       }
@@ -707,7 +710,7 @@ export default function StudentsSetupStep({
         | 'number'
         | 'name'
         | 'notes'
-        | 'usesAcs'
+        | 'assessmentProfilesByAssignment'
       >
     >
   ) {
@@ -1045,7 +1048,7 @@ export default function StudentsSetupStep({
           name,
           notes:
             row.notes,
-          usesAcs: row.usesAcs
+          assessmentProfilesByAssignment: row.assessmentProfilesByAssignment
         }
       }
     )
@@ -1070,6 +1073,15 @@ export default function StudentsSetupStep({
     try {
       const drafts =
         validateRows()
+
+      for (const draft of drafts) {
+        const student = snapshot.students.find(candidate => candidate.groupId === selectedGroupId &&
+          normalizeComparisonText(candidate.number) === normalizeComparisonText(draft.number))
+        const update = await confirmStudentAssessmentProfileUpdate(student, draft.assessmentProfilesByAssignment)
+        if (!update) return
+        draft.assessmentProfilesByAssignment = undefined
+        Object.assign(draft, update)
+      }
 
       await maProfessorRepository.saveStudentsForGroup(
         snapshot.academicYear.id,
@@ -1403,15 +1415,10 @@ export default function StudentsSetupStep({
                           Aluno
                         </p>
 
-                        <label className="mt-4 flex items-center gap-2 text-sm font-bold text-emerald-100">
-                          <input type="checkbox" checked={row.usesAcs === true}
-                            onChange={event => updateRow(row.localId, { usesAcs: event.target.checked })}
-                            disabled={busy} className="h-4 w-4 rounded" />
-                          Aluno com critérios ACS
-                        </label>
-                        {(row.usesAcs === true) !== (persistedStudentsById.get(row.localId)?.usesAcs === true) ? (
-                          <p className="mt-2 text-xs text-slate-400">Este aluno passa a usar critérios {row.usesAcs ? 'ACS' : 'gerais'}. As avaliações concluídas mantêm-se.</p>
-                        ) : null}
+                        <StudentAssessmentProfileFields
+                          assignments={snapshot.teachingAssignments.filter(assignment => assignment.active && assignment.groupId === selectedGroupId).map(assignment => ({ id: assignment.id, label: snapshot.subjects.find(subject => subject.id === assignment.subjectId)?.name ?? assignment.displayName }))}
+                          student={persistedStudentsById.get(row.localId)} profiles={row.assessmentProfilesByAssignment} disabled={busy}
+                          onChange={assessmentProfilesByAssignment => updateRow(row.localId, { assessmentProfilesByAssignment })} />
 
                         {row.persisted ? (
                           <p className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-emerald-200">

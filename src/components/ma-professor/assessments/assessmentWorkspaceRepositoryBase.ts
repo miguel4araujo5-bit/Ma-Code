@@ -857,7 +857,7 @@ function buildActivityRows(
         const activityStudents =
           students.filter(
             student =>
-              studentAssessmentProfile(student, assessment.moduleId) === profile && (
+              studentAssessmentProfile(student, assessment.moduleId, assessment.teachingAssignmentId) === profile && (
               isStudentMemberOnDate(
                 student,
                 lesson.date
@@ -1083,7 +1083,7 @@ function buildStudentRows(
     (
       student
     ): AssessmentWorkspaceStudentRow => {
-      const assessmentProfile = studentAssessmentProfile(student, module.id)
+      const assessmentProfile = studentAssessmentProfile(student, module.id, module.teachingAssignmentId)
       const studentCriteria = assessmentProfile === 'acs' ? acsCriteria : criteria
       const studentResults =
         resultsByStudentId.get(
@@ -1943,7 +1943,7 @@ export class AssessmentWorkspaceRepository {
             )
 
     const usesAcs =
-      studentAssessmentProfile(student, module.id) === 'acs' ? true :
+      studentAssessmentProfile(student, module.id, module.teachingAssignmentId) === 'acs' ? true :
       input.usesAcs ===
       undefined
         ? existing

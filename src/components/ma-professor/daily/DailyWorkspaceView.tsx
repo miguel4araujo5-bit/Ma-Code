@@ -1,3 +1,4 @@
+import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfiles';
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
 import { getUfcdEmissionFingerprint } from '../assessments/ufcdCfpModel';
@@ -759,7 +760,7 @@ export default function DailyWorkspaceView({
                                 attendanceNote:
                                     stored.attendanceNote,
                                 criterionScores:
-                                    stored.criterionScores
+                                    stored.criterionScores && canRestoreStudentAssessmentDraft(row.student, nextSelectedLesson.context.lessonRow.lesson.moduleId, draft.updatedAt)
                                         ? {
                                               ...row.criterionScores,
                                               ...stored.criterionScores
@@ -2044,6 +2045,7 @@ export default function DailyWorkspaceView({
                                 row => ({
                                     studentId:
                                         row.student.id,
+                                    expectedAssessmentResetAt: row.student.assessmentResetAtByModule?.[result.lesson.moduleId] ?? '',
                                     attendanceStatus:
                                         row.attendanceStatus,
                                     scores: {

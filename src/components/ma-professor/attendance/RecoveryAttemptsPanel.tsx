@@ -230,7 +230,7 @@ export default function RecoveryAttemptsPanel({
 
   function criteriaForRecovery(recovery: LearningRecovery) {
     const student = snapshot.rows.find(row => row.student.id === recovery.studentId)?.student
-    return student && studentAssessmentProfile(student, recovery.moduleId) === 'acs'
+    return student && studentAssessmentProfile(student, recovery.moduleId, recovery.teachingAssignmentId) === 'acs'
       ? acsAssessmentCriteria
       : assessmentCriteria
   }
@@ -415,7 +415,7 @@ export default function RecoveryAttemptsPanel({
 
       <div className="mt-5 space-y-4">
         {rows.map(row => {
-          const studentCriteria = studentAssessmentProfile(row.student, snapshot.selectedModule!.id) === 'acs'
+          const studentCriteria = studentAssessmentProfile(row.student, snapshot.selectedModule!.id, snapshot.selectedModule!.teachingAssignmentId) === 'acs'
             ? acsAssessmentCriteria : assessmentCriteria
           const summary =
             summarizeLearningRecoveryAttempts(
