@@ -657,7 +657,7 @@ try {
     // A segunda disciplina ativa também precisa de horário para a configuração
     // continuar operacional e permitir regressar a Hoje após guardar o aluno.
     const originalSlot = await db.weeklyScheduleSlots.where('teachingAssignmentId').equals(assignment.id).first()
-    assert.ok(originalSlot, 'the primary teaching assignment must have a schedule slot')
+    if (!originalSlot) throw new Error('the primary teaching assignment must have a schedule slot')
     await db.weeklyScheduleSlots.add({ ...originalSlot, id: 'acs-second-schedule',
       teachingAssignmentId: secondAssignment.id, weekday: 4 })
     const [secondCriteria] = await assessmentCriteriaBatchRepository.createSubjectSchemes({ academicYearId: lesson.academicYearId,
