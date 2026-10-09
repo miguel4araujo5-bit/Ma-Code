@@ -677,7 +677,7 @@ export function parsePlanificationPdfDocument(
 
   let current: MutableSection | null = null
   const sections: MutableSection[] = []
-  let pendingUfcdLabel = false
+  let pendingCurricularUnitLabel: 'ufcd' | 'uc' | null = null
 
   for (const page of document.pages) {
     let sawTableHeader = Boolean(current && anchors.length >= 4)
@@ -875,23 +875,23 @@ export function parsePlanificationPdfDocument(
               )
             }
 
-            pendingUfcdLabel = false
+            pendingCurricularUnitLabel = null
             continue
           }
 
-          if (
-            normalizeComparable(value) ===
-            'ufcd'
-          ) {
-            pendingUfcdLabel = true
+          const normalizedLabel = normalizeComparable(value)
+          if (normalizedLabel === 'ufcd' || normalizedLabel === 'uc') {
+            pendingCurricularUnitLabel = normalizedLabel
             continue
           }
 
-          if (pendingUfcdLabel) {
-            const code =
+          if (pendingCurricularUnitLabel) {
+            const leadingCode =
               extractLeadingCode(value)
 
-            if (code) {
+            if (leadingCode) {
+              const code = pendingCurricularUnitLabel === 'uc' ? `UC${leadingCode}` : leadingCode
+              const label = pendingCurricularUnitLabel === 'uc' ? 'UC' : 'UFCD'
               if (
                 !current ||
                 current.code !== code
@@ -901,7 +901,7 @@ export function parsePlanificationPdfDocument(
                     sourceDocumentName,
                     code,
                     page.pageNumber,
-                    `UFCD ${value}`
+                    `${label} ${value}`
                   )
                 sections.push(
                   current
@@ -916,7 +916,7 @@ export function parsePlanificationPdfDocument(
                 )
               }
 
-              pendingUfcdLabel = false
+              pendingCurricularUnitLabel = null
               continue
             }
           }

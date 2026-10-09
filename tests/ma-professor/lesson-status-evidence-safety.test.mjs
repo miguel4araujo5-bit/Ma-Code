@@ -139,6 +139,12 @@ const reservationUrl = transpile(
   reservationSource
 )
 
+const moveDecisionsSource = await readFile(
+  new URL('../../src/components/ma-professor/lessons/lessonMoveDecisions.ts', import.meta.url),
+  'utf8'
+)
+const moveDecisionsUrl = transpile(moveDecisionsSource.replaceAll("'../db'", `'${dbUrl}'`))
+
 const source = await readFile(
   new URL(
     '../../src/components/ma-professor/lessons/lessonRepository.ts',
@@ -156,6 +162,7 @@ const runtime = source
   .replaceAll("'./lessonRepositoryBase'", `'${baseRepositoryUrl}'`)
   .replaceAll("'./lessonHistoricalEditSafety'", `'${historicalSafetyUrl}'`)
   .replaceAll("'./lessonTemporalSafety'", `'${temporalSafetyUrl}'`)
+  .replaceAll("'./lessonMoveDecisions'", `'${moveDecisionsUrl}'`)
 
 const module = await import(
   transpile(runtime)

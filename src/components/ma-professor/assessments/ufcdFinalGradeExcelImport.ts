@@ -485,8 +485,12 @@ function extractMetadata(
 
   const moduleMatch =
     topText.match(
-      /\b(?:m[oó]dulo\s*\/\s*ufcd|ufcd|m[oó]dulo)\s*[:#-]?\s*(?:ufcd\s*[-:#]?\s*)?([A-Za-z0-9][A-Za-z0-9._/-]{1,15})/i
+      /\b(m[oó]dulo\s*\/\s*ufcd|ufcd|uc|m[oó]dulo)\s*[:#-]?\s*(?:(?:ufcd|uc)\s*[-:#]?\s*)?([A-Za-z0-9][A-Za-z0-9._/-]{1,15})/i
     )
+  const rawModuleCode = moduleMatch?.[2] ?? null
+  const moduleCode = rawModuleCode && normalizeComparable(moduleMatch?.[1] ?? '') === 'uc' && !/^uc/i.test(rawModuleCode)
+    ? `UC${rawModuleCode}`
+    : rawModuleCode
 
   const academicYearMatch =
     topText.match(
@@ -494,8 +498,7 @@ function extractMetadata(
     )
 
   return {
-    moduleCode:
-      moduleMatch?.[1] ?? null,
+    moduleCode,
     academicYearLabel:
       academicYearMatch
         ? `${academicYearMatch[1]}-${academicYearMatch[2]}`

@@ -193,7 +193,7 @@ test(
     )
     assert.match(
       editorSource,
-      /if \(savedLesson\.status !== 'cancelled'\)[\s\S]*assessmentSection\.saveAssessments\(savedLesson\)/s
+      /if \(savedLesson\.status !== 'cancelled' && !discardSourceRecords\)[\s\S]*assessmentSection\.saveAssessments\(savedLesson\)/s
     )
     assert.match(
       editorSource,
@@ -323,7 +323,11 @@ test(
     assert.match(editorSource, /moveLessonWithScope/)
     assert.match(
       editorSource,
-      /Sumários, atividade, notas, planificação, faltas e avaliações acompanham[\s\S]*programa oficial/
+      /Sumários, atividade, notas e planificação acompanham[\s\S]*aulas submetidas, faltas ou avaliações/
     )
+    assert.match(editorSource, /Saltar as submetidas e continuar/)
+    assert.match(editorSource, /Retirar os vistos locais e continuar/)
+    assert.match(editorSource, /Trocar as duas aulas de horário/)
+    assert.match(editorSource, /deletionConfirmed: true/)
   }
 )

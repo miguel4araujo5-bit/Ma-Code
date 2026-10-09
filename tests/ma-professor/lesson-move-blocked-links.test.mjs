@@ -57,10 +57,10 @@ async function changeDate(value) {
   })
   assert.equal(input.value, value)
 }
-async function mount(id, onOpenLesson) {
+async function mount(id, onOpenLesson, onSaved = () => {}) {
   const context = await api.calendarWorkspaceRepository.getLessonEditorContext(id)
   root = createRoot(document.getElementById('root'))
-  await act(async () => root.render(createElement(api.Editor, { context, onClose() {}, onSaved() {}, onOpenLesson })))
+  await act(async () => root.render(createElement(api.Editor, { context, onClose() {}, onSaved, onOpenLesson })))
   await until(() => button('Guardar aula completa'))
 }
 beforeEach(async () => {
@@ -123,3 +123,95 @@ test('the whole schedule lists every submitted lesson even when the selected sou
   assert.match(links()[0].textContent, /14.*setembro/)
   assert.match(links()[1].textContent, /21.*setembro/)
 })
+
+test('the editor skips submitted occurrences only after the explicit choice', async () => {
+  const saved = []
+  await mount('current', () => {}, lesson => saved.push(lesson))
+  await changeDate('2026-09-15')
+  await click(document.querySelector('input[name="lesson-move-scope"][value="from_here"]'))
+  const protectedLesson = await db.lessons.get('blocked')
+  await click(button('Guardar aula completa'))
+  await until(() => button('Saltar as submetidas e continuar'))
+  assert.equal((await db.lessons.get('current')).date, '2026-09-14')
+  await click(button('Saltar as submetidas e continuar'))
+  await until(() => saved.length === 1)
+  assert.equal(saved[0].date, '2026-09-15')
+  assert.deepEqual(await db.lessons.get('blocked'), protectedLesson)
+})
+
+test('clearing the source tick is confirmed in the notice and is not silently resubmitted by the form', async () => {
+  const saved = []
+  await mount('blocked', () => {}, lesson => saved.push(lesson))
+  await changeDate('2026-09-22')
+  const before = await db.lessons.get('blocked')
+  await click(button('Guardar aula completa'))
+  await until(() => button('Retirar os vistos locais e continuar'))
+  assert.equal(button('Saltar as submetidas e continuar'), undefined)
+  window.confirm = () => false
+  await click(button('Retirar os vistos locais e continuar'))
+  assert.deepEqual(await db.lessons.get('blocked'), before)
+  window.confirm = message => { assert.match(message, /GIAE mantém-se/); return true }
+  await click(button('Retirar os vistos locais e continuar'))
+  await until(() => saved.length === 1)
+  assert.equal(saved[0].date, '2026-09-22')
+  assert.equal(saved[0].giaeStatus, 'pending')
+  assert.equal(saved[0].giaeSubmittedAt, null)
+})
+
+test('occupied destinations offer choosing another slot or swapping before any record decision or write', async () => {
+  await mount('current', () => {})
+  await changeDate('2026-09-21')
+  const before = await db.lessons.toArray()
+  await click(button('Guardar aula completa'))
+  await until(() => button('Trocar as duas aulas de horário'))
+  assert.ok(button('Escolher outro horário'))
+  assert.equal(button('Retirar os vistos locais e continuar'), undefined)
+  assert.deepEqual(await db.lessons.toArray(), before)
+  await click(button('Trocar as duas aulas de horário'))
+  await until(() => button('Retirar os vistos locais e continuar'))
+  assert.deepEqual(await db.lessons.toArray(), before)
+})
+
+test('a scoped skip leaves the submitted source and its unsaved form fields untouched', async () => {
+  await db.lessons.put(lesson('current', '2026-09-14', true))
+  const saved = []
+  await mount('current', () => {}, lesson => saved.push(lesson))
+  const before = await db.lessons.toArray()
+  await changeDate('2026-09-15')
+  await click(document.querySelector('input[name="lesson-move-scope"][value="from_here"]'))
+  await click(button('Guardar aula completa'))
+  await until(() => button('Saltar as submetidas e continuar'))
+  await click(button('Saltar as submetidas e continuar'))
+  await until(() => saved.length === 1)
+  assert.deepEqual(await db.lessons.toArray(), before)
+  assert.equal(saved[0].date, '2026-09-14')
+  const slots = await db.weeklyScheduleSlots.toArray()
+  assert.ok(slots.some(slot => slot.weekday === 2 && slot.excludedDates.includes('2026-09-15') && slot.excludedDates.includes('2026-09-22')))
+})
+
+for (const deleting of [false, true]) {
+  test('the editor ' + (deleting ? 'deletes without resurrecting' : 'transfers') + ' the chosen absence', async () => {
+    await db.students.put({ ...audit, id: 'student', academicYearId: 'y', groupId: 'g', number: '1', name: 'Aluno fictício', active: true, notes: '' })
+    await db.lessons.update('current', { status: 'taught', summary: 'Sumário preservado' })
+    await db.lessonAttendance.put({ ...audit, id: 'absence', lessonId: 'current', studentId: 'student', status: 'absent', code: 'F', note: '' })
+    const saved = []
+    await mount('current', () => {}, lesson => saved.push(lesson))
+    await changeDate('2026-09-15')
+    const before = await db.lessons.toArray()
+    await click(button('Guardar aula completa'))
+    await until(() => button('Mover a aula e transferir as faltas e avaliações'))
+    assert.deepEqual(await db.lessons.toArray(), before)
+    if (deleting) {
+      window.confirm = () => false
+      await click(button('Mover apenas a aula e eliminar as faltas e avaliações'))
+      assert.ok(await db.lessonAttendance.get('absence'))
+      window.confirm = message => { assert.match(message, /eliminação definitiva/); return true }
+      await click(button('Mover apenas a aula e eliminar as faltas e avaliações'))
+    } else await click(button('Mover a aula e transferir as faltas e avaliações'))
+    await until(() => saved.length === 1)
+    assert.equal(saved[0].date, '2026-09-15')
+    const absence = await db.lessonAttendance.get('absence')
+    assert.equal(Boolean(absence), !deleting)
+    if (absence) assert.equal(absence.status, 'absent')
+  })
+}

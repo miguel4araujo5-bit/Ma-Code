@@ -20,7 +20,9 @@ import {
 import {
   lessonRepository,
   LessonMoveBlockedError,
-  type LessonMoveScope
+  LessonMoveRecordsError,
+  type LessonMoveScope,
+  type LessonMoveOptions
 } from '../lessons/lessonRepository'
 
 import type {
@@ -329,6 +331,9 @@ export default function LessonEditorDialog({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [blockedLessons, setBlockedLessons] = useState<LessonMoveBlockedError['lessons']>([])
+  const [submittedMoveNotice, setSubmittedMoveNotice] = useState<LessonMoveBlockedError | null>(null)
+  const [recordsMoveNotice, setRecordsMoveNotice] = useState<LessonMoveRecordsError | null>(null)
+  const [pendingMove, setPendingMove] = useState<{ swap?: Lesson; options: LessonMoveOptions } | null>(null)
   const [moveCollision, setMoveCollision] = useState<Lesson | null>(null)
   const [moveScope, setMoveScope] =
     useState<LessonMoveScope>('single')
@@ -480,6 +485,11 @@ export default function LessonEditorDialog({
     key: Key,
     value: LessonEditorFormState[Key]
   ) {
+    setMoveCollision(null)
+    setSubmittedMoveNotice(null)
+    setRecordsMoveNotice(null)
+    setBlockedLessons([])
+    setPendingMove(null)
     setForm(current => ({
       ...current,
       [key]: value
@@ -559,7 +569,8 @@ export default function LessonEditorDialog({
 
   async function handleSubmit(
     event: { preventDefault(): void },
-    confirmedSwap?: Lesson
+    confirmedSwap?: Lesson,
+    moveOptions: LessonMoveOptions = {}
   ) {
     event.preventDefault()
 
@@ -568,6 +579,8 @@ export default function LessonEditorDialog({
     }
 
     setBlockedLessons([])
+    setSubmittedMoveNotice(null)
+    setRecordsMoveNotice(null)
 
     const periodCount = Number(form.periodCount)
 
@@ -620,7 +633,6 @@ export default function LessonEditorDialog({
     const moving = positionChanged
     if (moving) {
       try {
-        if (lesson.giaeStatus === 'submitted' && moveScope === 'single') throw new LessonMoveBlockedError([lesson], 'Esta aula já está marcada como submetida no programa oficial. Retire primeiro esse visto e guarde antes de alterar a data ou hora.')
         const collision = await lessonRepository.findMoveCollision(lesson.id, form)
         if (collision && !confirmedSwap) { setMoveCollision(collision); return }
       } catch (error) {
@@ -638,22 +650,6 @@ export default function LessonEditorDialog({
         'rw',
         maProfessorDb.tables,
         async () => {
-          const [
-            attendanceCount,
-            assessmentCount
-          ] = await Promise.all([
-            maProfessorDb
-              .lessonAttendance
-              .where('lessonId')
-              .equals(lesson.id)
-              .count(),
-            maProfessorDb
-              .lessonAssessments
-              .where('lessonId')
-              .equals(lesson.id)
-              .count()
-          ])
-
           const positionedLesson =
             moving
               ? await lessonRepository.moveLessonWithScope(
@@ -668,9 +664,19 @@ export default function LessonEditorDialog({
                         updatedAt:
                           confirmedSwap.updatedAt
                       }
-                    : undefined
+                    : undefined,
+                  moveOptions
                 )
               : lesson
+          if (moving && moveOptions.submitted?.action === 'skip' && positionedLesson.giaeStatus === 'submitted') {
+            return positionedLesson
+          }
+          const [attendanceCount, assessmentCount] = await Promise.all([
+            maProfessorDb.lessonAttendance.where('lessonId').equals(lesson.id).count(),
+            maProfessorDb.lessonAssessments.where('lessonId').equals(lesson.id).count()
+          ])
+          const clearSourceSubmission = moving && lesson.giaeStatus === 'submitted' && moveOptions.submitted?.action === 'clear'
+          const discardSourceRecords = moving && moveOptions.records?.action === 'delete' && (form.date !== lesson.date || Boolean(confirmedSwap))
           let savedLesson = await lessonRepository.updateLesson(
             lesson.id,
             {
@@ -709,6 +715,7 @@ export default function LessonEditorDialog({
 
           if (
             form.giaeStatus === 'submitted' &&
+            !clearSourceSubmission &&
             savedLesson.summary.trim() &&
             savedLesson.giaeStatus !== 'submitted'
           ) {
@@ -735,6 +742,7 @@ export default function LessonEditorDialog({
 
           if (
             savedLesson.status !== 'cancelled' &&
+            !discardSourceRecords &&
             savedLesson.summary.trim()
           ) {
             const attendanceSection =
@@ -752,7 +760,7 @@ export default function LessonEditorDialog({
             )
           }
 
-          if (savedLesson.status !== 'cancelled') {
+          if (savedLesson.status !== 'cancelled' && !discardSourceRecords) {
             if (!assessmentSection) {
               throw new Error(
                 'Não foi possível preparar as avaliações desta aula.'
@@ -770,7 +778,12 @@ export default function LessonEditorDialog({
     } catch (saveError) {
       assessmentSectionRef.current?.resetTransientSaveState()
       setError(getErrorMessage(saveError))
-      if (saveError instanceof LessonMoveBlockedError) setBlockedLessons(saveError.lessons)
+      setPendingMove({ swap: confirmedSwap, options: moveOptions })
+      if (saveError instanceof LessonMoveBlockedError) {
+        setBlockedLessons(saveError.lessons)
+        setSubmittedMoveNotice(saveError)
+      }
+      if (saveError instanceof LessonMoveRecordsError) setRecordsMoveNotice(saveError)
     } finally {
       setSaving(false)
     }
@@ -1016,7 +1029,7 @@ export default function LessonEditorDialog({
                       </div>
 
                       <p className="mt-3 text-xs leading-5 text-slate-500">
-                        Sumários, atividade, notas, planificação, faltas e avaliações acompanham a respetiva aula. Se alguma aula abrangida já estiver submetida no programa oficial, a operação pára sem alterar nenhuma aula.
+                        Sumários, atividade, notas e planificação acompanham cada aula. Se houver aulas submetidas, faltas ou avaliações, será apresentada uma escolha antes de aplicar a alteração.
                       </p>
                     </fieldset>
                   ) : null}
@@ -1536,8 +1549,8 @@ export default function LessonEditorDialog({
                 {moveCollision ? <div role="alert" className="mb-3 rounded-xl border border-amber-300/30 p-3 text-sm text-amber-100">
                   Existe uma aula nesse horário. Pretende trocar as posições das duas aulas?
                   <div className="mt-2 flex gap-3">
-                    <button type="button" onClick={event => void handleSubmit(event, moveCollision)} className="rounded-lg border px-3 py-2">Permutar/substituir</button>
-                    <button type="button" onClick={() => setMoveCollision(null)} className="rounded-lg border px-3 py-2">Escolher outra hora</button>
+                    <button type="button" disabled={saving} onClick={() => setMoveCollision(null)} className="rounded-lg border px-3 py-2">Escolher outro horário</button>
+                    <button type="button" disabled={saving} onClick={event => void handleSubmit(event, moveCollision)} className="rounded-lg border px-3 py-2">Trocar as duas aulas de horário</button>
                   </div>
                 </div> : null}
                 {error ? (
@@ -1558,6 +1571,51 @@ export default function LessonEditorDialog({
                           </li>
                         ))}
                       </ul>
+                    ) : null}
+                    {submittedMoveNotice && pendingMove ? (
+                      <div className="mt-4 space-y-3">
+                        <p>Retirar o visto altera apenas o estado no MA-Professor. A submissão no programa oficial/GIAE mantém-se.</p>
+                        {blockedLessons.some(row => row.id === lesson.id) ? <p>{moveScope === 'single'
+                          ? 'Para deslocar a aula selecionada, confirme a retirada do seu visto ou abra-a para o corrigir manualmente.'
+                          : 'Ao saltar, as aulas indicadas ficam intactas, incluindo a aula selecionada. A alteração aplica-se às restantes ocorrências.'}</p> : null}
+                        <div className="flex flex-wrap gap-3">
+                          {!blockedLessons.some(row => row.id === lesson.id) || moveScope !== 'single' ? (
+                            <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
+                              onClick={event => void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, submitted: { action: 'skip', confirmationKey: submittedMoveNotice.confirmationKey } })}>
+                              Saltar as submetidas e continuar
+                            </button>
+                          ) : null}
+                          <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
+                            onClick={event => {
+                              if (window.confirm('Retirar os vistos locais das aulas indicadas e continuar? A submissão no programa oficial/GIAE mantém-se.\n\n' + blockedLessons.map(row => formatDate(row.date) + ' · ' + row.startTime + '–' + row.endTime).join('\n'))) {
+                                void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, submitted: { action: 'clear', confirmationKey: submittedMoveNotice.confirmationKey } })
+                              }
+                            }}>
+                            Retirar os vistos locais e continuar
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {recordsMoveNotice && pendingMove ? (
+                      <div className="mt-4 space-y-3">
+                        <p>{recordsMoveNotice.absenceCount} {recordsMoveNotice.absenceCount === 1 ? 'falta' : 'faltas'} e {recordsMoveNotice.assessmentCount} {recordsMoveNotice.assessmentCount === 1 ? 'avaliação' : 'avaliações'} nas aulas seguintes:</p>
+                        <ul className="space-y-1">{recordsMoveNotice.lessons.map(row => <li key={row.id}>{formatDate(row.date)} · {row.startTime}–{row.endTime}</li>)}</ul>
+                        <p>Manter faz os registos acompanhar cada aula para a nova data/hora. Eliminar apaga definitivamente apenas as faltas e avaliações dessas aulas, incluindo as classificações associadas.</p>
+                        <div className="flex flex-wrap gap-3">
+                          <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
+                            onClick={event => void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, records: { action: 'transfer', confirmationKey: recordsMoveNotice.confirmationKey } })}>
+                            {pendingMove.swap ? 'Manter as faltas e avaliações' : 'Mover a aula e transferir as faltas e avaliações'}
+                          </button>
+                          <button type="button" disabled={saving} className="rounded-lg border border-rose-300/40 px-3 py-2"
+                            onClick={event => {
+                              if (window.confirm('Confirma a eliminação definitiva das faltas, avaliações e classificações associadas às aulas indicadas? Esta ação não pode ser desfeita. Os sumários e as restantes aulas mantêm-se.\n\n' + recordsMoveNotice.lessons.map(row => formatDate(row.date) + ' · ' + row.startTime + '–' + row.endTime).join('\n'))) {
+                                void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, records: { action: 'delete', confirmationKey: recordsMoveNotice.confirmationKey, deletionConfirmed: true } })
+                              }
+                            }}>
+                            {pendingMove.swap ? 'Trocar apenas as aulas e eliminar as faltas e avaliações' : 'Mover apenas a aula e eliminar as faltas e avaliações'}
+                          </button>
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 ) : null}
