@@ -20,7 +20,6 @@ import {
   type DutyEventDetails
 } from '../calendar/dutyEvent'
 import { copyTextToClipboard } from './copyTextToClipboard'
-import AutoExpandingTextarea from '../calendar/AutoExpandingTextarea'
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
@@ -1406,7 +1405,7 @@ export default function DailyUnifiedWeekOverview({
             <label className="mt-6 block text-xs font-black uppercase tracking-[0.12em] text-slate-400">
               Sumário
 
-              <AutoExpandingTextarea
+              <textarea
                 value={summary}
                 onChange={event => {
                   setSummary(
@@ -1415,7 +1414,7 @@ export default function DailyUnifiedWeekOverview({
                   setEditorSuccess('')
                 }}
                 disabled={savingDuty}
-                rows={7}
+                rows={14}
                 autoFocus
                 className="mt-2 w-full resize-y rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-600 focus:border-violet-300/55 focus:ring-2 focus:ring-violet-300/10 disabled:opacity-50"
                 placeholder="Escreva o sumário desta ocorrência…"

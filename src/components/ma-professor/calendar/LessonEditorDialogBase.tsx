@@ -1,5 +1,4 @@
 import Dexie from 'dexie'
-import AutoExpandingTextarea from './AutoExpandingTextarea'
 import {
   type ChangeEvent,
   type FormEvent,
@@ -1126,7 +1125,7 @@ export default function LessonEditorDialog({
                         Atividade prevista
                       </FieldLabel>
 
-                      <AutoExpandingTextarea
+                      <textarea
                         value={form.plannedActivity}
                         onChange={(
                           event: ChangeEvent<HTMLTextAreaElement>
@@ -1137,7 +1136,7 @@ export default function LessonEditorDialog({
                           )
                         }
                         disabled={saving}
-                        rows={3}
+                        rows={6}
                         placeholder="Conteúdos, atividade ou trabalho previsto para a aula."
                         className={textAreaClassName}
                       />
@@ -1150,7 +1149,7 @@ export default function LessonEditorDialog({
                         Sumário
                       </FieldLabel>
 
-                      <AutoExpandingTextarea
+                      <textarea
                         value={form.summary}
                         onChange={event =>
                           setForm(current => ({
@@ -1163,7 +1162,7 @@ export default function LessonEditorDialog({
                           }))
                         }
                         disabled={saving}
-                        rows={5}
+                        rows={10}
                         placeholder="Escreva o sumário que será registado no GIAE."
                         className={textAreaClassName}
                       />
@@ -1196,7 +1195,7 @@ export default function LessonEditorDialog({
                         Notas privadas
                       </FieldLabel>
 
-                      <AutoExpandingTextarea
+                      <textarea
                         value={form.notes}
                         onChange={(
                           event: ChangeEvent<HTMLTextAreaElement>
@@ -1207,7 +1206,7 @@ export default function LessonEditorDialog({
                           )
                         }
                         disabled={saving}
-                        rows={3}
+                        rows={6}
                         placeholder="Observações que não serão incluídas no sumário."
                         className={textAreaClassName}
                       />
@@ -1375,7 +1374,7 @@ export default function LessonEditorDialog({
                     {form.nonRealizationReason === 'other' ? (
                       <label className="mt-4 block text-xs font-bold text-slate-300">
                         Qual foi o motivo? (facultativo)
-                        <AutoExpandingTextarea
+                        <textarea
                           value={form.nonRealizationDetails}
                           onChange={event => updateForm('nonRealizationDetails', event.target.value)}
                           disabled={saving}

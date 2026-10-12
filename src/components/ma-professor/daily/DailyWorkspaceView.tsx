@@ -2,7 +2,6 @@ import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfi
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
 import { lessonRepository } from '../lessons/lessonRepository';
-import AutoExpandingTextarea from '../calendar/AutoExpandingTextarea';
 import PlanificationSummaryTextarea, {
     appendPlanificationSuggestion,
     getPlanificationSuggestionText
@@ -3208,7 +3207,7 @@ export default function DailyWorkspaceView({
                                         Lembrete semanal desta aula
                                     </label>
 
-                                    <AutoExpandingTextarea
+                                    <textarea
                                         value={
                                             summaryReminderDraft
                                         }
@@ -3468,10 +3467,10 @@ export default function DailyWorkspaceView({
                                                 lessonForm.status ===
                                                     'cancelled'
                                             }
-                                            rows={5}
+                                            rows={10}
                                             placeholder="Escreva o sumário da aula…"
-                                            containerClassName="flex min-h-36 flex-1 flex-col"
-                                            className="min-h-24 grow shrink-0 resize-none"
+                                            containerClassName="flex min-h-72 flex-1 flex-col"
+                                            className="min-h-48 flex-1 resize-none"
                                         />
 
                                         {selectedLesson.assessmentOverview?.selectedModule?.lastEmissionFingerprint && selectedLesson.assessmentOverview.selectedModule.lastEmissionFingerprint !== getUfcdEmissionFingerprint(selectedLesson.assessmentOverview) ? <p role="status" className="mt-2 text-xs text-amber-200">
@@ -4269,7 +4268,7 @@ export default function DailyWorkspaceView({
                                             {lessonForm.nonRealizationReason === 'other' ? (
                                                 <label className="mt-3 block text-xs font-bold text-slate-200">
                                                     Qual foi o motivo? (facultativo)
-                                                    <AutoExpandingTextarea
+                                                    <textarea
                                                         value={lessonForm.nonRealizationDetails ?? ''}
                                                         onChange={event => updateLessonForm(
                                                             'nonRealizationDetails',
@@ -4317,7 +4316,7 @@ export default function DailyWorkspaceView({
                                             Atividade
                                             prevista
 
-                                            <AutoExpandingTextarea
+                                            <textarea
                                                 value={
                                                     lessonForm.plannedActivity
                                                 }
@@ -4332,9 +4331,7 @@ export default function DailyWorkspaceView({
                                                 disabled={
                                                     saving
                                                 }
-                                                rows={
-                                                    3
-                                                }
+                                                rows={6}
                                                 placeholder="Atividade prevista para esta aula"
                                                 className={`${inputClassName} mt-1.5 resize-y`}
                                             />
@@ -4344,7 +4341,7 @@ export default function DailyWorkspaceView({
                                             Nota privada
                                             do professor
 
-                                            <AutoExpandingTextarea
+                                            <textarea
                                                 value={
                                                     lessonForm.notes
                                                 }
@@ -4359,9 +4356,7 @@ export default function DailyWorkspaceView({
                                                 disabled={
                                                     saving
                                                 }
-                                                rows={
-                                                    3
-                                                }
+                                                rows={6}
                                                 placeholder="Observações que não fazem parte do sumário"
                                                 className={`${inputClassName} mt-1.5 resize-y`}
                                             />
