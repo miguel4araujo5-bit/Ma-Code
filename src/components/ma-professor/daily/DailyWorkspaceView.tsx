@@ -2,6 +2,7 @@ import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfi
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
 import { lessonRepository } from '../lessons/lessonRepository';
+import AutoExpandingTextarea from '../calendar/AutoExpandingTextarea';
 import PlanificationSummaryTextarea, {
     appendPlanificationSuggestion,
     getPlanificationSuggestionText
@@ -3207,7 +3208,7 @@ export default function DailyWorkspaceView({
                                         Lembrete semanal desta aula
                                     </label>
 
-                                    <textarea
+                                    <AutoExpandingTextarea
                                         value={
                                             summaryReminderDraft
                                         }
@@ -3470,7 +3471,7 @@ export default function DailyWorkspaceView({
                                             rows={5}
                                             placeholder="Escreva o sumário da aula…"
                                             containerClassName="flex min-h-36 flex-1 flex-col"
-                                            className="min-h-24 flex-1 resize-none"
+                                            className="min-h-24 shrink-0 resize-none"
                                         />
 
                                         {selectedLesson.assessmentOverview?.selectedModule?.lastEmissionFingerprint && selectedLesson.assessmentOverview.selectedModule.lastEmissionFingerprint !== getUfcdEmissionFingerprint(selectedLesson.assessmentOverview) ? <p role="status" className="mt-2 text-xs text-amber-200">
@@ -4268,7 +4269,7 @@ export default function DailyWorkspaceView({
                                             {lessonForm.nonRealizationReason === 'other' ? (
                                                 <label className="mt-3 block text-xs font-bold text-slate-200">
                                                     Qual foi o motivo? (facultativo)
-                                                    <textarea
+                                                    <AutoExpandingTextarea
                                                         value={lessonForm.nonRealizationDetails ?? ''}
                                                         onChange={event => updateLessonForm(
                                                             'nonRealizationDetails',
@@ -4316,7 +4317,7 @@ export default function DailyWorkspaceView({
                                             Atividade
                                             prevista
 
-                                            <textarea
+                                            <AutoExpandingTextarea
                                                 value={
                                                     lessonForm.plannedActivity
                                                 }
@@ -4343,7 +4344,7 @@ export default function DailyWorkspaceView({
                                             Nota privada
                                             do professor
 
-                                            <textarea
+                                            <AutoExpandingTextarea
                                                 value={
                                                     lessonForm.notes
                                                 }

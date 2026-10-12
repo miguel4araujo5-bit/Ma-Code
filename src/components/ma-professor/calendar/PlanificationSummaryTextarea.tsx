@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react'
+import AutoExpandingTextarea from './AutoExpandingTextarea'
 
 type Props = {
   value: string
@@ -39,7 +40,7 @@ export default function PlanificationSummaryTextarea({
 }: Props) {
   return (
     <div className={`overflow-hidden rounded-2xl border border-white/10 bg-slate-900/90 focus-within:border-cyan-300/50 focus-within:ring-4 focus-within:ring-cyan-300/10 ${containerClassName}`}>
-      <textarea
+      <AutoExpandingTextarea
         aria-label={ariaLabel}
         value={value}
         onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value)}
