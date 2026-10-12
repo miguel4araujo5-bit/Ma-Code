@@ -3432,7 +3432,7 @@ export default function DailyWorkspaceView({
                                         </div>
                                     </div>
 
-                                    <div className="flex shrink-0 flex-col p-3">
+                                    <div className="flex min-h-0 flex-1 flex-col p-3">
                                         <PlanificationSummaryTextarea
                                             ariaLabel="Sumário da aula"
                                             value={
@@ -3470,10 +3470,10 @@ export default function DailyWorkspaceView({
                                                 lessonForm.status ===
                                                     'cancelled'
                                             }
-                                            rows={20}
+                                            rows={5}
                                             placeholder="Escreva o sumário da aula…"
-                                            containerClassName="flex shrink-0 flex-col"
-                                            className="h-[32.5rem] flex-none resize-none"
+                                            containerClassName="flex min-h-36 flex-1 flex-col"
+                                            className="min-h-24 flex-1 resize-none"
                                         />
 
                                         {selectedLesson.assessmentOverview?.selectedModule?.lastEmissionFingerprint && selectedLesson.assessmentOverview.selectedModule.lastEmissionFingerprint !== getUfcdEmissionFingerprint(selectedLesson.assessmentOverview) ? <p role="status" className="mt-2 text-xs text-amber-200">
@@ -4334,9 +4334,9 @@ export default function DailyWorkspaceView({
                                                 disabled={
                                                     saving
                                                 }
-                                                rows={6}
+                                                rows={12}
                                                 placeholder="Atividade prevista para esta aula"
-                                                className={`${inputClassName} mt-1.5 resize-y`}
+                                                className={`${inputClassName} mt-1.5 h-72 resize-y`}
                                             />
                                         </label>
 
@@ -4359,9 +4359,9 @@ export default function DailyWorkspaceView({
                                                 disabled={
                                                     saving
                                                 }
-                                                rows={6}
+                                                rows={12}
                                                 placeholder="Observações que não fazem parte do sumário"
-                                                className={`${inputClassName} mt-1.5 resize-y`}
+                                                className={`${inputClassName} mt-1.5 h-72 resize-y`}
                                             />
                                         </label>
                                     </div>

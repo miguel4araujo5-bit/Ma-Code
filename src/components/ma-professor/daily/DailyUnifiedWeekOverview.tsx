@@ -1414,7 +1414,7 @@ export default function DailyUnifiedWeekOverview({
                   setEditorSuccess('')
                 }}
                 disabled={savingDuty}
-                rows={14}
+                rows={7}
                 autoFocus
                 className="mt-2 w-full resize-y rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-600 focus:border-violet-300/55 focus:ring-2 focus:ring-violet-300/10 disabled:opacity-50"
                 placeholder="Escreva o sumário desta ocorrência…"

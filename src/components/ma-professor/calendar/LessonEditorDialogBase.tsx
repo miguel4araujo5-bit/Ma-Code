@@ -1162,7 +1162,7 @@ export default function LessonEditorDialog({
                           }))
                         }
                         disabled={saving}
-                        rows={10}
+                        rows={5}
                         placeholder="Escreva o sumário que será registado no GIAE."
                         className={textAreaClassName}
                       />

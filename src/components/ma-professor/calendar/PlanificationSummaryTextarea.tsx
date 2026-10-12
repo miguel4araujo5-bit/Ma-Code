@@ -31,7 +31,7 @@ export default function PlanificationSummaryTextarea({
   suggestion,
   onChange,
   disabled,
-  rows = 10,
+  rows = 5,
   placeholder,
   className = '',
   containerClassName = '',

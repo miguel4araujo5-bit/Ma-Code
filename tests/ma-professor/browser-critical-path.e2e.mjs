@@ -940,13 +940,10 @@ try {
       const section=group.closest('section')
       const field=section.querySelector('textarea')
       const textarea=field.getBoundingClientRect()
-      const parent=field.parentElement.getBoundingClientRect()
-      return {left:rect.left,right:rect.right,bottom:rect.bottom,editorTop:textarea.top,editorBottom:textarea.bottom,editorHeight:textarea.height,parentBottom:parent.bottom,sectionBottom:section.getBoundingClientRect().bottom,expectedHeight:32.5*parseFloat(getComputedStyle(document.documentElement).fontSize),viewport:window.innerWidth}
+      return {left:rect.left,right:rect.right,bottom:rect.bottom,editorTop:textarea.top,viewport:window.innerWidth}
     })
     assert.ok(geometry.left>=0 && geometry.right<=geometry.viewport, 'All planification controls must fit at mobile and desktop widths')
     assert.ok(geometry.bottom<=geometry.editorTop, 'Planification must remain above the summary')
-    assert.ok(Math.abs(geometry.editorHeight-geometry.expectedHeight)<=1, 'The summary must retain its fixed enlarged height')
-    assert.ok(geometry.editorBottom<=geometry.parentBottom+1 && geometry.editorBottom<=geometry.sectionBottom+1, 'The enlarged summary must not be clipped by its parent panels')
     const lessonHeader = editor.section.locator('xpath=ancestor::article[1]').locator('header').first()
     const blockButton = lessonHeader.getByRole('button',{name:'Bloquear Aula',exact:true})
     const optionsButton = lessonHeader.getByRole('button',{name:'Mais opções',exact:true})
@@ -956,6 +953,17 @@ try {
     assert.ok(blockBounds && optionsBounds && blockBounds.y + blockBounds.height <= optionsBounds.y, 'Block lesson must be above More options')
     assert.ok(blockBounds.x >= 0 && blockBounds.x + blockBounds.width <= viewport.width, 'Block lesson must fit on mobile and desktop')
     assert.equal(await editor.section.getByRole('button',{name:'Bloquear Aula',exact:true}).count(),0)
+    await optionsButton.click()
+    for (const placeholder of ['Atividade prevista para esta aula','Observações que não fazem parte do sumário']) {
+      const field=page.getByPlaceholder(placeholder,{exact:true})
+      const size=await field.evaluate(node=>{
+        const rect=node.getBoundingClientRect()
+        return {height:rect.height,expected:18*parseFloat(getComputedStyle(document.documentElement).fontSize),left:rect.left,right:rect.right,viewport:innerWidth}
+      })
+      assert.ok(Math.abs(size.height-size.expected)<=1, `${placeholder}: the less frequent field must have its enlarged fixed height`)
+      assert.ok(size.left>=0 && size.right<=size.viewport, 'Activity and private note must fit at desktop and mobile widths')
+    }
+    await lessonHeader.getByRole('button', {name:'Fechar opções',exact:true}).click()
   }
   await editor.textarea.fill(SUMMARY)
   await editor.section.getByRole('button', {
