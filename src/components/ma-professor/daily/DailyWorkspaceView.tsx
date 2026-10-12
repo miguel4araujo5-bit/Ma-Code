@@ -3429,7 +3429,7 @@ export default function DailyWorkspaceView({
                                         </div>
                                     </div>
 
-                                    <div className="flex min-h-0 flex-1 flex-col p-3">
+                                    <div className="flex shrink-0 flex-col p-3">
                                         <PlanificationSummaryTextarea
                                             ariaLabel="Sumário da aula"
                                             value={
@@ -3467,10 +3467,10 @@ export default function DailyWorkspaceView({
                                                 lessonForm.status ===
                                                     'cancelled'
                                             }
-                                            rows={10}
+                                            rows={20}
                                             placeholder="Escreva o sumário da aula…"
-                                            containerClassName="flex min-h-72 flex-1 flex-col"
-                                            className="min-h-48 flex-1 resize-none"
+                                            containerClassName="flex shrink-0 flex-col"
+                                            className="h-[32.5rem] flex-none resize-none"
                                         />
 
                                         {selectedLesson.assessmentOverview?.selectedModule?.lastEmissionFingerprint && selectedLesson.assessmentOverview.selectedModule.lastEmissionFingerprint !== getUfcdEmissionFingerprint(selectedLesson.assessmentOverview) ? <p role="status" className="mt-2 text-xs text-amber-200">

@@ -937,11 +937,16 @@ try {
     await page.setViewportSize(viewport)
     const geometry = await planificationControls.evaluate(group => {
       const rect=group.getBoundingClientRect()
-      const textarea=group.closest('section').querySelector('textarea').getBoundingClientRect()
-      return {left:rect.left,right:rect.right,bottom:rect.bottom,editorTop:textarea.top,viewport:window.innerWidth}
+      const section=group.closest('section')
+      const field=section.querySelector('textarea')
+      const textarea=field.getBoundingClientRect()
+      const parent=field.parentElement.getBoundingClientRect()
+      return {left:rect.left,right:rect.right,bottom:rect.bottom,editorTop:textarea.top,editorBottom:textarea.bottom,editorHeight:textarea.height,parentBottom:parent.bottom,sectionBottom:section.getBoundingClientRect().bottom,expectedHeight:32.5*parseFloat(getComputedStyle(document.documentElement).fontSize),viewport:window.innerWidth}
     })
     assert.ok(geometry.left>=0 && geometry.right<=geometry.viewport, 'All planification controls must fit at mobile and desktop widths')
     assert.ok(geometry.bottom<=geometry.editorTop, 'Planification must remain above the summary')
+    assert.ok(Math.abs(geometry.editorHeight-geometry.expectedHeight)<=1, 'The summary must retain its fixed enlarged height')
+    assert.ok(geometry.editorBottom<=geometry.parentBottom+1 && geometry.editorBottom<=geometry.sectionBottom+1, 'The enlarged summary must not be clipped by its parent panels')
     assert.equal(await editor.section.getByRole('button',{name:'Aula não realizada',exact:true}).isVisible(),true)
   }
   await editor.textarea.fill(SUMMARY)
