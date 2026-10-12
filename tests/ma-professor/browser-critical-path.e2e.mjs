@@ -903,12 +903,52 @@ try {
     await maProfessorDb.planificationItems.bulkAdd([1,2,3].map(n => ({id:`e2e-daily-item-${n}`,planificationId:'e2e-daily-planification',order:n,content:`Conteúdo E2E ${n}`,activity:`Atividade E2E ${n}`,objectives:'',suggestedSummary:`Sugestão E2E ${n}`,status:'planned',usedLessonId:null,usedAt:null,...audit})))
     return lesson.id
   })
-  await page.reload({waitUntil:'domcontentloaded'})
+  // Refresh the lesson context without clearing the OPAQUE key held only in memory.
+  const dailyDate = page.locator('input[type="date"]').first()
+  await dailyDate.fill('2026-09-22')
+  await page.waitForFunction(() => {
+    const input = document.querySelector('input[type="date"]')
+    return input?.value === '2026-09-22' && !input.disabled
+  })
+  await dailyDate.fill('2026-09-21')
   const editor = await summaryEditor(page)
   const planificationControls = editor.section.getByRole('group', {name:'Planificação do sumário'})
   const ghost = editor.textarea.locator('..').locator('[aria-hidden="true"]')
   await ghost.filter({hasText:'Sugestão E2E 1'}).waitFor({state:'visible'})
   assert.equal(await editor.textarea.inputValue(), '')
+
+  // Long summaries and the less frequent fields must be readable without manual resizing.
+  const longText = Array.from({length:14}, (_, index) => `${index + 1}. Preparação da atividade e registo das observações da aula.`).join('\n')
+  for (const width of [1280,390]) {
+    await page.setViewportSize({width,height:844})
+    const minimumHeight = await editor.textarea.evaluate(node => node.clientHeight)
+    await editor.textarea.fill(longText)
+    await page.waitForFunction(node => node.scrollHeight <= node.clientHeight + 1, await editor.textarea.elementHandle())
+    assert.ok(await editor.textarea.evaluate(node => node.clientHeight) > minimumHeight, 'The summary must grow with its text')
+    await page.setViewportSize({width:width === 1280 ? 390 : 1280,height:844})
+    await page.waitForFunction(node => node.scrollHeight <= node.clientHeight + 1, await editor.textarea.elementHandle())
+    await page.setViewportSize({width,height:844})
+    await page.waitForFunction(node => node.scrollHeight <= node.clientHeight + 1, await editor.textarea.elementHandle())
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+    await editor.textarea.fill('')
+    assert.ok(Math.abs(await editor.textarea.evaluate(node => node.clientHeight) - minimumHeight) <= 1, 'Clearing the summary must restore its minimum height')
+
+    await page.getByRole('button', {name:'Mais opções',exact:true}).click()
+    for (const placeholder of ['Atividade prevista para esta aula','Observações que não fazem parte do sumário']) {
+      const field = page.getByPlaceholder(placeholder, {exact:true})
+      const emptyHeight = await field.evaluate(node => node.clientHeight)
+      await field.fill(longText)
+      await page.getByRole('button', {name:'Fechar opções',exact:true}).click()
+      await page.getByRole('button', {name:'Mais opções',exact:true}).click()
+      await page.waitForFunction(node => node.scrollHeight <= node.clientHeight + 1, await field.elementHandle())
+      assert.ok(await field.evaluate(node => node.clientHeight) > emptyHeight, 'Reopening less frequent options must fit existing text')
+      assert.equal(await field.inputValue(), longText)
+      await field.fill('')
+    }
+    await page.getByRole('button', {name:'Fechar opções',exact:true}).click()
+  }
+  console.log('MA-Professor automatic textarea expansion: desktop and mobile OK')
+
   await planificationControls.getByRole('button', {name:'Item seguinte da planificação',exact:true}).click()
   assert.equal(await ghost.textContent(), 'Sugestão E2E 2')
   assert.equal(await editor.textarea.inputValue(), '')

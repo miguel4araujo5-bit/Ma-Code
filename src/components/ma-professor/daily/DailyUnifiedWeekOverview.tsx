@@ -20,6 +20,7 @@ import {
   type DutyEventDetails
 } from '../calendar/dutyEvent'
 import { copyTextToClipboard } from './copyTextToClipboard'
+import AutoExpandingTextarea from '../calendar/AutoExpandingTextarea'
 import {
   useMAProfessorUnsavedWorkspaceProtection
 } from '../navigation/useUnsavedWorkspaceProtection'
@@ -1405,7 +1406,7 @@ export default function DailyUnifiedWeekOverview({
             <label className="mt-6 block text-xs font-black uppercase tracking-[0.12em] text-slate-400">
               Sumário
 
-              <textarea
+              <AutoExpandingTextarea
                 value={summary}
                 onChange={event => {
                   setSummary(
