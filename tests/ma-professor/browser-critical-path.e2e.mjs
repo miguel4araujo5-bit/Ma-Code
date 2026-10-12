@@ -903,7 +903,14 @@ try {
     await maProfessorDb.planificationItems.bulkAdd([1,2,3].map(n => ({id:`e2e-daily-item-${n}`,planificationId:'e2e-daily-planification',order:n,content:`Conteúdo E2E ${n}`,activity:`Atividade E2E ${n}`,objectives:'',suggestedSummary:`Sugestão E2E ${n}`,status:'planned',usedLessonId:null,usedAt:null,...audit})))
     return lesson.id
   })
-  await page.reload({waitUntil:'domcontentloaded'})
+  // Refresh the lesson context without clearing the OPAQUE key held only in memory.
+  const dailyDate = page.locator('input[type="date"]').first()
+  await dailyDate.fill('2026-09-22')
+  await page.waitForFunction(() => {
+    const input = document.querySelector('input[type="date"]')
+    return input?.value === '2026-09-22' && !input.disabled
+  })
+  await dailyDate.fill('2026-09-21')
   const editor = await summaryEditor(page)
   const planificationControls = editor.section.getByRole('group', {name:'Planificação do sumário'})
   const ghost = editor.textarea.locator('..').locator('[aria-hidden="true"]')
@@ -918,6 +925,10 @@ try {
     await editor.textarea.fill(longText)
     await page.waitForFunction(node => node.scrollHeight <= node.clientHeight + 1, await editor.textarea.elementHandle())
     assert.ok(await editor.textarea.evaluate(node => node.clientHeight) > minimumHeight, 'The summary must grow with its text')
+    await page.setViewportSize({width:width === 1280 ? 390 : 1280,height:844})
+    await page.waitForFunction(node => node.scrollHeight <= node.clientHeight + 1, await editor.textarea.elementHandle())
+    await page.setViewportSize({width,height:844})
+    await page.waitForFunction(node => node.scrollHeight <= node.clientHeight + 1, await editor.textarea.elementHandle())
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
     await editor.textarea.fill('')
     assert.ok(Math.abs(await editor.textarea.evaluate(node => node.clientHeight) - minimumHeight) <= 1, 'Clearing the summary must restore its minimum height')
