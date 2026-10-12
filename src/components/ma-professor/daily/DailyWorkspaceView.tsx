@@ -2666,8 +2666,8 @@ export default function DailyWorkspaceView({
                 throw new Error('O estado foi guardado, mas não foi possível atualizar a vista. Reabra a aula para confirmar.');
             }
             setSuccess(markNotHeld
-                ? 'Aula não realizada registada. Este tempo não conta para o progresso.'
-                : 'Aula reposta como planeada. A previsão será recalculada.');
+                ? 'Aula bloqueada. Este tempo não conta para o progresso.'
+                : 'Aula desbloqueada. A previsão será recalculada.');
             await notifySaved();
         } catch (statusError) {
             setError(dailyWorkspaceRepository.describeError(statusError));
@@ -3164,24 +3164,37 @@ export default function DailyWorkspaceView({
                                     </p>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowAdvanced(
-                                            current =>
-                                                !current
-                                        )
-                                    }
-                                    className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-black transition ${
-                                        showAdvanced
-                                            ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
-                                            : 'border-white/10 bg-white/[0.04] text-slate-300 hover:border-cyan-300/30 hover:text-white'
-                                    }`}
-                                >
-                                    {showAdvanced
-                                        ? 'Fechar opções'
-                                        : 'Mais opções'}
-                                </button>
+                                <div className="flex shrink-0 flex-col gap-1.5 self-start sm:self-auto">
+                                    <button
+                                        type="button"
+                                        onClick={() => void toggleLessonNotHeld()}
+                                        disabled={saving || loading}
+                                        className={`rounded-lg border px-3 py-1.5 text-xs font-black transition disabled:opacity-40 ${lessonForm.status === 'cancelled'
+                                            ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-100'
+                                            : 'border-rose-300/15 bg-rose-300/[0.03] text-rose-200/75 hover:bg-rose-300/10'}`}
+                                    >
+                                        {lessonForm.status === 'cancelled' ? 'Desbloquear Aula' : 'Bloquear Aula'}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowAdvanced(
+                                                current =>
+                                                    !current
+                                            )
+                                        }
+                                        className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-black transition ${
+                                            showAdvanced
+                                                ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
+                                                : 'border-white/10 bg-white/[0.04] text-slate-300 hover:border-cyan-300/30 hover:text-white'
+                                        }`}
+                                    >
+                                        {showAdvanced
+                                            ? 'Fechar opções'
+                                            : 'Mais opções'}
+                                    </button>
+                                </div>
                             </div>
                         </header>
 
@@ -3189,8 +3202,8 @@ export default function DailyWorkspaceView({
                             {lessonForm.status ===
                             'cancelled' ? (
                                 <div className="mb-3 rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-2.5 text-sm font-bold text-rose-100">
-                                    Aula não realizada. Este tempo não conta para o progresso.
-                                    Pode indicar o motivo facultativo em “Mais opções” ou voltar a marcar como planeada.
+                                    Aula bloqueada. Este tempo não conta para o progresso.
+                                    Pode indicar o motivo facultativo em “Mais opções” ou escolher “Desbloquear Aula” para anular o bloqueio.
                                 </div>
                             ) : null}
 
@@ -3326,16 +3339,6 @@ export default function DailyWorkspaceView({
                                         </div>
 
                                         <div className="flex flex-wrap gap-1.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => void toggleLessonNotHeld()}
-                                                disabled={saving || loading}
-                                                className={`rounded-lg border px-2 py-1 text-[0.6rem] font-bold transition disabled:opacity-40 ${lessonForm.status === 'cancelled'
-                                                    ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-100'
-                                                    : 'border-rose-300/15 bg-rose-300/[0.03] text-rose-200/75 hover:bg-rose-300/10'}`}
-                                            >
-                                                {lessonForm.status === 'cancelled' ? 'Voltar a planeada' : 'Aula não realizada'}
-                                            </button>
                                             {hasWeeklySummaryReminder ? (
                                                 <button
                                                     type="button"

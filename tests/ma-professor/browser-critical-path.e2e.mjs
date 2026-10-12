@@ -947,7 +947,15 @@ try {
     assert.ok(geometry.bottom<=geometry.editorTop, 'Planification must remain above the summary')
     assert.ok(Math.abs(geometry.editorHeight-geometry.expectedHeight)<=1, 'The summary must retain its fixed enlarged height')
     assert.ok(geometry.editorBottom<=geometry.parentBottom+1 && geometry.editorBottom<=geometry.sectionBottom+1, 'The enlarged summary must not be clipped by its parent panels')
-    assert.equal(await editor.section.getByRole('button',{name:'Aula não realizada',exact:true}).isVisible(),true)
+    const lessonHeader = editor.section.locator('xpath=ancestor::article[1]').locator('header').first()
+    const blockButton = lessonHeader.getByRole('button',{name:'Bloquear Aula',exact:true})
+    const optionsButton = lessonHeader.getByRole('button',{name:'Mais opções',exact:true})
+    assert.equal(await blockButton.isVisible(),true)
+    const blockBounds = await blockButton.boundingBox()
+    const optionsBounds = await optionsButton.boundingBox()
+    assert.ok(blockBounds && optionsBounds && blockBounds.y + blockBounds.height <= optionsBounds.y, 'Block lesson must be above More options')
+    assert.ok(blockBounds.x >= 0 && blockBounds.x + blockBounds.width <= viewport.width, 'Block lesson must fit on mobile and desktop')
+    assert.equal(await editor.section.getByRole('button',{name:'Bloquear Aula',exact:true}).count(),0)
   }
   await editor.textarea.fill(SUMMARY)
   await editor.section.getByRole('button', {
@@ -969,6 +977,43 @@ try {
   }, planificationLessonId)
   assert.deepEqual(planificationSaved.lesson.planificationItemIds,['e2e-daily-item-1','e2e-daily-item-2'])
   assert.deepEqual(planificationSaved.items.map(item=>[item.status,item.usedLessonId]),[['used',planificationLessonId],['used',planificationLessonId],['planned',null]])
+
+  // Blocking is reversible after reopening and preserves the saved lesson and related records.
+  const readBlockSnapshot = () => page.evaluate(async lessonId => {
+    const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
+    return {
+      lesson: await maProfessorDb.lessons.get(lessonId),
+      attendance: await maProfessorDb.lessonAttendance.where('lessonId').equals(lessonId).toArray(),
+      assessments: await maProfessorDb.lessonAssessments.where('lessonId').equals(lessonId).toArray(),
+      items: await maProfessorDb.planificationItems.where('planificationId').equals('e2e-daily-planification').sortBy('order')
+    }
+  }, planificationLessonId)
+  const beforeBlock = await readBlockSnapshot()
+  await page.getByRole('button',{name:'Bloquear Aula',exact:true}).click()
+  await waitText(page, 'Aula bloqueada. Este tempo não conta para o progresso.')
+  const blocked = await readBlockSnapshot()
+  assert.equal(blocked.lesson.id, beforeBlock.lesson.id)
+  assert.equal(blocked.lesson.status, 'cancelled')
+  assert.equal(blocked.lesson.countTowardProgress, false)
+  assert.equal(blocked.lesson.summary, SUMMARY)
+  assert.deepEqual(blocked.attendance, beforeBlock.attendance)
+  assert.deepEqual(blocked.assessments, beforeBlock.assessments)
+  await dailyDate.fill('2026-09-22')
+  await page.waitForFunction(() => {
+    const input = document.querySelector('input[type="date"]')
+    return input?.value === '2026-09-22' && !input.disabled
+  })
+  await dailyDate.fill('2026-09-21')
+  await page.getByRole('button',{name:'Desbloquear Aula',exact:true}).click()
+  await waitText(page, 'Aula desbloqueada. A previsão será recalculada.')
+  const afterUnblock = await readBlockSnapshot()
+  assert.deepEqual({...afterUnblock.lesson,updatedAt:beforeBlock.lesson.updatedAt},beforeBlock.lesson)
+  assert.deepEqual(afterUnblock.attendance,beforeBlock.attendance)
+  assert.deepEqual(afterUnblock.assessments,beforeBlock.assessments)
+  assert.deepEqual(afterUnblock.items.map(item=>[item.id,item.status,item.usedLessonId]),beforeBlock.items.map(item=>[item.id,item.status,item.usedLessonId]))
+  const restoredLesson = await persistedLesson(page)
+  assert.equal(restoredLesson.matchCount, 1)
+  assert.equal(restoredLesson.duplicates, 1)
 
   // A real new account has no D1 profile. Its first backup must be born v3.
   const protectedCopy = await page.evaluate(async () => {

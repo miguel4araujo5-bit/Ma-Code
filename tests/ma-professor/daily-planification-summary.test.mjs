@@ -156,7 +156,7 @@ test('a cancelled lesson keeps the non-realization control visible and disables 
   assert.equal(ui.ghost(),'')
   assert.equal(ui.editor().disabled,true)
   assert.equal(ui.add().disabled,true)
-  assert.ok([...document.querySelectorAll('button')].some(b=>b.textContent==='Voltar a planeada'))
+  assert.ok([...document.querySelectorAll('button')].some(b=>b.textContent==='Desbloquear Aula'))
 })
 
 test('a late response from a previous lesson cannot show or insert an item from another module',async t=>{
