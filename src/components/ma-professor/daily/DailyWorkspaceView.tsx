@@ -3471,7 +3471,7 @@ export default function DailyWorkspaceView({
                                             rows={5}
                                             placeholder="Escreva o sumário da aula…"
                                             containerClassName="flex min-h-36 flex-1 flex-col"
-                                            className="min-h-24 shrink-0 resize-none"
+                                            className="min-h-24 grow shrink-0 resize-none"
                                         />
 
                                         {selectedLesson.assessmentOverview?.selectedModule?.lastEmissionFingerprint && selectedLesson.assessmentOverview.selectedModule.lastEmissionFingerprint !== getUfcdEmissionFingerprint(selectedLesson.assessmentOverview) ? <p role="status" className="mt-2 text-xs text-amber-200">
