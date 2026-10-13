@@ -90,7 +90,13 @@ export class SessionHistory {
       source.pop()
       target.push(operation)
       if (target.length > this.limit) target.shift()
-      operation.navigate?.()
+      // A navegação é auxiliar: uma falha visual não pode desfazer uma
+      // operação que já foi confirmada na base de dados.
+      try {
+        operation.navigate?.()
+      } catch {
+        // A interface poderá ser atualizada manualmente.
+      }
       return true
     } finally {
       this.busy = false
