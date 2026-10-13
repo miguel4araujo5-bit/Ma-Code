@@ -2768,12 +2768,13 @@ export default function DailyWorkspaceView({
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== 'z') return;
+            if (!(event.metaKey || event.ctrlKey) || event.altKey || !['z', 'y'].includes(event.key.toLowerCase())) return;
             const target = event.target;
             if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
-            if (event.shiftKey ? !historyState.canRedo : !historyState.canUndo) return;
+            const redo = event.key.toLowerCase() === 'y' || event.shiftKey;
+            if (redo ? !historyState.canRedo : !historyState.canUndo) return;
             event.preventDefault();
-            void applyHistory(event.shiftKey ? 'redo' : 'undo');
+            void applyHistory(redo ? 'redo' : 'undo');
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
