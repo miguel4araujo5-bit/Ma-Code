@@ -64,11 +64,28 @@ export async function captureDailySave(
   lessonId?: string
 ): Promise<boolean> {
   if (!lessonId) throw new Error('É necessário identificar a aula para registar o histórico.')
-  const before = await snapshot(lessonId)
+  // Uma falha do histórico nunca deve impedir a gravação normal da aula.
+  let before: Snapshot | null = null
+  try {
+    before = await snapshot(lessonId)
+  } catch (error) {
+    console.warn('Histórico indisponível antes da gravação:', error)
+  }
   const saved = await save()
   if (!saved) return false
-  const after = await snapshot(lessonId)
-  const changes = diff(before, after)
+  if (!before) {
+    maProfessorHistory.clear()
+    return true
+  }
+  let changes: Change[]
+  try {
+    const after = await snapshot(lessonId)
+    changes = diff(before, after)
+  } catch (error) {
+    console.warn('Gravação concluída, mas histórico indisponível:', error)
+    maProfessorHistory.clear()
+    return true
+  }
   if (!changes.length) return true
 
   let expected: 'before' | 'after' = 'after'
