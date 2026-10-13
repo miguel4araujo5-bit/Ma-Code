@@ -1957,7 +1957,7 @@ export default function DailyWorkspaceView({
             return await captureDailySave(
                 'Gravação da aula',
                 () => persistDailySave(options),
-                () => { void loadDate(date, lessonId); },
+                undefined,
                 lessonId
             );
         } catch (historyError) {
