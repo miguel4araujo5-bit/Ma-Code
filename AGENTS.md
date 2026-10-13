@@ -1,6 +1,6 @@
 # MA-CODE — Universal Agent Router (Fast Lane V2)
 
-Este ficheiro é a única leitura obrigatória para uma conversa MA-CODE que tenha sido explicitamente ativada como trabalho de agente.
+Este ficheiro orienta as tarefas no repositório. A execução contínua e a conclusão verificável seguem também `docs/MA-CODE_WORKFLOW.md`. O pedido concreto do utilizador determina a autorização; não exigir a expressão «trabalho de agente» para executar uma tarefa claramente autorizada.
 
 ## Estado operacional do MA-Professor — desde 2026-10-06
 
@@ -15,9 +15,9 @@ Estas instruções aplicam-se a todas as tarefas do MA-Professor, mesmo sem ativ
 
 ## 0. Ativação explícita
 
-Não ativar modo agente apenas por estar dentro do projeto MA-CODE.
+A presença no projeto não autoriza alterações por si só. Um pedido explícito de implementação/correção autoriza executar essa tarefa até ao estado terminal, sem exigir uma fórmula de ativação. A expressão abaixo é opcional.
 
-Ativar apenas quando o utilizador disser explicitamente no início da conversa:
+O utilizador também pode optar por anunciar:
 
 > Quero que esta conversa seja trabalho de agente.
 
@@ -53,17 +53,17 @@ Fluxo: `ler main atual → corrigir mínimo → teste dirigido quando existir �
 
 Não criar PR nem pedir autorização por hábito.
 
-### AMARELO — branch curta
+### AMARELO — alteração funcional controlada
 Usar para parser/importadores, resolução de destinos, persistência local, regras de negócio relevantes, alterações transversais ou regressões silenciosas plausíveis.
 
-Fluxo: `main atual → branch curta → alteração mínima → testes dirigidos → PR → merge quando verde e atualizado`.
+Fluxo normal: `main atual → alteração mínima → testes dirigidos → integração verificada`. Usar branch/PR apenas quando houver necessidade técnica concreta ou pedido do utilizador.
 
 Não deixar PR em draft depois de pronto nem esperar nova autorização para merge normal já validado.
 
-### VERMELHO — circuito protegido
+### VERMELHO — circuito crítico
 Obrigatório para `.github/workflows/**`, Worker, D1, Durable Objects, bindings, wrangler, migrations, auth, sync, snapshots, backups, restauro, cifragem, alterações destrutivas, custos ou recursos partilhados.
 
-Fluxo: `auditoria de impacto → branch protegida → testes dirigidos + completos → PR → revisão → integração`.
+Fluxo: `auditoria de impacto → gates de segurança/custo → alteração mínima → validação aprofundada → integração controlada`. Usar branch/PR quando tecnicamente necessário; não substituir gates por formalidades.
 
 Nunca ativar recursos pagos, migrations destrutivas ou operações irreversíveis sem autorização explícita.
 
@@ -127,3 +127,12 @@ Ler apenas quando houver ambiguidade, conflito entre agentes, tarefa VERMELHA ou
 - `AGENT_WORKSTREAMS.md`
 
 Objetivo: começar a trabalhar após uma única leitura deste `AGENTS.md`, evitando chamadas de preparação desnecessárias.
+
+## 8. Conclusão e retoma — regra obrigatória
+
+- Após cada operação, determinar o próximo passo executável. Não encerrar uma tarefa porque uma ferramenta terminou, foi enviado um aviso ou existe um check em curso.
+- Estados: `EM_EXECUÇÃO`, `EM_VERIFICAÇÃO`, `BLOQUEADA`, `INTERROMPIDA`, `CONCLUÍDA`. Só `CONCLUÍDA` permite declarar sucesso. `BLOQUEADA` exige impedimento concreto; `INTERROMPIDA` exige ponto de retoma.
+- Para uma alteração destinada a produção, `CONCLUÍDA` exige comportamento validado, integração na `main` e publicação confirmada quando aplicável. Nunca equiparar commit, build e deploy.
+- Se houver falha, identificar a causa, tentar recuperação segura sem repetir métodos já bloqueados, e avançar com trabalho independente autorizado. Não ultrapassar gates nem executar ações irreversíveis sem autorização.
+- Antes de terminar uma resposta, verificar: «Há trabalho autorizado e executável por fazer?» Se sim, continuar. Atualizações intermédias não são pedidos de autorização nem encerram a tarefa.
+- Quando a plataforma interromper a execução, registar estado, evidência, bloqueio e próximo passo. Um documento não garante execução autónoma fora da sessão.
