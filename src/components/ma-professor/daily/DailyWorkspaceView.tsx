@@ -2744,6 +2744,10 @@ export default function DailyWorkspaceView({
         }
     }
 
+    useEffect(() => {
+        maProfessorHistory.setScope(accountEmail + ':' + academicYearId);
+    }, [accountEmail, academicYearId]);
+
     const [historyState, setHistoryState] = useState<HistoryState>(() => maProfessorHistory.getState());
 
     useEffect(() => maProfessorHistory.subscribe(() => {
