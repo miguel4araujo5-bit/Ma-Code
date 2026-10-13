@@ -112,11 +112,18 @@ export async function captureDailySave(
     expected = target
   }
 
-  maProfessorHistory.record({
-    label,
-    undo: () => apply('undo'),
-    redo: () => apply('redo'),
-    navigate
-  })
+  try {
+    maProfessorHistory.record({
+      label,
+      undo: () => apply('undo'),
+      redo: () => apply('redo'),
+      navigate
+    })
+  } catch (error) {
+    // A aula já foi gravada. Nunca transformar um erro do histórico
+    // num falso erro de gravação, nem manter ações antigas inseguras.
+    console.warn('Gravação concluída, mas não foi possível registar o histórico:', error)
+    try { maProfessorHistory.clear() } catch { /* reversão em curso */ }
+  }
   return true
 }
