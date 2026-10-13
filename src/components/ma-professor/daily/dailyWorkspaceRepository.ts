@@ -28,6 +28,9 @@ import {
   lessonRepository
 } from '../lessons/lessonRepository'
 
+import { runWithDatabaseHistory } from '../history/databaseHistory'
+import { dailyCriteriaGridRepository, type DailyCriteriaGridSaveInput } from './dailyCriteriaGridRepository'
+
 import {
   resolveLessonStatusForDate
 } from '../lessons/lessonTemporalSafety'
@@ -968,6 +971,32 @@ export class DailyWorkspaceRepository {
   }
 
   async saveLesson(
+    input: DailyLessonSaveDraft,
+    grid?: Omit<DailyCriteriaGridSaveInput, 'lesson'>
+  ): Promise<{ lesson: Lesson; assessmentId: EntityId | null }> {
+    const lesson = await lessonRepository.getLesson(input.lessonId)
+    if (!lesson) throw new Error('A aula indicada não existe.')
+    try {
+      return await runWithDatabaseHistory('Guardar aula', {
+        workspace: 'daily', academicYearId: lesson.academicYearId,
+        lessonId: lesson.id, date: lesson.date
+      }, async () => {
+        const result = await this.saveLessonRecords(input)
+        if (grid) {
+          await dailyCriteriaGridRepository.saveLessonGrid({ ...grid, lesson: result.lesson })
+          await this.getLessonWorkspace(lesson.academicYearId, lesson.id, result.assessmentId)
+        }
+        return result
+      })
+    } catch (error) {
+      // Uma falha na grelha reverte também a aula e as faltas na transação exterior.
+      this.loadedLessonVersions.delete(input.lessonId)
+      this.loadedRelatedRecordVersions.delete(input.lessonId)
+      throw error
+    }
+  }
+
+  private async saveLessonRecords(
     input:
       DailyLessonSaveDraft
   ): Promise<{

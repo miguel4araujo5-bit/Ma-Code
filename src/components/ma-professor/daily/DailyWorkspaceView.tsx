@@ -1,5 +1,5 @@
+import { HISTORY_NAVIGATE_EVENT, type HistoryLocation } from '../history/databaseHistory';
 import { maProfessorHistory, type HistoryState } from '../history/sessionHistory';
-import { captureDailySave } from '../history/dailySaveHistory';
 import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfiles';
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
@@ -1950,23 +1950,7 @@ export default function DailyWorkspaceView({
         }
     }
 
-    async function saveAll(options: SaveOptions = {}): Promise<boolean> {
-        if (!selectedLesson || !lessonForm || savingRef.current) return false;
-        const lessonId = selectedLesson.context.lessonRow.lesson.id;
-        try {
-            return await captureDailySave(
-                'Gravação da aula',
-                () => persistDailySave(options),
-                undefined,
-                lessonId
-            );
-        } catch (historyError) {
-            setError(historyError instanceof Error ? historyError.message : 'Não foi possível guardar o histórico da aula.');
-            return false;
-        }
-    }
-
-    async function persistDailySave(
+    async function saveAll(
         options: SaveOptions = {}
     ): Promise<boolean> {
         const {
@@ -2133,46 +2117,22 @@ export default function DailyWorkspaceView({
                             activityType: 'other',
                             description: ''
                         }
-                    }
+                    },
+                    assessmentEnabled && effectiveStatus !== 'cancelled' && criteria.length > 0
+                        ? {
+                            summary: lessonForm.summary,
+                            activity: assessmentForm.description,
+                            rows: students.map(row => ({
+                                studentId: row.student.id,
+                                expectedAssessmentResetAt: row.student.assessmentResetAtByModule?.[selectedLesson.context.lessonRow.lesson.moduleId] ?? '',
+                                attendanceStatus: row.attendanceStatus,
+                                scores: { ...row.criterionScores }
+                            }))
+                        }
+                        : undefined
                 );
 
             lessonPersisted = true;
-
-            if (
-                assessmentEnabled &&
-                effectiveStatus !==
-                    'cancelled' &&
-                criteria.length > 0
-            ) {
-                await dailyCriteriaGridRepository.saveLessonGrid(
-                    {
-                        lesson:
-                            result.lesson,
-                        summary:
-                            lessonForm.summary,
-                        activity:
-                            assessmentForm.description,
-                        rows:
-                            students.map(
-                                row => ({
-                                    studentId:
-                                        row.student.id,
-                                    expectedAssessmentResetAt: row.student.assessmentResetAtByModule?.[result.lesson.moduleId] ?? '',
-                                    attendanceStatus:
-                                        row.attendanceStatus,
-                                    scores: {
-                                        ...row.criterionScores
-                                    }
-                                })
-                            )
-                    }
-                );
-
-                await dailyWorkspaceRepository.getLessonWorkspace(
-                    academicYearId,
-                    lessonId
-                );
-            }
 
             const persistedStudents =
                 students.map(
@@ -2761,15 +2721,26 @@ export default function DailyWorkspaceView({
         }
     }
 
-    useEffect(() => {
-        maProfessorHistory.setScope(accountEmail + ':' + academicYearId);
-    }, [accountEmail, academicYearId]);
-
     const [historyState, setHistoryState] = useState<HistoryState>(() => maProfessorHistory.getState());
 
-    useEffect(() => maProfessorHistory.subscribe(() => {
+    useEffect(() => {
+        const unsubscribe = maProfessorHistory.subscribe(() => {
+            setHistoryState(maProfessorHistory.getState());
+        });
+        maProfessorHistory.setScope(accountEmail + ':' + academicYearId);
         setHistoryState(maProfessorHistory.getState());
-    }), []);
+        return unsubscribe;
+    }, [accountEmail, academicYearId]);
+
+    useEffect(() => {
+        const navigateHistory = (event: Event) => {
+            const location = (event as CustomEvent<HistoryLocation>).detail;
+            if (location?.workspace !== 'daily' || location.academicYearId !== academicYearId || !location.date) return;
+            void loadDate(location.date, location.lessonId);
+        };
+        window.addEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory);
+        return () => window.removeEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory);
+    }, [academicYearId, loadDate]);
 
     async function applyHistory(direction: 'undo' | 'redo') {
         if (savingRef.current || hasUnsavedChanges) {
@@ -2779,7 +2750,6 @@ export default function DailyWorkspaceView({
         try {
             const applied = await maProfessorHistory[direction]();
             if (applied) {
-                await loadDate(date, selectedLesson?.context.lessonRow.lesson.id);
                 setError('');
             }
         } catch (historyError) {

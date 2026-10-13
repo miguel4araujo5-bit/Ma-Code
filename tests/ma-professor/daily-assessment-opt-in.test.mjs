@@ -82,7 +82,7 @@ const runSave = compile(
   'const setError = value => { if (value) calls.errors.push(value) };\n' +
   'const setStudents = value => { calls.students = value };\n' +
   'const notifySaved = async () => {}, deleteMAProfessorDailyDraft = async () => {};\n' +
-  'const dailyWorkspaceRepository = { async saveLesson(input) { calls.lessons.push(input); return { lesson: { ...lesson, status: input.status } } }, async getLessonWorkspace() {}, describeError: error => error.message };\n' +
+  'const dailyWorkspaceRepository = { async saveLesson(input, grid) { calls.lessons.push(input); if (grid) calls.grids.push(grid); return { lesson: { ...lesson, status: input.status } } }, async getLessonWorkspace() {}, describeError: error => error.message };\n' +
   'const dailyCriteriaGridRepository = { async saveLessonGrid(input) { calls.grids.push(input) } };\n' +
   'const parseDailyCriterionScore = value => { const score = Number(value); if (!value.trim() || !Number.isFinite(score) || score < 0 || score > 20) throw new Error("Invalid score"); return score };\n' +
   functionSource('isDailyAssessmentEnabled') + '\n' +

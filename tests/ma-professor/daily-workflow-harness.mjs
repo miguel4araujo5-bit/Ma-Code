@@ -89,6 +89,8 @@ const source = await readFile(
 )
 
 const runtime = source
+  .replaceAll("'../history/databaseHistory'", `'${transpile("export async function runWithDatabaseHistory(_label,_location,action){return action()}")}'`)
+  .replaceAll("'./dailyCriteriaGridRepository'", `'${transpile("export const dailyCriteriaGridRepository={async saveLessonGrid(){throw Error('Grelha fora deste teste unitário.')}}")}'`)
   .replaceAll("'../assessments/assessmentRepository'", `'${assessmentUrl}'`)
   .replaceAll("'../assessments/assessmentWorkspaceRepository'", `'${assessmentWorkspaceUrl}'`)
   .replaceAll("'../attendance/attendanceRepository'", `'${attendanceUrl}'`)

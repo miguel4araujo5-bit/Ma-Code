@@ -30,7 +30,7 @@ const fixtures = {
     return structuredClone(f.items.filter(i=>i.moduleId===moduleId&&i.status==='planned'&&!i.usedLessonId));
   }}`,
   'dailyWorkspaceRepository.ts': `export const dailyWorkspaceRepository={
-    async getDateWorkspace(){return globalThis.__planificationUiFixture.workspace()},
+    async getDateWorkspace(year,date,lessonId){const f=globalThis.__planificationUiFixture;f.loads.push({year,date,lessonId});return f.workspace()},
     async saveLesson(input){const f=globalThis.__planificationUiFixture; f.saves.push(structuredClone(input));
       f.lesson={...f.lesson,...structuredClone(input),id:input.lessonId,updatedAt:'v'+(f.saves.length+1)};
       for(const item of f.items) if(input.planificationItemIds.includes(item.id)&&input.status==='taught') {item.status='used'; item.usedLessonId=input.lessonId}
@@ -39,7 +39,7 @@ const fixtures = {
   }`
 }
 const bundle = await build({
-  entryPoints: [join(project, 'src/components/ma-professor/daily/DailyWorkspaceView.tsx')],
+  stdin: {contents: "export {default} from './src/components/ma-professor/daily/DailyWorkspaceView.tsx'; export {maProfessorHistory} from './src/components/ma-professor/history/sessionHistory.ts'", resolveDir:project, loader:'ts'},
   jsx: 'automatic', platform: 'node', format: 'cjs', bundle: true,
   write: false, packages: 'external',
   plugins: [{name:'daily-services-fixture', setup(builder) {
@@ -51,10 +51,11 @@ const bundle = await build({
 })
 const modulePath = join(temporary, 'view.cjs')
 await writeFile(modulePath, bundle.outputFiles[0].text)
-const View = createRequire(import.meta.url)(modulePath).default
+const {default:View,maProfessorHistory:history} = createRequire(import.meta.url)(modulePath)
 test.after(() => rm(temporary, {recursive:true,force:true}))
 
 async function setup(t, changes={}) {
+  history.clear()
   const dom = new JSDOM('<div id="root"></div>', {url:'https://example.test'})
   const originals = new Map()
   for(const [key,value] of Object.entries({window:dom.window,document:dom.window.document,navigator:dom.window.navigator,HTMLElement:dom.window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})) {
@@ -62,7 +63,7 @@ async function setup(t, changes={}) {
     Object.defineProperty(globalThis,key,{configurable:true,writable:true,value})
   }
   const fixture = {
-    reads:[],saves:[],
+    reads:[],saves:[],loads:[],
     lesson:{id:'lesson-1',academicYearId:'year-1',teachingAssignmentId:'assignment-1',moduleId:'module-1',date:'2026-09-07',startTime:'09:00',endTime:'09:50',periodCount:1,status:'planned',countTowardProgress:true,summary:'Texto existente.',plannedActivity:'',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending',scheduleSlotId:null,updatedAt:'v1'},
     items:[1,2,3].map(n=>({id:'item-'+n,moduleId:'module-1',order:n,content:'Conteúdo '+n,activity:'Atividade '+n,suggestedSummary:'Sugestão '+n,status:'planned',usedLessonId:null})),
     ...changes
@@ -176,4 +177,43 @@ test('a late response from a previous lesson cannot show or insert an item from 
   await ui.click(ui.add())
   assert.equal(ui.editor().value,'Texto existente.\nSugestão da outra UFCD')
   assert.equal(ui.fixture.saves.length,0)
+})
+
+
+test('Desfazer and Ctrl+Y restore the saved lesson and navigate to its date, while editor shortcuts remain native', async t => {
+  const ui=await setup(t)
+  const target={workspace:'daily',academicYearId:'year-1',lessonId:'lesson-1',date:'2026-09-06'}
+  let reversals=0
+  await act(async()=>history.record({
+    label:'Guardar aula',
+    undo:async()=>{reversals++;ui.fixture.lesson.summary='Sumário anterior.';ui.fixture.lesson.date=target.date},
+    redo:async()=>{ui.fixture.lesson.summary='Texto existente.';ui.fixture.lesson.date=target.date},
+    navigate:()=>ui.dom.window.dispatchEvent(new ui.dom.window.CustomEvent('ma-professor-history-navigate',{detail:target}))
+  }))
+  const undo=()=>document.querySelector('button[aria-label="Desfazer"]')
+  const redo=()=>document.querySelector('button[aria-label="Refazer"]')
+  assert.equal(undo().disabled,false)
+  await ui.click(undo())
+  assert.equal(ui.editor().value,'Sumário anterior.')
+  assert.deepEqual(ui.fixture.loads.at(-1),{year:'year-1',date:target.date,lessonId:target.lessonId})
+  assert.equal(redo().disabled,false)
+  const native=new ui.dom.window.KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true})
+  await act(async()=>ui.editor().dispatchEvent(native))
+  assert.equal(native.defaultPrevented,false)
+  assert.equal(reversals,1)
+  await act(async()=>document.body.dispatchEvent(new ui.dom.window.KeyboardEvent('keydown',{key:'y',ctrlKey:true,bubbles:true,cancelable:true})))
+  assert.equal(ui.editor().value,'Texto existente.')
+  assert.equal(redo().disabled,true)
+})
+
+test('pending lesson edits are preserved when a history shortcut is pressed', async t => {
+  const ui=await setup(t)
+  let reversals=0
+  await act(async()=>history.record({label:'Guardar aula',undo:async()=>{reversals++},redo:async()=>{}}))
+  await ui.click(ui.add())
+  const draft=ui.editor().value
+  assert.equal(document.querySelector('button[aria-label="Desfazer"]').disabled,true)
+  await act(async()=>document.body.dispatchEvent(new ui.dom.window.KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true})))
+  assert.equal(reversals,0)
+  assert.equal(ui.editor().value,draft)
 })

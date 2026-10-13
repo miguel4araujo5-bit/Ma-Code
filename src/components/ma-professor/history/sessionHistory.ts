@@ -24,8 +24,10 @@ export class SessionHistory {
   private past: HistoryOperation[] = []
   private future: HistoryOperation[] = []
   private busy = false
+  private mutations = 0
   private listeners = new Set<() => void>()
   private scope: string | null = null
+  private revision = 0
 
   constructor(private readonly limit = 50) {
     if (!Number.isInteger(limit) || limit < 1) {
@@ -35,11 +37,11 @@ export class SessionHistory {
 
   getState(): HistoryState {
     return {
-      canUndo: !this.busy && this.past.length > 0,
-      canRedo: !this.busy && this.future.length > 0,
+      canUndo: !this.busy && !this.mutations && this.past.length > 0,
+      canRedo: !this.busy && !this.mutations && this.future.length > 0,
       undoLabel: this.past.at(-1)?.label ?? null,
       redoLabel: this.future.at(-1)?.label ?? null,
-      busy: this.busy
+      busy: this.busy || this.mutations > 0
     }
   }
 
@@ -49,7 +51,9 @@ export class SessionHistory {
   }
 
   private notify() {
-    for (const listener of this.listeners) listener()
+    for (const listener of this.listeners) {
+      try { listener() } catch { /* Um observador não pode interromper a persistência. */ }
+    }
   }
 
   /** Isola o histórico por conta e ano letivo, sem persistir dados pessoais. */
@@ -58,6 +62,23 @@ export class SessionHistory {
     if (this.scope === scope) return
     this.scope = scope
     this.clear()
+  }
+
+  beginMutation(): () => void {
+    if (this.busy) throw new Error('Aguarde pela conclusão de Desfazer ou Refazer.')
+    this.mutations++
+    this.notify()
+    let ended = false
+    return () => {
+      if (ended) return
+      ended = true
+      this.mutations--
+      this.notify()
+    }
+  }
+
+  getRevision(): number {
+    return this.revision
   }
 
   record(operation: HistoryOperation): void {
@@ -70,6 +91,7 @@ export class SessionHistory {
 
   clear(): void {
     if (this.busy) throw new Error('Aguarde pela conclusão da reversão.')
+    this.revision++
     this.past = []
     this.future = []
     this.notify()
@@ -84,7 +106,7 @@ export class SessionHistory {
   }
 
   private async run(direction: 'undo' | 'redo'): Promise<boolean> {
-    if (this.busy) return false
+    if (this.busy || this.mutations) return false
     const source = direction === 'undo' ? this.past : this.future
     const target = direction === 'undo' ? this.future : this.past
     const operation = source.at(-1)

@@ -986,6 +986,38 @@ try {
   assert.deepEqual(planificationSaved.lesson.planificationItemIds,['e2e-daily-item-1','e2e-daily-item-2'])
   assert.deepEqual(planificationSaved.items.map(item=>[item.status,item.usedLessonId]),[['used',planificationLessonId],['used',planificationLessonId],['planned',null]])
 
+  // Undo/redo acts on the complete saved lesson and returns to its date.
+  for (const viewport of [{width:390,height:844},{width:1280,height:720}]) {
+    await page.setViewportSize(viewport)
+    for (const name of ['Desfazer','Refazer']) {
+      const bounds=await page.getByRole('button',{name,exact:true}).boundingBox()
+      assert.ok(bounds && bounds.x>=0 && bounds.x+bounds.width<=viewport.width, 'History controls fit on mobile and desktop')
+    }
+  }
+  await page.getByRole('button',{name:'Desfazer',exact:true}).click()
+  await page.waitForFunction(()=>document.querySelector('textarea[aria-label="Sumário da aula"]')?.value==='')
+  const undone=await page.evaluate(async id=>{
+    const {maProfessorDb}=await import('/src/components/ma-professor/db.ts')
+    return {lesson:await maProfessorDb.lessons.get(id),items:await maProfessorDb.planificationItems.where('planificationId').equals('e2e-daily-planification').toArray()}
+  },planificationLessonId)
+  assert.deepEqual(undone.lesson.planificationItemIds,[])
+  assert.ok(undone.items.every(item=>item.status==='planned' && !item.usedLessonId))
+  await page.getByRole('button',{name:'Refazer',exact:true}).click()
+  await page.waitForFunction(summary=>document.querySelector('textarea[aria-label="Sumário da aula"]')?.value===summary,SUMMARY)
+  const nativeShortcut=await page.evaluate(()=>{
+    const event=new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true})
+    document.querySelector('textarea[aria-label="Sumário da aula"]').dispatchEvent(event)
+    return event.defaultPrevented
+  })
+  assert.equal(nativeShortcut,false,'History must preserve native text editing shortcuts')
+  await dailyDate.fill('2026-09-22')
+  await page.waitForFunction(()=>document.querySelector('input[type="date"]')?.value==='2026-09-22'&&!document.querySelector('input[type="date"]')?.disabled)
+  await page.locator('body').click({position:{x:1,y:1}})
+  await page.keyboard.press('Control+z')
+  await page.waitForFunction(()=>document.querySelector('input[type="date"]')?.value==='2026-09-21'&&document.querySelector('textarea[aria-label="Sumário da aula"]')?.value==='')
+  await page.keyboard.press('Control+y')
+  await page.waitForFunction(summary=>document.querySelector('textarea[aria-label="Sumário da aula"]')?.value===summary,SUMMARY)
+
   // Blocking is reversible after reopening and preserves the saved lesson and related records.
   const readBlockSnapshot = () => page.evaluate(async lessonId => {
     const {maProfessorDb} = await import('/src/components/ma-professor/db.ts')
