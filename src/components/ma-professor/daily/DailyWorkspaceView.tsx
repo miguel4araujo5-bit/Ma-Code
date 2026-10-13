@@ -1,3 +1,4 @@
+import { maProfessorHistory, type HistoryState } from '../history/sessionHistory';
 import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfiles';
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
@@ -2743,11 +2744,50 @@ export default function DailyWorkspaceView({
         }
     }
 
+    const [historyState, setHistoryState] = useState<HistoryState>(() => maProfessorHistory.getState());
+
+    useEffect(() => maProfessorHistory.subscribe(() => {
+        setHistoryState(maProfessorHistory.getState());
+    }), []);
+
+    async function applyHistory(direction: 'undo' | 'redo') {
+        if (savingRef.current || hasUnsavedChanges) {
+            setError('Guarde primeiro as alterações desta aula antes de utilizar Desfazer ou Refazer.');
+            return;
+        }
+        try {
+            const applied = await maProfessorHistory[direction]();
+            if (applied) {
+                await loadDate(date, selectedLesson?.context.lessonRow.lesson.id);
+                setError('');
+            }
+        } catch (historyError) {
+            setError(historyError instanceof Error ? historyError.message : 'Não foi possível reverter a operação.');
+        }
+    }
+
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== 'z') return;
+            const target = event.target;
+            if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+            if (event.shiftKey ? !historyState.canRedo : !historyState.canUndo) return;
+            event.preventDefault();
+            void applyHistory(event.shiftKey ? 'redo' : 'undo');
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    });
+
     return (
         <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-3 py-2 text-white sm:px-5 lg:px-7">
             <div className="mx-auto max-w-[1600px] space-y-2">
                 <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-2.5 shadow-xl shadow-black/15">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex shrink-0 items-center gap-1" aria-label="Histórico de alterações">
+                            <button type="button" title={historyState.undoLabel ? 'Desfazer: ' + historyState.undoLabel : 'Nada para desfazer'} aria-label="Desfazer" disabled={!historyState.canUndo || saving || hasUnsavedChanges} onClick={() => void applyHistory('undo')} className="rounded-lg border border-white/10 px-2 py-1 text-sm disabled:opacity-30">↶</button>
+                            <button type="button" title={historyState.redoLabel ? 'Refazer: ' + historyState.redoLabel : 'Nada para refazer'} aria-label="Refazer" disabled={!historyState.canRedo || saving || hasUnsavedChanges} onClick={() => void applyHistory('redo')} className="rounded-lg border border-white/10 px-2 py-1 text-sm disabled:opacity-30">↷</button>
+                        </div>
                         <div className="flex min-w-0 items-center gap-2">
                             <button
                                 type="button"
