@@ -1957,7 +1957,8 @@ export default function DailyWorkspaceView({
             return await captureDailySave(
                 'Gravação da aula',
                 () => persistDailySave(options),
-                () => { void loadDate(date, lessonId); }
+                () => { void loadDate(date, lessonId); },
+                lessonId
             );
         } catch (historyError) {
             setError(historyError instanceof Error ? historyError.message : 'Não foi possível guardar o histórico da aula.');
