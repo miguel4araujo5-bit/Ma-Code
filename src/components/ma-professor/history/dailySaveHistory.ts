@@ -9,14 +9,31 @@ function signature(row: Row | null): string {
   return JSON.stringify(row)
 }
 
-async function snapshot(): Promise<Snapshot> {
+async function snapshot(lessonId: string): Promise<Snapshot> {
   const result: Snapshot = new Map()
-  await maProfessorDb.transaction('r', maProfessorDb.tables, async () => {
-    for (const table of maProfessorDb.tables) {
-      const rows = await table.toArray() as Row[]
-      result.set(table.name, new Map(rows.map(row => [String(row.id), structuredClone(row)])))
-    }
-  })
+  // Ler apenas o âmbito da aula, evitando copiar a base de dados inteira.
+  const lesson = await maProfessorDb.lessons.get(lessonId)
+  if (!lesson) throw new Error('A aula indicada não existe.')
+  const moduleId = lesson.moduleId
+  const planifications = await maProfessorDb.planifications.where('moduleId').equals(moduleId).toArray()
+  const planificationIds = planifications.map(item => item.id)
+  const assessments = await maProfessorDb.lessonAssessments.where('lessonId').equals(lessonId).toArray()
+  const assessmentIds = assessments.map(item => item.id)
+
+  const collect = (name: string, rows: Row[]) => {
+    result.set(name, new Map(rows.map(row => [String(row.id), structuredClone(row)])))
+  }
+  collect('lessons', [lesson as Row])
+  collect('lessonAttendance', await maProfessorDb.lessonAttendance.where('lessonId').equals(lessonId).toArray() as Row[])
+  collect('lessonAssessments', assessments as Row[])
+  collect('assessmentResults', assessmentIds.length
+    ? await maProfessorDb.assessmentResults.where('assessmentId').anyOf(assessmentIds).toArray() as Row[]
+    : [])
+  collect('learningRecoveries', await maProfessorDb.learningRecoveries.where('moduleId').equals(moduleId).toArray() as Row[])
+  collect('moduleFinalGrades', await maProfessorDb.moduleFinalGrades.where('moduleId').equals(moduleId).toArray() as Row[])
+  collect('planificationItems', planificationIds.length
+    ? await maProfessorDb.planificationItems.where('planificationId').anyOf(planificationIds).toArray() as Row[]
+    : [])
   return result
 }
 
@@ -43,9 +60,11 @@ function diff(before: Snapshot, after: Snapshot): Change[] {
 export async function captureDailySave(
   label: string,
   save: () => Promise<boolean>,
-  navigate?: () => void
+  navigate?: () => void,
+  lessonId?: string
 ): Promise<boolean> {
-  const before = await snapshot()
+  if (!lessonId) throw new Error('É necessário identificar a aula para registar o histórico.')
+  const before = await snapshot(lessonId)
   const saved = await save()
   if (!saved) return false
   const after = await snapshot()
