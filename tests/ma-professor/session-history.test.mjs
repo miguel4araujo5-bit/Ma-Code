@@ -76,3 +76,18 @@ test('falha de navegação não duplica reversões', async () => {
   assert.equal(count, 1)
   assert.equal(history.getState().canRedo, true)
 })
+
+
+test('não transporta operações entre contas ou anos letivos', () => {
+  const history = new SessionHistory()
+  const op = { label: 'Sumário', undo: async () => {}, redo: async () => {} }
+  history.setScope('professor-a:2026')
+  history.record(op)
+  history.setScope('professor-a:2026')
+  assert.equal(history.getState().canUndo, true)
+  history.setScope('professor-b:2026')
+  assert.equal(history.getState().canUndo, false)
+  history.record(op)
+  history.setScope('professor-b:2027')
+  assert.equal(history.getState().canUndo, false)
+})
