@@ -15,7 +15,7 @@ async function snapshot(lessonId: string): Promise<Snapshot> {
   const lesson = await maProfessorDb.lessons.get(lessonId)
   if (!lesson) throw new Error('A aula indicada não existe.')
   const moduleId = lesson.moduleId
-  const planifications = await maProfessorDb.planifications.where('moduleId').equals(moduleId).toArray()
+  const planifications = moduleId ? await maProfessorDb.planifications.where('moduleId').equals(moduleId).toArray() : []
   const planificationIds = planifications.map(item => item.id)
   const assessments = await maProfessorDb.lessonAssessments.where('lessonId').equals(lessonId).toArray()
   const assessmentIds = assessments.map(item => item.id)
@@ -29,8 +29,8 @@ async function snapshot(lessonId: string): Promise<Snapshot> {
   collect('assessmentResults', assessmentIds.length
     ? await maProfessorDb.assessmentResults.where('assessmentId').anyOf(assessmentIds).toArray() as Row[]
     : [])
-  collect('learningRecoveries', await maProfessorDb.learningRecoveries.where('moduleId').equals(moduleId).toArray() as Row[])
-  collect('moduleFinalGrades', await maProfessorDb.moduleFinalGrades.where('moduleId').equals(moduleId).toArray() as Row[])
+  collect('learningRecoveries', moduleId ? await maProfessorDb.learningRecoveries.where('moduleId').equals(moduleId).toArray() as Row[] : [])
+  collect('moduleFinalGrades', moduleId ? await maProfessorDb.moduleFinalGrades.where('moduleId').equals(moduleId).toArray() as Row[] : [])
   collect('planificationItems', planificationIds.length
     ? await maProfessorDb.planificationItems.where('planificationId').anyOf(planificationIds).toArray() as Row[]
     : [])
@@ -67,7 +67,7 @@ export async function captureDailySave(
   const before = await snapshot(lessonId)
   const saved = await save()
   if (!saved) return false
-  const after = await snapshot()
+  const after = await snapshot(lessonId)
   const changes = diff(before, after)
   if (!changes.length) return true
 
