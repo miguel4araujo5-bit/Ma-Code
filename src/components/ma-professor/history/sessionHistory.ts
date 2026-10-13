@@ -25,6 +25,7 @@ export class SessionHistory {
   private future: HistoryOperation[] = []
   private busy = false
   private listeners = new Set<() => void>()
+  private scope: string | null = null
 
   constructor(private readonly limit = 50) {
     if (!Number.isInteger(limit) || limit < 1) {
@@ -49,6 +50,14 @@ export class SessionHistory {
 
   private notify() {
     for (const listener of this.listeners) listener()
+  }
+
+  /** Isola o histórico por conta e ano letivo, sem persistir dados pessoais. */
+  setScope(scope: string): void {
+    if (this.busy) throw new Error('Aguarde pela conclusão da reversão.')
+    if (this.scope === scope) return
+    this.scope = scope
+    this.clear()
   }
 
   record(operation: HistoryOperation): void {
