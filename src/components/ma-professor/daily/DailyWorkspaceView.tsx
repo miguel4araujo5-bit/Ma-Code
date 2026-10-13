@@ -1,4 +1,5 @@
 import { maProfessorHistory, type HistoryState } from '../history/sessionHistory';
+import { captureDailySave } from '../history/dailySaveHistory';
 import { canRestoreStudentAssessmentDraft } from '../assessments/assessmentProfiles';
 import { copyTextToClipboard } from './copyTextToClipboard';
 import { maProfessorDb } from '../db';
@@ -1949,7 +1950,22 @@ export default function DailyWorkspaceView({
         }
     }
 
-    async function saveAll(
+    async function saveAll(options: SaveOptions = {}): Promise<boolean> {
+        if (!selectedLesson || !lessonForm || savingRef.current) return false;
+        const lessonId = selectedLesson.context.lessonRow.lesson.id;
+        try {
+            return await captureDailySave(
+                'Gravação da aula',
+                () => persistDailySave(options),
+                () => { void loadDate(date, lessonId); }
+            );
+        } catch (historyError) {
+            setError(historyError instanceof Error ? historyError.message : 'Não foi possível guardar o histórico da aula.');
+            return false;
+        }
+    }
+
+    async function persistDailySave(
         options: SaveOptions = {}
     ): Promise<boolean> {
         const {
