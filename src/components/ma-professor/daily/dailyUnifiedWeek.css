@@ -1,4 +1,6 @@
-.ma-professor-unified-daily > main > div > section:first-child {
+/* A vista unificada apresenta uma única grelha semanal.
+   Identificar o painel interno sem depender da posição dos botões de histórico. */
+.ma-professor-unified-daily .ma-professor-daily-week-overview {
   display: none;
 }
 

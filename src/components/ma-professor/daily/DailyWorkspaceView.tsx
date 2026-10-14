@@ -2780,7 +2780,7 @@ export default function DailyWorkspaceView({
                             <button type="button" title={historyState.redoLabel ? 'Refazer: ' + historyState.redoLabel : 'Nada para refazer'} aria-label="Refazer" disabled={!historyState.canRedo || saving || hasUnsavedChanges} onClick={() => void applyHistory('redo')} className="rounded-lg border border-white/10 px-2 py-1 text-sm disabled:opacity-30">↷</button>
                         </div>
                 </div>
-                <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-2.5 shadow-xl shadow-black/15">
+                <section className="ma-professor-daily-week-overview rounded-2xl border border-white/10 bg-slate-900/70 p-2.5 shadow-xl shadow-black/15">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
 
                         <div className="flex min-w-0 items-center gap-2">

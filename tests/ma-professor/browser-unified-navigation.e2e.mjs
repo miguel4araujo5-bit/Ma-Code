@@ -240,6 +240,15 @@ async function summaryEditor(page) {
   return { section, textarea }
 }
 
+async function assertSingleDailyWeek(page) {
+  const daily = page.locator('.ma-professor-unified-daily')
+  await daily.getByRole('button', { name: 'Semana anterior', exact: true }).first().waitFor()
+  assert.equal(await daily.getByRole('button', { name: 'Semana anterior', exact: true }).count(), 1, 'only one weekly grid may be visible')
+  assert.equal(await daily.getByRole('button', { name: 'Semana seguinte', exact: true }).count(), 1, 'weekly navigation must not be duplicated')
+  await daily.getByRole('button', { name: 'Desfazer', exact: true }).waitFor()
+  await daily.getByRole('button', { name: 'Refazer', exact: true }).waitFor()
+}
+
 async function assertSubmissionShortcuts(page) {
   const search = page.getByLabel('Pesquisa', { exact: true })
   for (const [label, state] of [['Sem sumário', 'missing_summary'], ['Por submeter', 'pending'], ['Submetidos', 'submitted'], ['Total', '']]) {
@@ -402,12 +411,38 @@ try {
   await primary(page).getByRole('button', { name: 'Menu', exact: false }).click()
   await configureMinimumSetup(page)
 
+  for (const width of [1366, 1024, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await assertSingleDailyWeek(page)
+    assert.equal(await page.getByRole('button', { name: 'Desfazer', exact: true }).isDisabled(), true)
+    assert.equal(await page.getByRole('button', { name: 'Refazer', exact: true }).isDisabled(), true)
+  }
+  await page.setViewportSize({ width: 1366, height: 900 })
+
   const editor = await summaryEditor(page)
   await editor.textarea.fill(SUMMARY)
   await editor.section.getByRole('button', { name: 'Guardar', exact: true }).click()
   await waitText(page, 'Aula, sumário, faltas e avaliações guardados.')
   assert.equal((await persistedLesson(page)).matchCount, 1)
   evidence.push('onboarding, segurança em Definições antes da conclusão, sumário guardado')
+
+  const historySummary = SUMMARY + ' Alteração para testar Desfazer e Refazer.'
+  await editor.textarea.fill(historySummary)
+  await editor.section.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await waitText(page, 'Aula, sumário, faltas e avaliações guardados.')
+  for (const [action, expected] of [['Desfazer', SUMMARY], ['Refazer', historySummary], ['Desfazer', SUMMARY]]) {
+    await page.getByRole('button', { name: action, exact: true }).click()
+    await page.waitForFunction(expectedSummary =>
+      [...document.querySelectorAll('textarea')].some(item => item.value === expectedSummary), expected)
+    await waitForBrowserData(page, async expectedSummary => {
+      const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+      return (await (await openMAProfessorDatabase()).lessons.toArray()).some(lesson => lesson.summary === expectedSummary)
+    }, expected)
+    await assertSingleDailyWeek(page)
+  }
+  assert.equal((await persistedLesson(page)).matchCount, 1)
+  assert.equal((await persistedLesson(page)).duplicates, 1)
+  evidence.push('grelha semanal única a 1366/1024/390px; Desfazer/Refazer visíveis, inativos sem histórico e reversão/refação do sumário na interface e na base local')
 
   // Complete the fixture after testing real onboarding; no production data or API is used.
   await page.evaluate(async () => {
