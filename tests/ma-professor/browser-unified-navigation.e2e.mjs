@@ -245,8 +245,19 @@ async function assertSingleDailyWeek(page) {
   await daily.getByRole('button', { name: 'Semana anterior', exact: true }).first().waitFor()
   assert.equal(await daily.getByRole('button', { name: 'Semana anterior', exact: true }).count(), 1, 'only one weekly grid may be visible')
   assert.equal(await daily.getByRole('button', { name: 'Semana seguinte', exact: true }).count(), 1, 'weekly navigation must not be duplicated')
-  await daily.getByRole('button', { name: 'Desfazer', exact: true }).waitFor()
-  await daily.getByRole('button', { name: 'Refazer', exact: true }).waitFor()
+  for (const name of ['Desfazer', 'Refazer']) {
+    const button = daily.getByRole('button', { name, exact: true })
+    await button.waitFor()
+    await button.getByText(name, { exact: true }).waitFor()
+    const bounds = await button.boundingBox()
+    const presentation = await button.evaluate(element => ({
+      opacity: Number(getComputedStyle(element).opacity),
+      viewportWidth: innerWidth
+    }))
+    assert.ok(bounds && bounds.height >= 40 && bounds.width >= 96, 'history buttons must have a readable label and a usable click target')
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= presentation.viewportWidth, 'history buttons must fit on desktop and mobile')
+    assert.ok(presentation.opacity >= 0.75, 'history controls must remain legible when disabled')
+  }
 }
 
 async function assertSubmissionShortcuts(page) {

@@ -2781,10 +2781,34 @@ export default function DailyWorkspaceView({
         <main className="min-h-[calc(100vh-58px)] bg-slate-950 px-3 py-2 text-white sm:px-5 lg:px-7">
             <div className="mx-auto max-w-[1600px] space-y-2">
                 <div className="flex items-center justify-end" aria-label="Ações de histórico">
-                        <div className="flex shrink-0 items-center gap-1" aria-label="Histórico de alterações">
-                            <button type="button" title={historyState.undoLabel ? 'Desfazer: ' + historyState.undoLabel : 'Nada para desfazer'} aria-label="Desfazer" disabled={!historyState.canUndo || saving || hasUnsavedChanges} onClick={() => void applyHistory('undo')} className="rounded-lg border border-white/10 px-2 py-1 text-sm disabled:opacity-30">↶</button>
-                            <button type="button" title={historyState.redoLabel ? 'Refazer: ' + historyState.redoLabel : 'Nada para refazer'} aria-label="Refazer" disabled={!historyState.canRedo || saving || hasUnsavedChanges} onClick={() => void applyHistory('redo')} className="rounded-lg border border-white/10 px-2 py-1 text-sm disabled:opacity-30">↷</button>
-                        </div>
+                    <div className="flex shrink-0 items-center gap-2" aria-label="Histórico de alterações">
+                        <button
+                            type="button"
+                            title={historyState.undoLabel ? 'Desfazer: ' + historyState.undoLabel : 'Nada para desfazer'}
+                            aria-label="Desfazer"
+                            disabled={!historyState.canUndo || saving || hasUnsavedChanges}
+                            onClick={() => void applyHistory('undo')}
+                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300/20 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-300/50 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:border-white/15 disabled:bg-slate-900/60 disabled:text-slate-300 disabled:opacity-100"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" className="h-5 w-5 shrink-0">
+                                <path d="m9 14-5-5 5-5M4 9h10a6 6 0 0 1 6 6v2" />
+                            </svg>
+                            <span>Desfazer</span>
+                        </button>
+                        <button
+                            type="button"
+                            title={historyState.redoLabel ? 'Refazer: ' + historyState.redoLabel : 'Nada para refazer'}
+                            aria-label="Refazer"
+                            disabled={!historyState.canRedo || saving || hasUnsavedChanges}
+                            onClick={() => void applyHistory('redo')}
+                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300/20 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-300/50 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:border-white/15 disabled:bg-slate-900/60 disabled:text-slate-300 disabled:opacity-100"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" className="h-5 w-5 shrink-0">
+                                <path d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0-6 6v2" />
+                            </svg>
+                            <span>Refazer</span>
+                        </button>
+                    </div>
                 </div>
                 <section className="ma-professor-daily-week-overview rounded-2xl border border-white/10 bg-slate-900/70 p-2.5 shadow-xl shadow-black/15">
                     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
