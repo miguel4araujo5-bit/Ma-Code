@@ -3453,7 +3453,7 @@ export default function DailyWorkspaceView({
                                                     type="button"
                                                     onClick={addPlanificationItem}
                                                     disabled={saving || loading || planificationLoading || lessonForm.status === 'cancelled' || !planificationSuggestionText}
-                                                    className="h-8 rounded-md bg-cyan-300 px-2.5 text-[0.68rem] font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
+                                                    className="h-8 rounded-md border border-white/15 bg-white/[0.04] px-2.5 text-[0.68rem] font-black text-slate-200 transition hover:border-white/30 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-35"
                                                 >Adicionar</button>
                                             </div>
 
