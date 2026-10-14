@@ -189,15 +189,19 @@ test(
 )
 
 test(
-  'legacy duplicate week overview is hidden only inside the unified wrapper',
+  'internal week overview is hidden by identity only inside the unified wrapper',
   () => {
     assert.match(
+      cssSource,
+      /\.ma-professor-unified-daily\s+\.ma-professor-daily-week-overview\s*\{\s*display:\s*none;/
+    )
+    assert.doesNotMatch(
       cssSource,
       /\.ma-professor-unified-daily\s*>\s*main\s*>\s*div\s*>\s*section:first-child/
     )
     assert.match(
       legacyDailySource,
-      /<main className="min-h-\[calc\(100vh-58px\)\][\s\S]*<div className="mx-auto max-w-\[1600px\] space-y-2">[\s\S]*<section className="rounded-2xl/
+      /<main className="min-h-\[calc\(100vh-58px\)\][\s\S]*aria-label="Ações de histórico"[\s\S]*<section className="ma-professor-daily-week-overview\b/
     )
   }
 )
