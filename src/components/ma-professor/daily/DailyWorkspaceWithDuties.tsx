@@ -15,6 +15,7 @@ import type {
   EntityId,
   ISODate
 } from '../types'
+import type { HistoryLocation } from '../history/databaseHistory'
 
 import DailyUfcdProgressNotice from './DailyUfcdProgressNotice'
 import DailyUnifiedWeekOverview from './DailyUnifiedWeekOverview'
@@ -87,6 +88,10 @@ export default function DailyWorkspaceWithDuties({
     setRefreshToken
   ] = useState(0)
   const [
+    historyRevision,
+    setHistoryRevision
+  ] = useState(0)
+  const [
     dashboardSnapshot,
     setDashboardSnapshot
   ] = useState<DashboardSnapshot | null>(
@@ -156,6 +161,19 @@ export default function DailyWorkspaceWithDuties({
       initialLessonId ?? null
     )
   }, [initialLessonId])
+
+  const handleHistoryNavigate = useCallback((location: HistoryLocation) => {
+    if (location.workspace !== 'daily' || location.academicYearId !== academicYearId || !location.date) {
+      return
+    }
+
+    setActiveDate(location.date)
+    setActiveLessonId(location.lessonId ?? null)
+    setHistoryRevision(current => current + 1)
+    setRefreshToken(current => current + 1)
+    setDashboardRefreshToken(current => current + 1)
+    void loadDashboard()
+  }, [academicYearId, loadDashboard])
 
   const handleSaved =
     async () => {
@@ -229,7 +247,7 @@ export default function DailyWorkspaceWithDuties({
       <DailyWorkspaceView
         key={`${activeDate}-${
           activeLessonId ?? 'auto'
-        }`}
+        }-${historyRevision}`}
         academicYearId={
           academicYearId
         }
@@ -244,6 +262,9 @@ export default function DailyWorkspaceWithDuties({
         }
         onOpenBackup={
           onOpenBackup
+        }
+        onHistoryNavigate={
+          handleHistoryNavigate
         }
         onNavigationGuardChange={
           onNavigationGuardChange

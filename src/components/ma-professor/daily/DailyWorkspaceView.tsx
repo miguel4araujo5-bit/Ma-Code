@@ -82,6 +82,7 @@ interface DailyWorkspaceViewProps {
     initialLessonId?: EntityId;
     onSaved?: () => void | Promise<void>;
     onOpenBackup?: () => void;
+    onHistoryNavigate?: (location: HistoryLocation) => void;
     onNavigationGuardChange?: (
         guard: (() => Promise<boolean>) | null
     ) => void;
@@ -503,6 +504,7 @@ export default function DailyWorkspaceView({
     initialLessonId,
     onSaved,
     onOpenBackup,
+    onHistoryNavigate,
     onNavigationGuardChange
 }: DailyWorkspaceViewProps) {
     const {
@@ -2736,11 +2738,15 @@ export default function DailyWorkspaceView({
         const navigateHistory = (event: Event) => {
             const location = (event as CustomEvent<HistoryLocation>).detail;
             if (location?.workspace !== 'daily' || location.academicYearId !== academicYearId || !location.date) return;
-            void loadDate(location.date, location.lessonId);
+            if (onHistoryNavigate) {
+                onHistoryNavigate(location);
+            } else {
+                void loadDate(location.date, location.lessonId);
+            }
         };
         window.addEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory);
         return () => window.removeEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory);
-    }, [academicYearId, loadDate]);
+    }, [academicYearId, loadDate, onHistoryNavigate]);
 
     async function applyHistory(direction: 'undo' | 'redo') {
         if (savingRef.current || hasUnsavedChanges) {
