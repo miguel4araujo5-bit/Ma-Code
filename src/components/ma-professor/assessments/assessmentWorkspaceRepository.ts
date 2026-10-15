@@ -2,6 +2,7 @@ import {
   maProfessorDb,
   openMAProfessorDatabase
 } from '../db'
+import { runWithDatabaseHistory } from '../history/databaseHistory'
 
 import {
   listStudentRecoveryAssessmentGrades,
@@ -622,6 +623,22 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
   }
 
   async saveModuleFinalGrade(
+    input: SaveModuleFinalGradeInput
+  ) {
+    await this.initialize()
+    const module = await maProfessorDb.modules.get(input.moduleId)
+    const group = await getGroupForModule(input.moduleId)
+    if (!module || group?.educationType !== 'professional') {
+      return this.saveModuleFinalGradeWithoutHistory(input)
+    }
+    return runWithDatabaseHistory('Guardar avaliação final', {
+      workspace: 'assessments', academicYearId: module.academicYearId,
+      teachingAssignmentId: module.teachingAssignmentId, moduleId: module.id,
+      studentId: input.studentId
+    }, () => this.saveModuleFinalGradeWithoutHistory(input))
+  }
+
+  private async saveModuleFinalGradeWithoutHistory(
     input: SaveModuleFinalGradeInput
   ) {
     const group =

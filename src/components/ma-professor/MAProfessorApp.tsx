@@ -6,6 +6,7 @@ import {
 } from 'react'
 
 import AssessmentWorkspaceView from './assessments/AssessmentWorkspaceView'
+import type { HistoryLocation } from './history/databaseHistory'
 import CriteriaWorkspaceView from './assessments/CriteriaWorkspaceView'
 
 import {
@@ -96,6 +97,7 @@ import type { ManagementWorkspace } from './product/productNavigationModel'
 export interface MAProfessorWorkspaceRequest {
   id: number
   workspace: ManagementWorkspace
+  historyLocation?: HistoryLocation
 }
 
 interface MAProfessorAppProps {
@@ -640,6 +642,14 @@ export default function MAProfessorApp({
     setAssessmentReloadKey
   ] =
     useState(0)
+
+  useEffect(() => {
+    const location = workspaceRequest?.historyLocation
+    if (location?.workspace !== 'assessments' || location.academicYearId !== snapshot?.academicYear.id) return
+    setAssessmentFilters({ teachingAssignmentId: location.teachingAssignmentId, moduleId: location.moduleId })
+    setAssessmentReloadKey(current => current + 1)
+    setDashboardReloadKey(current => current + 1)
+  }, [workspaceRequest?.id, snapshot?.academicYear.id])
 
   const [
     planificationSnapshot,

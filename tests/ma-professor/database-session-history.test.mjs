@@ -17,7 +17,15 @@ export * from './src/components/ma-professor/history/databaseHistory'
 export * from './src/components/ma-professor/daily/dailyWorkspaceRepository'
 export * from './src/components/ma-professor/assessments/assessmentWorkspaceRepository'
 export * from './src/components/ma-professor/lessons/lessonRepository'
-`, resolveDir: process.cwd(), loader: 'ts' }, bundle: true, platform: 'node', format: 'esm', packages: 'external', outfile })
+export { default as ProfessionalAssessmentWorkspaceView } from './src/components/ma-professor/assessments/ProfessionalAssessmentWorkspaceView'
+`, resolveDir: process.cwd(), loader: 'ts' }, bundle: true, platform: 'node', format: 'esm', packages: 'external', jsx: 'automatic', outfile,
+  plugins: [{ name: 'assessment-ui-fixture', setup(builder) {
+    builder.onLoad({ filter: /\/access\/AccessGate\.tsx$/ }, () => ({ contents: "export const useMAProfessorAccess=()=>({session:{email:'history@example.test'}})", loader: 'ts' }))
+    builder.onLoad({ filter: /\/assessments\/UfcdFinalGradeGrid\.tsx$/ }, () => ({ contents: `import React from 'react'; export default function Grid(p) { return <div>{p.snapshot.studentRows.map(row=><div key={row.student.id}>
+      <input data-student={row.student.id} value={p.gradeDrafts[row.student.id].finalGrade} onChange={e=>p.onDraftChange(row.student.id,{finalGrade:e.target.value})}/>
+      <button data-save={row.student.id} onClick={()=>p.onSaveStudent(row.student.id,row.student.name)}>Guardar teste</button></div>)}</div> }`, loader: 'tsx' }))
+  } }]
+})
 const api = await import(pathToFileURL(outfile).href)
 const db = api.maProfessorDb
 const history = api.maProfessorHistory
@@ -148,4 +156,105 @@ test('changing account or academic year during a save does not move that save in
   })
   assert.equal((await db.lessons.get('l')).notes,'Nota guardada.')
   assert.equal(history.getState().canUndo,false)
+})
+
+test('final grades undo and redo one student at a time, preserve averages and survive reopening', async () => {
+  await repository.saveLesson(draft(), grid())
+  history.clear()
+  await db.students.put({ ...(await db.students.get('student')), id: 'student-b', number: '2', name: 'Outro aluno fictício' })
+  await db.assessmentResults.put({ ...(await db.assessmentResults.toArray())[0], id: 'result-b', studentId: 'student-b', score: 12 })
+  const save = (studentId, finalGrade, selfAssessmentGrade = null) => api.assessmentWorkspaceRepository.saveModuleFinalGrade({ moduleId: 'm', studentId, finalGrade, selfAssessmentGrade, usesAcs: false, note: 'Observação fictícia' })
+  await save('student', 15, 14)
+  const first = await snapshot()
+  await save('student', 18, 16)
+  const second = await snapshot()
+  await save('student-b', 12, 13)
+  const third = await snapshot()
+  await history.undo()
+  assert.deepEqual(await snapshot(), second)
+  await history.undo()
+  assert.deepEqual(await snapshot(), first)
+  assert.equal((await api.assessmentWorkspaceRepository.getWorkspace('y', { teachingAssignmentId: 'a', moduleId: 'm' })).studentRows.find(row => row.student.id === 'student').gradeSummary.provisionalAverage, 17)
+  await history.redo()
+  assert.deepEqual(await snapshot(), second)
+  await history.redo()
+  assert.deepEqual(await snapshot(), third)
+  db.close(); await db.open()
+  assert.deepEqual(await snapshot(), third)
+})
+
+test('invalid or externally changed final grades never create or partially replay a history operation', async () => {
+  await repository.saveLesson(draft(), grid())
+  history.clear()
+  const save = finalGrade => api.assessmentWorkspaceRepository.saveModuleFinalGrade({ moduleId: 'm', studentId: 'student', finalGrade })
+  await assert.rejects(save(21))
+  assert.equal(history.getState().canUndo, false)
+  const record = await save(15)
+  await db.moduleFinalGrades.update(record.id, { finalGrade: 19 })
+  const before = await snapshot()
+  await assert.rejects(history.undo(), /alterados entretanto/)
+  assert.deepEqual(await snapshot(), before)
+  assert.equal(history.getState().canRedo, false)
+})
+
+test('assessment UI reverses individual drafts and committed grades while preserving another pupil draft', async () => {
+  const { JSDOM } = await import('jsdom')
+  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost' })
+  dom.window.indexedDB = globalThis.indexedDB
+  const globals = ['window', 'document', 'Node', 'HTMLElement', 'Element', 'HTMLInputElement', 'HTMLSelectElement', 'CustomEvent', 'IS_REACT_ACT_ENVIRONMENT']
+  const previous = globals.map(key => Object.getOwnPropertyDescriptor(globalThis, key))
+  for (const key of globals) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value: key === 'IS_REACT_ACT_ENVIRONMENT' ? true : dom.window[key] })
+  const React = await import('react')
+  const { createRoot } = await import('react-dom/client')
+  const root = createRoot(document.getElementById('root'))
+  let current, saving, refreshing, generation = 0
+  const refresh = async () => {
+    current = await api.assessmentWorkspaceRepository.getWorkspace('y', { teachingAssignmentId: 'a', moduleId: 'm' })
+    current.generatedAt = String(++generation)
+    render()
+  }
+  const render = () => root.render(React.createElement(React.StrictMode, null, React.createElement(api.ProfessionalAssessmentWorkspaceView, {
+    snapshot: current, onRefresh: refresh, onFiltersChange: () => {},
+    onSaveFinalGrade: input => saving = (async () => { await api.assessmentWorkspaceRepository.saveModuleFinalGrade(input); await refresh() })()
+  })))
+  const onNavigate = () => { refreshing = refresh() }
+  const input = id => document.querySelector('[data-student="' + id + '"]')
+  const edit = async (id, value) => React.act(async () => {
+    Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value').set.call(input(id), value)
+    input(id).dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  })
+  const click = async label => React.act(async () => {
+    [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === label).click()
+    while (history.getState().busy) await new Promise(resolve => setImmediate(resolve))
+    if (refreshing) await refreshing
+  })
+  try {
+    await repository.saveLesson(draft(), grid())
+    await db.students.put({ ...(await db.students.get('student')), id: 'student-b', number: '2', name: 'Outro aluno fictício' })
+    await React.act(refresh)
+    window.addEventListener(api.HISTORY_NAVIGATE_EVENT, onNavigate)
+    await React.act(async () => history.clear())
+    const original = input('student').value
+    await edit('student', '18')
+    await edit('student-b', '13')
+    await click('Desfazer')
+    assert.equal(input('student-b').value, '')
+    assert.equal(input('student').value, '18')
+    await click('Refazer')
+    assert.equal(input('student-b').value, '13')
+    await React.act(async () => { document.querySelector('[data-save="student"]').click(); await saving })
+    assert.equal((await db.moduleFinalGrades.toArray())[0].finalGrade, 18)
+    await click('Desfazer')
+    assert.equal(input('student').value, original)
+    assert.equal(input('student-b').value, '13')
+    await click('Refazer')
+    assert.equal(input('student').value, '18')
+    assert.equal(input('student-b').value, '13')
+    assert.equal((await db.moduleFinalGrades.toArray())[0].finalGrade, 18)
+  } finally {
+    window.removeEventListener(api.HISTORY_NAVIGATE_EVENT, onNavigate)
+    await React.act(async () => root.unmount())
+    dom.window.close()
+    globals.forEach((key, index) => previous[index] ? Object.defineProperty(globalThis, key, previous[index]) : delete globalThis[key])
+  }
 })

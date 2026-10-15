@@ -504,7 +504,8 @@ export function ProductMenuWorkspace({
                   id:
                     navigationRequest.id,
                   workspace:
-                    navigationRequest.target
+                    navigationRequest.target,
+                  historyLocation: navigationRequest.historyLocation
                 }
               : null
           }

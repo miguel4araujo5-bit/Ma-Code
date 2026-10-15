@@ -91,3 +91,30 @@ test('não transporta operações entre contas ou anos letivos', () => {
   history.setScope('professor-b:2027')
   assert.equal(history.getState().canUndo, false)
 })
+
+test('guardar um aluno remove apenas os seus rascunhos e conserva outras notas e operações guardadas', async () => {
+  const history = new SessionHistory()
+  const operation = (label, draftKey) => ({ label, draftKey, undo: async () => {}, redo: async () => {} })
+  history.record(operation('Aluno A', 'module:a:'))
+  history.record(operation('Aluno B', 'module:b:'))
+  history.record(operation('Guardar A'))
+  history.discardDrafts('module:a:')
+  assert.equal(history.getState().undoLabel, 'Guardar A')
+  await history.undo()
+  assert.equal(history.getState().undoLabel, 'Aluno B')
+  await history.undo()
+  assert.equal(history.getState().canUndo, false)
+  history.discardDrafts('module:')
+  assert.equal(history.getState().redoLabel, 'Guardar A')
+})
+
+test('uma nota escrita com várias teclas é desfeita numa só operação sem juntar alunos diferentes', async () => {
+  const history = new SessionHistory()
+  let a = '', b = ''
+  history.record({ label: 'A', draftKey: 'a', mergeKey: 'field:1', undo: async () => { a = '' }, redo: async () => { a = '1' } }); a = '1'
+  history.record({ label: 'A', draftKey: 'a', mergeKey: 'field:1', undo: async () => { a = '1' }, redo: async () => { a = '18' } }); a = '18'
+  history.record({ label: 'B', draftKey: 'b', mergeKey: 'field:1', undo: async () => { b = '' }, redo: async () => { b = '12' } }); b = '12'
+  await history.undo(); assert.equal(b, ''); assert.equal(a, '18')
+  await history.undo(); assert.equal(a, ''); assert.equal(history.getState().canUndo, false)
+  await history.redo(); assert.equal(a, '18')
+})

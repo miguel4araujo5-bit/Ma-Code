@@ -6,6 +6,7 @@ export type ProductSidebarDestination = ProductMenuTarget | 'calendar'
 export interface ProductMenuNavigationRequest {
   id: number
   target: ProductMenuTarget
+  historyLocation?: import('../history/databaseHistory').HistoryLocation
 }
 
 export const primaryNavigation: Array<{ id: ProductWorkspace; label: string; icon: string }> = [

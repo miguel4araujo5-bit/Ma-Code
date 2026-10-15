@@ -5,6 +5,9 @@ import {
   useRef,
   useState
 } from 'react'
+import { useMAProfessorAccess } from '../access/AccessGate'
+import { maProfessorHistory, type HistoryState } from '../history/sessionHistory'
+import { HISTORY_NAVIGATE_EVENT, type HistoryLocation } from '../history/databaseHistory'
 
 import {
   hasMAProfessorDirtyDraftRecord,
@@ -206,13 +209,14 @@ function MetricCard({
 
 export default function AssessmentWorkspaceView({
   snapshot,
-  loading = false,
+  loading: workspaceLoading = false,
   error = '',
   onRefresh,
   onFiltersChange,
   onLessonSelect,
   onSaveFinalGrade
 }: AssessmentWorkspaceViewProps) {
+  const { session } = useMAProfessorAccess()
   const rootRef =
     useRef<HTMLDivElement>(
       null
@@ -225,7 +229,7 @@ export default function AssessmentWorkspaceView({
           snapshot
         ),
       [
-        snapshot.generatedAt
+        snapshot
       ]
     )
 
@@ -262,20 +266,49 @@ export default function AssessmentWorkspaceView({
       null
     )
 
+  const gradeDraftsRef = useRef(gradeDrafts)
+  gradeDraftsRef.current = gradeDrafts
+  const historyStudentRef = useRef<string | null>(null)
+  const draftEditGroupRef = useRef(0)
+  const draftPrefix = JSON.stringify([session.email, snapshot.academicYear.id, snapshot.selectedModule?.id]) + ':'
+  const [historyState, setHistoryState] = useState<HistoryState>(() => maProfessorHistory.getState())
+  const loading = workspaceLoading || historyState.busy
+
+  useEffect(() => {
+    maProfessorHistory.setScope(session.email + ':' + snapshot.academicYear.id)
+    const update = () => setHistoryState(maProfessorHistory.getState())
+    update()
+    return maProfessorHistory.subscribe(update)
+  }, [session.email, snapshot.academicYear.id])
+
+  useEffect(() => () => maProfessorHistory.discardDrafts(draftPrefix), [draftPrefix])
+
+  useEffect(() => {
+    const navigateHistory = (event: Event) => {
+      const location = (event as CustomEvent<HistoryLocation>).detail
+      if (location?.workspace === 'assessments' && location.academicYearId === snapshot.academicYear.id) {
+        historyStudentRef.current = location.studentId ?? null
+      }
+    }
+    window.addEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory)
+    return () => window.removeEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory)
+  }, [snapshot.academicYear.id])
+
   useEffect(() => {
     const previousPersisted =
       previousPersistedGradeDraftsRef.current
+    const historyStudentId = historyStudentRef.current
+    historyStudentRef.current = null
+    const discardDrafts = discardOnNextSnapshotRef.current
 
-    setGradeDrafts(
-      current =>
-        discardOnNextSnapshotRef.current
-          ? persistedGradeDrafts
-          : reconcileMAProfessorDraftRecord(
-              previousPersisted,
-              current,
-              persistedGradeDrafts
-            )
-    )
+    setGradeDrafts(current => {
+      const reconciled = discardDrafts
+        ? persistedGradeDrafts
+        : reconcileMAProfessorDraftRecord(previousPersisted, current, persistedGradeDrafts)
+      if (historyStudentId && persistedGradeDrafts[historyStudentId]) reconciled[historyStudentId] = persistedGradeDrafts[historyStudentId]
+      gradeDraftsRef.current = reconciled
+      return reconciled
+    })
 
     discardOnNextSnapshotRef.current =
       false
@@ -319,40 +352,45 @@ export default function AssessmentWorkspaceView({
     studentId: EntityId,
     changes: Partial<GradeDraft>
   ) {
-    setGradeDrafts(
-      current => ({
-        ...current,
-
-        [studentId]: {
-          finalGrade:
-            current[
-              studentId
-            ]?.finalGrade ??
-            '',
-
-          selfAssessmentGrade:
-            current[
-              studentId
-            ]?.selfAssessmentGrade ??
-            '',
-
-          usesAcs:
-            current[
-              studentId
-            ]?.usesAcs ??
-            false,
-
-          note:
-            current[
-              studentId
-            ]?.note ??
-            '',
-
-          ...changes
-        }
-      })
-    )
+    const before = gradeDraftsRef.current[studentId] ?? { finalGrade: '', selfAssessmentGrade: '', usesAcs: false, note: '' }
+    const after = { ...before, ...changes }
+    if (JSON.stringify(before) === JSON.stringify(after)) return
+    const apply = (value: GradeDraft) => {
+      const next = { ...gradeDraftsRef.current, [studentId]: value }
+      gradeDraftsRef.current = next
+      setGradeDrafts(next)
+    }
+    apply(after)
+    maProfessorHistory.record({
+      label: 'Alterar avaliação', draftKey: draftPrefix + studentId + ':',
+      mergeKey: JSON.stringify([draftEditGroupRef.current, Object.keys(changes)]),
+      undo: async () => { apply(before) },
+      redo: async () => { apply(after) }
+    })
   }
+
+  async function applyHistory(direction: 'undo' | 'redo') {
+    try {
+      await maProfessorHistory[direction]()
+      setFeedback(null)
+    } catch (historyError) {
+      setFeedback({ tone: 'error', message: historyError instanceof Error ? historyError.message : 'Não foi possível reverter a avaliação.' })
+    }
+  }
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || !['z', 'y'].includes(event.key.toLowerCase())) return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      const direction = event.key.toLowerCase() === 'y' || event.shiftKey ? 'redo' : 'undo'
+      if (loading || savingStudentId || !(direction === 'redo' ? historyState.canRedo : historyState.canUndo)) return
+      event.preventDefault()
+      void applyHistory(direction)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
 
   function handleAssignmentChange(
     event: ChangeEvent<HTMLSelectElement>
@@ -548,6 +586,7 @@ export default function AssessmentWorkspaceView({
         note:
           draft.note
       })
+      maProfessorHistory.discardDrafts(draftPrefix + studentId + ':')
 
       setFeedback({
         tone: 'success',
@@ -576,6 +615,7 @@ export default function AssessmentWorkspaceView({
 
   return (
     <div
+      onFocusCapture={() => { draftEditGroupRef.current += 1 }}
       ref={
         rootRef
       }
@@ -604,6 +644,17 @@ export default function AssessmentWorkspaceView({
               </p>
             </div>
 
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex gap-2" aria-label="Histórico de alterações">
+                {(['undo', 'redo'] as const).map(direction => {
+                  const label = direction === 'undo' ? 'Desfazer' : 'Refazer'
+                  const available = direction === 'undo' ? historyState.canUndo : historyState.canRedo
+                  return <button key={direction} type="button" aria-label={label} disabled={!available || loading || Boolean(savingStudentId)} onClick={() => void applyHistory(direction)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300/20 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-300/50 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:border-white/15 disabled:bg-slate-900/60 disabled:text-slate-300 disabled:opacity-100">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-5 w-5 shrink-0"><path d={direction === 'undo' ? 'm9 14-5-5 5-5M4 9h10a6 6 0 0 1 6 6v2' : 'm15 14 5-5-5-5M20 9H10a6 6 0 0 0-6 6v2'} /></svg>
+                    <span>{label}</span>
+                  </button>
+                })}
+              </div>
             <button
               type="button"
               onClick={
@@ -619,6 +670,7 @@ export default function AssessmentWorkspaceView({
                 ? 'A atualizar...'
                 : 'Atualizar'}
             </button>
+            </div>
           </div>
         </div>
 

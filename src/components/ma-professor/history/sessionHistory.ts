@@ -7,6 +7,8 @@
  */
 export interface HistoryOperation {
   label: string
+  draftKey?: string
+  mergeKey?: string
   undo: () => Promise<void>
   redo: () => Promise<void>
   navigate?: () => void
@@ -83,9 +85,21 @@ export class SessionHistory {
 
   record(operation: HistoryOperation): void {
     if (this.busy) throw new Error('Não é possível registar alterações durante uma reversão.')
-    this.past.push(operation)
+    const previous = this.past.at(-1)
+    if (operation.draftKey && operation.mergeKey && previous?.draftKey === operation.draftKey && previous.mergeKey === operation.mergeKey) {
+      this.past[this.past.length - 1] = { ...operation, undo: previous.undo }
+    } else {
+      this.past.push(operation)
+    }
     if (this.past.length > this.limit) this.past.shift()
     this.future = []
+    this.notify()
+  }
+
+  /** Remove apenas rascunhos que já foram guardados ou abandonados. */
+  discardDrafts(prefix: string): void {
+    this.past = this.past.filter(operation => !operation.draftKey?.startsWith(prefix))
+    this.future = this.future.filter(operation => !operation.draftKey?.startsWith(prefix))
     this.notify()
   }
 

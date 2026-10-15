@@ -59,6 +59,7 @@ import {
 } from './ProductNavigation'
 
 import './maProfessorTheme.css'
+import { HISTORY_NAVIGATE_EVENT, type HistoryLocation } from '../history/databaseHistory'
 
 interface DailyTarget {
   date?: ISODate
@@ -656,6 +657,23 @@ function ProductContent() {
        */
       await refreshAcademicYear()
     }
+
+  useEffect(() => {
+    const navigateHistory = (event: Event) => {
+      const location = (event as CustomEvent<HistoryLocation>).detail
+      if (!location || location.academicYearId !== academicYear?.id) return
+      if (location.workspace === 'assessments') {
+        menuNavigationSequenceRef.current += 1
+        setMenuNavigationRequest({ id: menuNavigationSequenceRef.current, target: 'assessments', historyLocation: location })
+        setWorkspace('menu')
+      } else if (location.workspace === 'daily' && workspace !== 'daily' && location.date) {
+        setDailyTarget({ date: location.date, lessonId: location.lessonId })
+        setWorkspace('daily')
+      }
+    }
+    window.addEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory)
+    return () => window.removeEventListener(HISTORY_NAVIGATE_EVENT, navigateHistory)
+  }, [academicYear?.id, workspace])
 
   const openLessonFromCalendar =
     (

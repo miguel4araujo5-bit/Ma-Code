@@ -4,10 +4,13 @@ import { maProfessorHistory } from './sessionHistory'
 import { markDashboardDataDirty } from '../dashboard/dashboardRefreshSignal'
 
 export interface HistoryLocation {
-  workspace: 'daily'
+  workspace: 'daily' | 'assessments'
   academicYearId?: string
   lessonId?: string
   date?: string
+  teachingAssignmentId?: string
+  moduleId?: string
+  studentId?: string
 }
 
 export const HISTORY_NAVIGATE_EVENT = 'ma-professor-history-navigate'

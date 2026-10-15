@@ -823,6 +823,78 @@ try {
       other.studentRows.find(row => row.student.id === fixture.pupilId)?.gradeSummary.provisionalAverage === 11
   })
   evidence.push('ACS por disciplina, cancelamento e confirmação nos dois sentidos, grelha mista, cálculo, recarregamento e preservação da outra disciplina')
+
+  // Undo each pupil draft, then a committed final grade, without losing another pupil's draft.
+  const gradeFixture = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture')))
+  await page.evaluate(async fixture => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    const { dailyCriteriaGridRepository } = await import('/src/components/ma-professor/daily/dailyCriteriaGridRepository.ts')
+    const db = await openMAProfessorDatabase()
+    const lesson = await db.lessons.get(fixture.lessonId)
+    const grid = await dailyCriteriaGridRepository.getLessonGrid(lesson.id)
+    const scores = Object.fromEntries(grid.criteria.filter(criterion => !(grid.acsCriterionIds ?? []).includes(criterion.id))
+      .map(criterion => [criterion.id, String(grid.scoresByStudentId[fixture.normalId][criterion.id])]))
+    const pupils = await db.students.bulkGet([fixture.normalId, fixture.pupilId])
+    await dailyCriteriaGridRepository.saveLessonGrid({ lesson, summary: lesson.summary, activity: grid.activity,
+      rows: pupils.map(student => ({ studentId: student.id, expectedAssessmentResetAt: student.assessmentResetAtByModule?.[fixture.moduleId] ?? '', attendanceStatus: 'present', scores })) })
+  }, gradeFixture)
+  await openDestination(page, 'Avaliações', 1366)
+  await page.getByRole('heading', { name: 'Classificações por UFCD', exact: true }).waitFor()
+  await page.getByLabel('Turma e disciplina', { exact: true }).selectOption(gradeFixture.assignmentId)
+  await page.getByLabel('UFCD ou módulo', { exact: true }).selectOption(gradeFixture.moduleId)
+  const finalA = page.getByLabel('Nível final de Aluno geral E2E', { exact: true })
+  const finalB = page.getByLabel('Nível final de Aluno ACS E2E', { exact: true })
+  await finalA.waitFor()
+  await page.waitForFunction(() => document.querySelector('[aria-label="Nível final de Aluno geral E2E"]')?.disabled === false)
+  const originalA = await finalA.inputValue()
+  const originalB = await finalB.inputValue()
+  await page.evaluate(async () => {
+    const { maProfessorHistory } = await import('/src/components/ma-professor/history/sessionHistory.ts')
+    maProfessorHistory.clear()
+  })
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const name of ['Desfazer', 'Refazer']) {
+      const button = page.getByRole('button', { name, exact: true })
+      const bounds = await button.boundingBox()
+      assert.ok(bounds && bounds.height >= 40 && bounds.x >= 0 && bounds.x + bounds.width <= width)
+    }
+  }
+  await page.setViewportSize({ width: 1366, height: 900 })
+  await finalA.fill('17')
+  await finalB.fill('13')
+  await page.getByRole('button', { name: 'Desfazer', exact: true }).click()
+  assert.equal(await finalB.inputValue(), originalB)
+  assert.equal(await finalA.inputValue(), '17')
+  await page.getByRole('button', { name: 'Refazer', exact: true }).click()
+  assert.equal(await finalB.inputValue(), '13')
+  await finalA.locator('xpath=ancestor::tr').getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.getByText('A avaliação final de Aluno geral E2E foi guardada.', { exact: true }).waitFor()
+  assert.equal(await finalB.inputValue(), '13')
+  for (const [action, expected] of [['Desfazer', originalA], ['Refazer', '17']]) {
+    await page.getByRole('button', { name: action, exact: true }).click()
+    await page.waitForFunction(value => document.querySelector('[aria-label="Nível final de Aluno geral E2E"]')?.value === value, expected)
+    assert.equal(await finalB.inputValue(), '13')
+  }
+  // Moving to another unit and then undoing returns to the affected unit.
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByLabel('Turma e disciplina', { exact: true }).selectOption(gradeFixture.secondAssignmentId)
+  await page.waitForFunction(id => document.querySelector('select') && [...document.querySelectorAll('select')].some(select => select.value === id), gradeFixture.secondModuleId)
+  await page.getByRole('button', { name: 'Desfazer', exact: true }).click()
+  await page.waitForFunction(value => document.querySelector('[aria-label="Nível final de Aluno geral E2E"]')?.value === value, originalA)
+  assert.equal(await page.getByLabel('UFCD ou módulo', { exact: true }).inputValue(), gradeFixture.moduleId)
+  await primary(page).getByRole('button', { name: /Hoje/ }).click()
+  await page.getByRole('button', { name: 'Refazer', exact: true }).click()
+  await page.getByRole('heading', { name: 'Classificações por UFCD', exact: true }).waitFor()
+  await page.waitForFunction(() => document.querySelector('[aria-label="Nível final de Aluno geral E2E"]')?.value === '17')
+  await page.reload()
+  await openDestination(page, 'Avaliações', 1366)
+  await page.getByRole('heading', { name: 'Classificações por UFCD', exact: true }).waitFor()
+  await page.getByLabel('Turma e disciplina', { exact: true }).selectOption(gradeFixture.assignmentId)
+  await page.getByLabel('UFCD ou módulo', { exact: true }).selectOption(gradeFixture.moduleId)
+  await page.waitForFunction(() => document.querySelector('[aria-label="Nível final de Aluno geral E2E"]')?.value === '17')
+  assert.equal(await finalB.inputValue(), originalB)
+  evidence.push('Avaliações: Desfazer/Refazer por aluno antes/depois de guardar, rascunho de outro aluno preservado, botões a 1366/390px, regresso à UFCD após navegar e persistência após reload')
   assert.deepEqual(pageErrors, [])
   console.log('MA-Professor unified navigation: OK\n' + evidence.join('\n'))
 } catch (error) {
