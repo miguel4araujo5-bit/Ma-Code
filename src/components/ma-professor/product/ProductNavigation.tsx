@@ -102,7 +102,7 @@ function SidebarPanel({
           />
 
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+            <p className="text-xs font-bold uppercase tracking-[0.06em] text-cyan-200">
               MA-Code
             </p>
             <p className="truncate font-black text-white">
