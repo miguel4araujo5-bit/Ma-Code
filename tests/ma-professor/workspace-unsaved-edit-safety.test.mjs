@@ -243,7 +243,7 @@ test(
 
     assert.match(
       professionalAssessmentSource,
-      /snapshot\.generatedAt[\s\S]*reconcileMAProfessorDraftRecord/
+      /buildGradeDrafts\(\s*snapshot\s*\)[\s\S]*reconcileMAProfessorDraftRecord/
     )
 
     assert.match(
