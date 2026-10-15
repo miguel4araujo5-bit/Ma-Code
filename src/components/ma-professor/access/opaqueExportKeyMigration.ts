@@ -59,9 +59,9 @@ function bytesToBase64Url(
   }
 
   return btoa(binary)
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replaceAll('=', '')
+    .split('+').join('-')
+    .split('/').join('_')
+    .split('=').join('')
 }
 
 function base64UrlToBytes(
@@ -95,8 +95,8 @@ function base64UrlToBytes(
   const binary =
     atob(
       normalized
-        .replaceAll('-', '+')
-        .replaceAll('_', '/') +
+        .split('-').join('+')
+        .split('_').join('/') +
       padding
     )
 
