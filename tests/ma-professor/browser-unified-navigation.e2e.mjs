@@ -829,6 +829,9 @@ try {
   await page.clock.setFixedTime(new Date('2026-09-21T09:30:03+01:00'))
   const gradeFixture = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture')))
   await page.evaluate(async fixture => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    // Final grades only include lessons marked as submitted and counting toward progress.
+    await (await openMAProfessorDatabase()).lessons.update(fixture.lessonId, { giaeStatus: 'submitted', countTowardProgress: true })
     const { assessmentWorkspaceRepository } = await import('/src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts')
     const { assessmentAtomicPersistenceRepository } = await import('/src/components/ma-professor/assessmentAtomicPersistenceRepository.ts')
     const snapshot = await assessmentWorkspaceRepository.getWorkspace(fixture.yearId, {
