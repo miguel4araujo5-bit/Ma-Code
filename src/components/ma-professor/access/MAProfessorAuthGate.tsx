@@ -107,7 +107,10 @@ function saveResponse(
     token: response.token,
     email: responseEmail,
     deviceId,
-    license: response.license
+    license: response.license,
+    checkedAt:
+      new Date()
+        .toISOString()
   })
 }
 

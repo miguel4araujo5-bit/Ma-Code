@@ -41,6 +41,16 @@ test(
 )
 
 test(
+  'a successful OPAQUE response is immediately eligible for bounded verification fallback',
+  () => {
+    assert.match(
+      authGate,
+      /saveMAProfessorStoredAccess\(\{[\s\S]*?token:\s*response\.token[\s\S]*?checkedAt:\s*new Date\(\)\s*\.toISOString\(\)[\s\S]*?\}\)/
+    )
+  }
+)
+
+test(
   'OPAQUE-only login fails closed instead of falling back to v2',
   () => {
     assert.match(
