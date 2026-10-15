@@ -829,16 +829,26 @@ try {
   await page.clock.setFixedTime(new Date('2026-09-21T09:30:03+01:00'))
   const gradeFixture = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture')))
   await page.evaluate(async fixture => {
-    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
-    const { dailyCriteriaGridRepository } = await import('/src/components/ma-professor/daily/dailyCriteriaGridRepository.ts')
-    const db = await openMAProfessorDatabase()
-    const lesson = await db.lessons.get(fixture.lessonId)
-    const grid = await dailyCriteriaGridRepository.getLessonGrid(lesson.id)
-    const scores = Object.fromEntries(grid.criteria.filter(criterion => !(grid.acsCriterionIds ?? []).includes(criterion.id))
-      .map(criterion => [criterion.id, String(grid.scoresByStudentId[fixture.normalId][criterion.id])]))
-    const pupils = await db.students.bulkGet([fixture.normalId, fixture.pupilId])
-    await dailyCriteriaGridRepository.saveLessonGrid({ lesson, summary: lesson.summary, activity: grid.activity,
-      rows: pupils.map(student => ({ studentId: student.id, expectedAssessmentResetAt: student.assessmentResetAtByModule?.[fixture.moduleId] ?? '', attendanceStatus: 'present', scores })) })
+    const { assessmentWorkspaceRepository } = await import('/src/components/ma-professor/assessments/assessmentWorkspaceRepository.ts')
+    const { assessmentAtomicPersistenceRepository } = await import('/src/components/ma-professor/assessmentAtomicPersistenceRepository.ts')
+    const snapshot = await assessmentWorkspaceRepository.getWorkspace(fixture.yearId, {
+      teachingAssignmentId: fixture.assignmentId, moduleId: fixture.moduleId
+    })
+    if (snapshot.criteria.length !== 3) throw new Error('The history fixture needs the three general criteria.')
+    for (const [index, criterion] of snapshot.criteria.entries()) {
+      await assessmentAtomicPersistenceRepository.createLessonAssessmentWithResults({
+        lessonId: fixture.lessonId, criterionId: criterion.id,
+        title: 'Avaliação E2E do histórico · ' + criterion.name, activityType: 'other', description: ''
+      }, [fixture.normalId, fixture.pupilId].map(studentId => ({
+        studentId, status: 'evaluated', score: [16, 12, 10][index], note: ''
+      })))
+    }
+    const prepared = await assessmentWorkspaceRepository.getWorkspace(fixture.yearId, {
+      teachingAssignmentId: fixture.assignmentId, moduleId: fixture.moduleId
+    })
+    if (!prepared.studentRows.every(row => row.gradeSummary.allActiveCriteriaAssessed)) {
+      throw new Error('The history fixture must have complete assessments for both pupils.')
+    }
   }, gradeFixture)
   // Direct fixture writes bypass the application's snapshot refresh events.
   await page.reload()
@@ -872,7 +882,7 @@ try {
   assert.equal(await finalA.inputValue(), '17')
   await page.getByRole('button', { name: 'Refazer', exact: true }).click()
   assert.equal(await finalB.inputValue(), '13')
-  await finalA.locator('xpath=ancestor::tr').getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.locator('article').filter({ has: page.getByRole('heading', { name: 'Aluno geral E2E', exact: true }) }).getByRole('button', { name: 'Guardar nota final', exact: true }).click()
   await page.getByText('A avaliação final de Aluno geral E2E foi guardada.', { exact: true }).waitFor()
   assert.equal(await finalB.inputValue(), '13')
   for (const [action, expected] of [['Desfazer', originalA], ['Refazer', '17']]) {
