@@ -34,7 +34,7 @@ const [
       'src/components/ma-professor/sync/cloudBackupV3Crypto.ts'
     ),
     read(
-      'src/components/ma-professor/access/opaqueClient.ts'
+      'src/components/ma-professor/access/opaqueClientRuntime.ts'
     ),
     read(
       'src/components/ma-professor/access/opaqueAccess.ts'

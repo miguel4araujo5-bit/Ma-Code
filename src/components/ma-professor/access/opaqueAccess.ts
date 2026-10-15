@@ -126,7 +126,8 @@ async function performOpaqueLogin(
 ): Promise<MAProfessorOpaqueLoginResult | null> {
   const clientStart =
     await startMAProfessorOpaqueClientLogin(
-      password
+      password,
+      signal
     )
 
   requireActiveLogin(signal)
@@ -143,7 +144,8 @@ async function performOpaqueLogin(
     await finishMAProfessorOpaqueClientLogin(
       password,
       clientStart.clientLoginState,
-      serverStart.loginResponse
+      serverStart.loginResponse,
+      signal
     )
 
   requireActiveLogin(signal)
