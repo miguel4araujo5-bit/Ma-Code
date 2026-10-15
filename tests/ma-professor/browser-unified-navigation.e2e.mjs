@@ -840,6 +840,8 @@ try {
     await dailyCriteriaGridRepository.saveLessonGrid({ lesson, summary: lesson.summary, activity: grid.activity,
       rows: pupils.map(student => ({ studentId: student.id, expectedAssessmentResetAt: student.assessmentResetAtByModule?.[fixture.moduleId] ?? '', attendanceStatus: 'present', scores })) })
   }, gradeFixture)
+  // Direct fixture writes bypass the application's snapshot refresh events.
+  await page.reload()
   await openDestination(page, 'Avaliações', 1366)
   await page.getByRole('heading', { name: 'Classificações por UFCD', exact: true }).waitFor()
   await page.getByRole('combobox', { name: /^Turma e disciplina\b/ }).selectOption(gradeFixture.assignmentId)
