@@ -82,7 +82,8 @@ function runOperation<K extends MAProfessorOpaqueOperation>(
       finish(workerFailure())
     }
   }))
-  operationQueue = pending.catch(() => undefined)
+  // The queue retains completion only, never the last credential/export key.
+  operationQueue = pending.then(() => undefined, () => undefined)
   return pending
 }
 
