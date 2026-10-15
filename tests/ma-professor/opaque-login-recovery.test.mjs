@@ -17,6 +17,11 @@ async function loadRuntime() {
     ` },
     bundle: true, write: false, format: 'esm', platform: 'node',
     plugins: [{ name: 'test-wasm-url', setup(builder) {
+      // These tests exercise the runtime download and HTTP recovery directly.
+      // The disposable worker and its cancellation are covered separately.
+      builder.onResolve({ filter: /\/opaqueClient(?:\.ts)?$/ }, args => ({
+        path: root + '/src/components/ma-professor/access/opaqueClientRuntime.ts'
+      }))
       builder.onLoad({ filter: /\.wasm$/ }, () => ({
         loader: 'js', contents: `export default ${JSON.stringify(wasmUrl)}`
       }))

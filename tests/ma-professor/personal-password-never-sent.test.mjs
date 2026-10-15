@@ -135,7 +135,7 @@ test(
     )
     assert.match(
       opaqueAccessSource,
-      /startMAProfessorOpaqueClientLogin\(\s*password\s*\)/
+      /startMAProfessorOpaqueClientLogin\(\s*password,\s*signal\s*\)/
     )
     assert.match(
       opaqueAccessSource,

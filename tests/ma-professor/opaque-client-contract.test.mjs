@@ -21,7 +21,7 @@ const [
     ),
     readFile(
       new URL(
-        '../../src/components/ma-professor/access/opaqueClient.ts',
+        '../../src/components/ma-professor/access/opaqueClientRuntime.ts',
         import.meta.url
       ),
       'utf8'
