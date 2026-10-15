@@ -4,7 +4,8 @@ import {
 
 import {
   MA_PROFESSOR_OPAQUE_AUTH_STORAGE_KEY,
-  type MAProfessorOpaqueAuthState
+  type MAProfessorOpaqueAuthState,
+  type MAProfessorOpaqueLegacyKeyWrap
 } from './maProfessorOpaqueAuthState'
 
 import {
@@ -286,6 +287,66 @@ function normalizeOpaquePayload(
         .trim()
         .slice(0, 32_000)
     : ''
+}
+
+function readLegacyKeyWrap(
+  value: unknown
+):
+  MAProfessorOpaqueLegacyKeyWrap |
+  null {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
+    return null
+  }
+
+  const record =
+    value as
+      Record<string, unknown>
+
+  const salt =
+    typeof record.salt ===
+      'string'
+      ? record.salt.trim()
+      : ''
+
+  const nonce =
+    typeof record.nonce ===
+      'string'
+      ? record.nonce.trim()
+      : ''
+
+  const ciphertext =
+    typeof record.ciphertext ===
+      'string'
+      ? record.ciphertext.trim()
+      : ''
+
+  const validBase64Url =
+    (item: string) =>
+      item.length > 0 &&
+      item.length <= 512 &&
+      /^[A-Za-z0-9_-]+$/.test(
+        item
+      )
+
+  if (
+    record.version !== 1 ||
+    !validBase64Url(salt) ||
+    !validBase64Url(nonce) ||
+    !validBase64Url(ciphertext)
+  ) {
+    return null
+  }
+
+  return {
+    version: 1,
+    salt,
+    nonce,
+    ciphertext
+  }
 }
 
 function isValidPersonalPassword(
@@ -1188,10 +1249,62 @@ export class MaProfessorAccessDurableObject {
       )
     }
 
-    const accountRequest = body.accountRequest === true
-    const identity = accountRequest
-      ? { email: normalizeEmail(body.email), deviceId: normalizeDeviceId(body.deviceId) }
-      : await this.validateOpaqueEnrollmentActivation(body)
+    const accountRequest =
+      body.accountRequest === true
+
+    const migrationId =
+      normalizeOpaquePayload(
+        body.migrationId
+      )
+
+    const keyStretching =
+      body.keyStretching ===
+        'memory-constrained' ||
+      body.keyStretching ===
+        'rfc-recommended'
+        ? body.keyStretching
+        : undefined
+
+    if (
+      accountRequest &&
+      migrationId
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Pedido OPAQUE de atualização inválido.'
+        },
+        400
+      )
+    }
+
+    const identity =
+      migrationId
+        ? {
+            email:
+              normalizeEmail(
+                body.email
+              ),
+            deviceId:
+              normalizeDeviceId(
+                body.deviceId
+              )
+          }
+        : accountRequest
+          ? {
+              email:
+                normalizeEmail(
+                  body.email
+                ),
+              deviceId:
+                normalizeDeviceId(
+                  body.deviceId
+                )
+            }
+          : await this.validateOpaqueEnrollmentActivation(
+              body
+            )
 
     if (
       'response' in
@@ -1247,7 +1360,17 @@ export class MaProfessorAccessDurableObject {
             ...(accountRequest ? {
               accountRequest: true,
               termsVersion: CURRENT_TERMS_VERSION
-            } : {})
+            } : {}),
+            ...(migrationId
+              ? {
+                  migrationId
+                }
+              : {}),
+            ...(keyStretching
+              ? {
+                  keyStretching
+                }
+              : {})
           }
         )
 
@@ -1285,6 +1408,23 @@ export class MaProfessorAccessDurableObject {
               'A autenticação protegida desta conta já foi preparada.'
           },
           409
+        )
+      }
+
+      if (
+        error instanceof
+          Error &&
+        error.message ===
+          'OPAQUE_MIGRATION_INVALID'
+      ) {
+        return json(
+          {
+            success:
+              false,
+            message:
+              'Não foi possível atualizar a autenticação protegida.'
+          },
+          401
         )
       }
 
@@ -1409,8 +1549,40 @@ export class MaProfessorAccessDurableObject {
           ]
       )
 
-    const pendingEnrollment = opaqueState.pendingEnrollments[enrollmentId]
-    const accountRequest = pendingEnrollment?.accountRequest === true
+    const pendingEnrollment =
+      opaqueState.pendingEnrollments[
+        enrollmentId
+      ]
+
+    const accountRequest =
+      pendingEnrollment
+        ?.accountRequest ===
+      true
+
+    const migration =
+      pendingEnrollment
+        ?.replaceExisting ===
+      true
+
+    const legacyKeyWrap =
+      readLegacyKeyWrap(
+        body.legacyExportKeyWrap
+      )
+
+    if (
+      migration &&
+      !legacyKeyWrap
+    ) {
+      return json(
+        {
+          success: false,
+          message:
+            'Não foi possível atualizar a autenticação protegida.'
+        },
+        400
+      )
+    }
+
     const accessState = accountRequest
       ? await this.state.storage.get<AccessStateSnapshot>(STORAGE_KEY)
       : undefined
@@ -1438,9 +1610,16 @@ export class MaProfessorAccessDurableObject {
           deviceId,
           enrollmentId,
           registrationRecord,
-          skipRegistration: accountRequest && !canCreateAccount,
+          skipRegistration:
+            accountRequest &&
+            !canCreateAccount,
           migratedFromV2:
-            false
+            false,
+          ...(legacyKeyWrap
+            ? {
+                legacyKeyWrap
+              }
+            : {})
         }
       )
 
@@ -1493,7 +1672,10 @@ export class MaProfessorAccessDurableObject {
             message ===
               'OPAQUE_ALREADY_ENROLLED'
               ? 'A autenticação protegida desta conta já foi preparada.'
-              : 'O registo OPAQUE expirou, já foi utilizado ou não corresponde a este dispositivo.'
+              : message ===
+                  'OPAQUE_MIGRATION_INVALID'
+                ? 'Não foi possível atualizar a autenticação protegida.'
+                : 'O registo OPAQUE expirou, já foi utilizado ou não corresponde a este dispositivo.'
         },
         message ===
           'OPAQUE_ALREADY_ENROLLED'
@@ -1787,13 +1969,30 @@ export class MaProfessorAccessDurableObject {
 
     return this.issueAccountSession(
       authenticated.email,
-      authenticated.deviceId
+      authenticated.deviceId,
+      {
+        migrationId:
+          authenticated
+            .migrationId ??
+          null,
+        legacyKeyWrap:
+          authenticated
+            .legacyKeyWrap ??
+          null
+      }
     )
   }
 
   private async issueAccountSession(
     email: string,
-    deviceId: string
+    deviceId: string,
+    opaqueMetadata?: {
+      migrationId:
+        string | null
+      legacyKeyWrap:
+        MAProfessorOpaqueLegacyKeyWrap |
+        null
+    }
   ) {
     const accessState =
       await this.state.storage.get<AccessStateSnapshot>(
@@ -1949,7 +2148,23 @@ export class MaProfessorAccessDurableObject {
       license:
         buildLicenseSummary(
           license
-        )
+        ),
+      ...(opaqueMetadata
+        ?.migrationId
+        ? {
+            opaqueMigrationId:
+              opaqueMetadata
+                .migrationId
+          }
+        : {}),
+      ...(opaqueMetadata
+        ?.legacyKeyWrap
+        ? {
+            opaqueLegacyExportKeyWrap:
+              opaqueMetadata
+                .legacyKeyWrap
+          }
+        : {})
     })
 
   }

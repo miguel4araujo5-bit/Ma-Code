@@ -3,6 +3,7 @@ import type {
   MAProfessorAccessResponse,
   MAProfessorAccountSessionResponse,
   MAProfessorLicenseResponse,
+  MAProfessorOpaqueLegacyExportKeyWrap,
   MAProfessorRenewalResponse,
   RenewableLicensePlan
 } from './accessTypes'
@@ -287,7 +288,9 @@ export async function startMAProfessorOpaqueEnrollment(
       email,
       activationPassword,
       deviceId,
-      registrationRequest
+      registrationRequest,
+      keyStretching:
+        'memory-constrained'
     }
   )
 }
@@ -319,8 +322,62 @@ export async function startMAProfessorOpaqueAccountEnrollment(
 ) {
   return postJson<MAProfessorOpaqueEnrollmentStartResponse>(
     '/opaque/enroll/start',
-    { email, deviceId, registrationRequest, accountRequest: true,
-      termsVersion: MA_PROFESSOR_TERMS_VERSION }
+    {
+      email,
+      deviceId,
+      registrationRequest,
+      accountRequest: true,
+      termsVersion:
+        MA_PROFESSOR_TERMS_VERSION,
+      keyStretching:
+        'memory-constrained'
+    }
+  )
+}
+
+export async function startMAProfessorOpaqueMigration(
+  email: string,
+  deviceId: string,
+  migrationId: string,
+  registrationRequest: string,
+  signal?: AbortSignal
+) {
+  return postJson<MAProfessorOpaqueEnrollmentStartResponse>(
+    '/opaque/enroll/start',
+    {
+      email,
+      deviceId,
+      migrationId,
+      registrationRequest,
+      keyStretching:
+        'memory-constrained'
+    },
+    signal
+  )
+}
+
+export async function finishMAProfessorOpaqueMigration(
+  email: string,
+  deviceId: string,
+  enrollmentId: string,
+  registrationRecord: string,
+  legacyExportKeyWrap:
+    MAProfessorOpaqueLegacyExportKeyWrap,
+  signal?: AbortSignal
+) {
+  return postJson<{
+    success: true
+    message?: string
+  }>(
+    '/opaque/enroll/finish',
+    {
+      email,
+      deviceId,
+      enrollmentId,
+      registrationRecord,
+      legacyExportKeyWrap
+    },
+    signal
   )
 }
 

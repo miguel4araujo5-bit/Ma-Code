@@ -7,8 +7,17 @@ import init, {
   startClientRegistration
 } from '../../../../worker/vendor/ma-professor-opaque/opaque.js'
 
-const KEY_STRETCHING =
-  'rfc-recommended' as const
+export type MAProfessorOpaqueKeyStretching =
+  | 'memory-constrained'
+  | 'rfc-recommended'
+
+export const MA_PROFESSOR_OPAQUE_KEY_STRETCHING:
+  MAProfessorOpaqueKeyStretching =
+  'memory-constrained'
+
+export const MA_PROFESSOR_OPAQUE_LEGACY_KEY_STRETCHING:
+  MAProfessorOpaqueKeyStretching =
+  'rfc-recommended'
 
 export const MA_PROFESSOR_OPAQUE_TIMEOUT_MS = 30_000
 
@@ -52,7 +61,6 @@ function ensureOpaqueReady() {
   if (!opaqueReady) {
     opaqueReady =
       initializeOpaque().catch(error => {
-        // A connection failure must not poison every later manual attempt.
         opaqueReady = null
         throw error
       })
@@ -102,7 +110,10 @@ export async function startMAProfessorOpaqueClientRegistration(
 export async function finishMAProfessorOpaqueClientRegistration(
   password: string,
   clientRegistrationState: string,
-  registrationResponse: string
+  registrationResponse: string,
+  keyStretching:
+    MAProfessorOpaqueKeyStretching =
+      MA_PROFESSOR_OPAQUE_KEY_STRETCHING
 ): Promise<MAProfessorOpaqueClientRegistrationFinish> {
   await ensureOpaqueReady()
 
@@ -111,8 +122,7 @@ export async function finishMAProfessorOpaqueClientRegistration(
       password,
       clientRegistrationState,
       registrationResponse,
-      keyStretching:
-        KEY_STRETCHING
+      keyStretching
     })
 
   return {
@@ -144,7 +154,10 @@ export async function startMAProfessorOpaqueClientLogin(
 export async function finishMAProfessorOpaqueClientLogin(
   password: string,
   clientLoginState: string,
-  loginResponse: string
+  loginResponse: string,
+  keyStretching:
+    MAProfessorOpaqueKeyStretching =
+      MA_PROFESSOR_OPAQUE_KEY_STRETCHING
 ): Promise<MAProfessorOpaqueClientLoginFinish | null> {
   await ensureOpaqueReady()
 
@@ -153,8 +166,7 @@ export async function finishMAProfessorOpaqueClientLogin(
       password,
       clientLoginState,
       loginResponse,
-      keyStretching:
-        KEY_STRETCHING
+      keyStretching
     })
 
   if (!finished) {

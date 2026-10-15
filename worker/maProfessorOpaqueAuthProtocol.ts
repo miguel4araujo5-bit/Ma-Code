@@ -1,7 +1,9 @@
 import {
   createMAProfessorOpaqueAuthState,
   normalizeMAProfessorOpaqueAuthState,
-  type MAProfessorOpaqueAuthState
+  type MAProfessorOpaqueAuthState,
+  type MAProfessorOpaqueKeyStretching,
+  type MAProfessorOpaqueLegacyKeyWrap
 } from './maProfessorOpaqueAuthState'
 
 export const MA_PROFESSOR_OPAQUE_ENROLL_START_PATH =
@@ -21,6 +23,9 @@ const PENDING_ENROLLMENT_TTL_MS =
 
 const PENDING_LOGIN_TTL_MS =
   2 * 60 * 1000
+
+const PENDING_MIGRATION_TTL_MS =
+  5 * 60 * 1000
 
 const MAX_PENDING_ENROLLMENTS =
   32
@@ -176,6 +181,29 @@ function prunePendingEnrollments(
 }
 
 
+function prunePendingMigrations(
+  state:
+    MAProfessorOpaqueAuthState,
+  now: number
+) {
+  for (
+    const [id, pending] of
+    Object.entries(
+      state.pendingMigrations
+    )
+  ) {
+    if (
+      pending.expiresAt <=
+        now
+    ) {
+      delete state
+        .pendingMigrations[
+          id
+        ]
+    }
+  }
+}
+
 function prunePendingLogins(
   state:
     MAProfessorOpaqueAuthState,
@@ -247,6 +275,9 @@ export function startOpaqueEnrollment(
     registrationRequest: string
     accountRequest?: boolean
     termsVersion?: string
+    migrationId?: string
+    keyStretching?:
+      MAProfessorOpaqueKeyStretching
   },
   now = Date.now()
 ) {
@@ -275,10 +306,56 @@ export function startOpaqueEnrollment(
     )
   }
 
-  if (
-    !input.accountRequest && state.registrations[
-      email
+  const migrationId =
+    input.migrationId
+      ?.trim()
+      .slice(0, 180) ||
+    ''
+
+  prunePendingMigrations(
+    state,
+    now
+  )
+
+  let replaceExisting =
+    false
+
+  if (migrationId) {
+    const migration =
+      state.pendingMigrations[
+        migrationId
+      ]
+
+    if (
+      !migration ||
+      migration.expiresAt <=
+        now ||
+      migration.email !==
+        email ||
+      migration.deviceId !==
+        deviceId ||
+      input.keyStretching !==
+        'memory-constrained'
+    ) {
+      throw new Error(
+        'OPAQUE_MIGRATION_INVALID'
+      )
+    }
+
+    delete state.pendingMigrations[
+      migrationId
     ]
+
+    replaceExisting =
+      true
+  }
+
+  if (
+    !input.accountRequest &&
+    state.registrations[
+      email
+    ] &&
+    !replaceExisting
   ) {
     throw new Error(
       'OPAQUE_ALREADY_ENROLLED'
@@ -323,6 +400,13 @@ export function startOpaqueEnrollment(
     ...(input.accountRequest ? {
       accountRequest: true,
       termsVersion: input.termsVersion
+    } : {}),
+    ...(replaceExisting ? {
+      replaceExisting: true
+    } : {}),
+    ...(input.keyStretching ? {
+      keyStretching:
+        input.keyStretching
     } : {})
   }
 
@@ -349,6 +433,8 @@ export function finishOpaqueEnrollment(
     registrationRecord: string
     migratedFromV2?: boolean
     skipRegistration?: boolean
+    legacyKeyWrap?:
+      MAProfessorOpaqueLegacyKeyWrap
   },
   now = Date.now()
 ) {
@@ -419,13 +505,26 @@ export function finishOpaqueEnrollment(
   // bridge decides this from stored state, never from the finish payload.
   if (input.skipRegistration) return
 
-  if (
+  const existingRegistration =
     state.registrations[
       email
     ]
+
+  if (
+    existingRegistration &&
+    !pending.replaceExisting
   ) {
     throw new Error(
       'OPAQUE_ALREADY_ENROLLED'
+    )
+  }
+
+  if (
+    pending.replaceExisting &&
+    !input.legacyKeyWrap
+  ) {
+    throw new Error(
+      'OPAQUE_MIGRATION_INVALID'
     )
   }
 
@@ -435,13 +534,30 @@ export function finishOpaqueEnrollment(
     email,
     registrationRecord,
     createdAt:
+      existingRegistration
+        ?.createdAt ??
       now,
     updatedAt:
       now,
     migratedFromV2At:
-      input.migratedFromV2
-        ? now
-        : null
+      existingRegistration
+        ?.migratedFromV2At ??
+      (
+        input.migratedFromV2
+          ? now
+          : null
+      ),
+    keyStretching:
+      pending.keyStretching ??
+      existingRegistration
+        ?.keyStretching ??
+      'rfc-recommended',
+    legacyKeyWrap:
+      pending.replaceExisting
+        ? input.legacyKeyWrap!
+        : existingRegistration
+            ?.legacyKeyWrap ??
+          null
   }
 
   state.updatedAt =
@@ -639,19 +755,73 @@ export function finishOpaqueLogin(
     return null
   }
 
-  if (
-    !state.registrations[
+  const registration =
+    state.registrations[
       pending.email
     ]
-  ) {
+
+  if (!registration) {
     return null
+  }
+
+  const legacyProfile =
+    (
+      registration.keyStretching ??
+      'rfc-recommended'
+    ) !==
+      'memory-constrained'
+
+  let migrationId:
+    string | null =
+      null
+
+  if (legacyProfile) {
+    prunePendingMigrations(
+      state,
+      now
+    )
+
+    migrationId =
+      createOpaqueId()
+
+    state.pendingMigrations[
+      migrationId
+    ] = {
+      id:
+        migrationId,
+      email:
+        pending.email,
+      deviceId:
+        pending.deviceId,
+      createdAt:
+        now,
+      expiresAt:
+        now +
+        PENDING_MIGRATION_TTL_MS
+    }
+
+    state.updatedAt =
+      now
   }
 
   return {
     email:
       pending.email,
     deviceId:
-      pending.deviceId
+      pending.deviceId,
+    ...(migrationId
+      ? {
+          migrationId
+        }
+      : {}),
+    ...(registration
+      .legacyKeyWrap
+      ? {
+          legacyKeyWrap:
+            registration
+              .legacyKeyWrap
+        }
+      : {})
   }
 }
 

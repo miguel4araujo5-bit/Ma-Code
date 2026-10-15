@@ -140,15 +140,23 @@ test(
 
     assert.match(
       clientSource,
-      /keyStretching:\s*KEY_STRETCHING/
+      /MA_PROFESSOR_OPAQUE_KEY_STRETCHING[\s\S]*?'memory-constrained'/
     )
     assert.match(
       clientSource,
-      /'rfc-recommended' as const/
+      /MA_PROFESSOR_OPAQUE_LEGACY_KEY_STRETCHING[\s\S]*?'rfc-recommended'/
     )
     assert.match(
       accessSource,
-      /exportKey:\s*clientFinish\.exportKey/
+      /shouldAvoidLegacyOpaqueKeyStretching\(\)/
+    )
+    assert.match(
+      accessSource,
+      /wrapMAProfessorLegacyOpaqueExportKey/
+    )
+    assert.match(
+      accessSource,
+      /unwrapMAProfessorLegacyOpaqueExportKey/
     )
   }
 )

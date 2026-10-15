@@ -44,11 +44,21 @@ export type MAProfessorLicensedAccessSession =
     license: LicenseSummary
   }
 
+export interface MAProfessorOpaqueLegacyExportKeyWrap {
+  version: 1
+  salt: string
+  nonce: string
+  ciphertext: string
+}
+
 export interface MAProfessorAccessResponse {
   success: true
   token: string
   email?: string
   license: LicenseSummary | null
+  opaqueMigrationId?: string
+  opaqueLegacyExportKeyWrap?:
+    MAProfessorOpaqueLegacyExportKeyWrap
 }
 
 export interface MAProfessorAccountSessionResponse {

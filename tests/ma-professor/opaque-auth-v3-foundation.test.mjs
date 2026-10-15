@@ -90,6 +90,8 @@ test(
           {},
         pendingLogins:
           {},
+        pendingMigrations:
+          {},
         createdAt:
           123,
         updatedAt:
@@ -188,7 +190,7 @@ test(
     )
     assert.match(
       authBridge,
-      /return this\.issueAccountSession\(\s*authenticated\.email,\s*authenticated\.deviceId\s*\)/
+      /return this\.issueAccountSession\(\s*authenticated\.email,\s*authenticated\.deviceId,\s*\{/
     )
 
     const tokenCreationCount =

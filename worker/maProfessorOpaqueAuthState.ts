@@ -7,12 +7,28 @@ export const MA_PROFESSOR_OPAQUE_AUTH_SCHEMA_VERSION =
 export const MA_PROFESSOR_OPAQUE_PROTOCOL =
   'OPAQUE-RFC9807'
 
+export type MAProfessorOpaqueKeyStretching =
+  | 'memory-constrained'
+  | 'rfc-recommended'
+
+export interface MAProfessorOpaqueLegacyKeyWrap {
+  version: 1
+  salt: string
+  nonce: string
+  ciphertext: string
+}
+
 export interface MAProfessorOpaqueRegistration {
   email: string
   registrationRecord: string
   createdAt: number
   updatedAt: number
   migratedFromV2At: number | null
+  keyStretching?:
+    MAProfessorOpaqueKeyStretching
+  legacyKeyWrap?:
+    MAProfessorOpaqueLegacyKeyWrap |
+    null
 }
 
 export interface MAProfessorOpaquePendingEnrollment {
@@ -23,6 +39,9 @@ export interface MAProfessorOpaquePendingEnrollment {
   expiresAt: number
   accountRequest?: boolean
   termsVersion?: string
+  replaceExisting?: boolean
+  keyStretching?:
+    MAProfessorOpaqueKeyStretching
 }
 
 export interface MAProfessorOpaquePendingLogin {
@@ -30,6 +49,14 @@ export interface MAProfessorOpaquePendingLogin {
   email: string
   deviceId: string
   serverLoginState: string
+  createdAt: number
+  expiresAt: number
+}
+
+export interface MAProfessorOpaquePendingMigration {
+  id: string
+  email: string
+  deviceId: string
   createdAt: number
   expiresAt: number
 }
@@ -53,6 +80,11 @@ export interface MAProfessorOpaqueAuthState {
       string,
       MAProfessorOpaquePendingLogin
     >
+  pendingMigrations:
+    Record<
+      string,
+      MAProfessorOpaquePendingMigration
+    >
   createdAt: number
   updatedAt: number
 }
@@ -72,6 +104,8 @@ export function createMAProfessorOpaqueAuthState(
     pendingEnrollments:
       {},
     pendingLogins:
+      {},
+    pendingMigrations:
       {},
     createdAt:
       now,
@@ -111,6 +145,12 @@ export function normalizeMAProfessorOpaqueAuthState(
       typeof value.pendingEnrollments ===
         'object'
         ? value.pendingEnrollments
+        : {},
+    pendingMigrations:
+      value.pendingMigrations &&
+      typeof value.pendingMigrations ===
+        'object'
+        ? value.pendingMigrations
         : {}
   }
 }

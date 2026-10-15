@@ -153,7 +153,9 @@ function enroll(
         email,
         deviceId,
         registrationRequest:
-          'registration-request'
+          'registration-request',
+        keyStretching:
+          'memory-constrained'
       },
       now - 1
     )
@@ -633,7 +635,9 @@ test(
             deviceId:
               'device-seed',
             registrationRequest:
-              'seed-registration'
+              'seed-registration',
+            keyStretching:
+              'memory-constrained'
           },
           105
         )
@@ -1092,5 +1096,62 @@ test(
       protocolSource,
       /exportKey/i
     )
+  }
+)
+
+
+test(
+  'a proved legacy login authorizes one memory-constrained replacement while preserving a wrapped legacy key',
+  () => {
+    const runtime = fakeRuntime()
+    const state = opaque.createFreshOpaqueAuthState(100)
+    const legacyStart = opaque.startOpaqueEnrollment(state, runtime, {
+      email: 'legacy@example.com', deviceId: 'legacy-seed',
+      registrationRequest: 'legacy-registration'
+    }, 110)
+    opaque.finishOpaqueEnrollment(state, {
+      email: 'legacy@example.com', deviceId: 'legacy-seed',
+      enrollmentId: legacyStart.enrollmentId, registrationRecord: 'legacy-record'
+    }, 120)
+    const login = opaque.startOpaqueLogin(state, runtime, {
+      email: 'legacy@example.com', deviceId: 'desktop-device',
+      startLoginRequest: 'legacy-login'
+    }, 130)
+    const authenticated = opaque.finishOpaqueLogin(state, runtime, {
+      email: 'legacy@example.com', deviceId: 'desktop-device',
+      loginId: login.loginId, finishLoginRequest: 'proof:legacy-record'
+    }, 140)
+    assert.equal(typeof authenticated.migrationId, 'string')
+    const replacement = opaque.startOpaqueEnrollment(state, runtime, {
+      email: 'legacy@example.com', deviceId: 'desktop-device',
+      registrationRequest: 'memory-registration',
+      migrationId: authenticated.migrationId,
+      keyStretching: 'memory-constrained'
+    }, 150)
+    assert.throws(() => opaque.startOpaqueEnrollment(state, runtime, {
+      email: 'legacy@example.com', deviceId: 'desktop-device',
+      registrationRequest: 'replay', migrationId: authenticated.migrationId,
+      keyStretching: 'memory-constrained'
+    }, 151), /OPAQUE_MIGRATION_INVALID/)
+    const legacyKeyWrap = {
+      version: 1, salt: 'c2FsdA', nonce: 'bm9uY2U', ciphertext: 'Y2lwaGVydGV4dA'
+    }
+    opaque.finishOpaqueEnrollment(state, {
+      email: 'legacy@example.com', deviceId: 'desktop-device',
+      enrollmentId: replacement.enrollmentId, registrationRecord: 'memory-record',
+      legacyKeyWrap
+    }, 160)
+    assert.equal(state.registrations['legacy@example.com'].keyStretching, 'memory-constrained')
+    assert.deepEqual(state.registrations['legacy@example.com'].legacyKeyWrap, legacyKeyWrap)
+    const nextLogin = opaque.startOpaqueLogin(state, runtime, {
+      email: 'legacy@example.com', deviceId: 'mobile-device',
+      startLoginRequest: 'memory-login'
+    }, 170)
+    const next = opaque.finishOpaqueLogin(state, runtime, {
+      email: 'legacy@example.com', deviceId: 'mobile-device',
+      loginId: nextLogin.loginId, finishLoginRequest: 'proof:memory-record'
+    }, 180)
+    assert.equal(next.migrationId, undefined)
+    assert.deepEqual(next.legacyKeyWrap, legacyKeyWrap)
   }
 )
