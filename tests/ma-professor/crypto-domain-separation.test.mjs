@@ -189,14 +189,17 @@ test(
 test(
   'application receives the OPAQUE export key only after server login or enrollment finishes',
   () => {
+    const loginFlowStart =
+      opaqueAccessSource
+        .indexOf(
+          'async function performOpaqueLoginWithStretching'
+        )
+
     const loginClientFinish =
       opaqueAccessSource
         .indexOf(
           'const clientFinish =',
-          opaqueAccessSource
-            .indexOf(
-              'export async function loginMAProfessorOpaque'
-            )
+          loginFlowStart
         )
 
     const loginServerFinish =
@@ -214,7 +217,9 @@ test(
         )
 
     assert.ok(
-      loginClientFinish >= 0 &&
+      loginFlowStart >= 0 &&
+      loginClientFinish >
+        loginFlowStart &&
       loginServerFinish >
         loginClientFinish &&
       loginReturn >
