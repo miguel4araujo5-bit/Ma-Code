@@ -825,6 +825,8 @@ try {
   evidence.push('ACS por disciplina, cancelamento e confirmação nos dois sentidos, grelha mista, cálculo, recarregamento e preservação da outra disciplina')
 
   // Undo each pupil draft, then a committed final grade, without losing another pupil's draft.
+  // New assessments must follow the preceding ACS reset in the fixed test clock.
+  await page.clock.setFixedTime(new Date('2026-09-21T09:30:03+01:00'))
   const gradeFixture = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ma-professor-e2e-acs-fixture')))
   await page.evaluate(async fixture => {
     const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
