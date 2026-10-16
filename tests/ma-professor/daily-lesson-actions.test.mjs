@@ -135,8 +135,10 @@ test('moving into an empty cell leaves the source free and cancellation changes 
   await mount()
   await chooseDestination('2026-09-23')
   const before = await db.lessons.toArray()
+  window.confirm = () => { throw new Error('A move preview has no edited fields to discard.') }
   await click(button('Cancelar'))
   assert.deepEqual(await db.lessons.toArray(), before)
+  window.confirm = () => true
   await chooseDestination('2026-09-23')
   await click(button('Só desta vez'))
   await until(() => !document.getElementById('lesson-editor-title'))
