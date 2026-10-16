@@ -139,7 +139,7 @@ export default function LessonEditorDialog(
   )
 
   useEffect(() => {
-    setFormDirty(false)
+    setFormDirty(Boolean(props.initialPosition))
     setAttendanceDirty(false)
     setAssessmentDirty(false)
     setCurrentStatus(
@@ -148,7 +148,8 @@ export default function LessonEditorDialog(
     setGuardError('')
   }, [
     lessonId,
-    props.context
+    props.context,
+    props.initialPosition
   ])
 
   function confirmDiscardLessonChanges() {

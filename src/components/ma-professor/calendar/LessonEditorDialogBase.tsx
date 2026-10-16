@@ -49,6 +49,8 @@ import LessonAttendanceSection, {
 
 interface LessonEditorDialogProps {
   context: CalendarLessonEditorContext
+  initialPosition?: Pick<Lesson, 'date' | 'startTime' | 'endTime'>
+  moveOnly?: boolean
   onClose: () => void
   onSaved: (lesson: Lesson) => void | Promise<void>
   onOpenLesson: (lessonId: EntityId) => void | Promise<void>
@@ -179,16 +181,17 @@ async function saveAttendanceWhenReady(
 }
 
 function buildInitialForm(
-  context: CalendarLessonEditorContext
+  context: CalendarLessonEditorContext,
+  initialPosition?: LessonEditorDialogProps['initialPosition']
 ): LessonEditorFormState {
   const lesson = context.lessonRow.lesson
 
   return {
     moduleId: lesson.moduleId,
     status: lesson.status,
-    date: lesson.date,
-    startTime: lesson.startTime,
-    endTime: lesson.endTime,
+    date: initialPosition?.date ?? lesson.date,
+    startTime: initialPosition?.startTime ?? lesson.startTime,
+    endTime: initialPosition?.endTime ?? lesson.endTime,
     periodCount: String(lesson.periodCount),
     countTowardProgress: lesson.countTowardProgress,
     plannedActivity: lesson.plannedActivity,
@@ -315,12 +318,14 @@ function StatusSelector({
 
 export default function LessonEditorDialog({
   context,
+  initialPosition,
+  moveOnly = false,
   onClose,
   onSaved,
   onOpenLesson
 }: LessonEditorDialogProps) {
   const [form, setForm] = useState<LessonEditorFormState>(
-    () => buildInitialForm(context)
+    () => buildInitialForm(context, initialPosition)
   )
 
   const [saving, setSaving] = useState(false)
@@ -330,6 +335,8 @@ export default function LessonEditorDialog({
   const [recordsMoveNotice, setRecordsMoveNotice] = useState<LessonMoveRecordsError | null>(null)
   const [pendingMove, setPendingMove] = useState<{ swap?: Lesson; options: LessonMoveOptions } | null>(null)
   const [moveCollision, setMoveCollision] = useState<Lesson | null>(null)
+  const [preparingMove, setPreparingMove] = useState(false)
+  const [moveCollisionLabel, setMoveCollisionLabel] = useState('')
   const [moveScope, setMoveScope] =
     useState<LessonMoveScope>('single')
   const [planificationItems, setPlanificationItems] =
@@ -379,12 +386,41 @@ export default function LessonEditorDialog({
     Boolean(form.summary.trim())
 
   useEffect(() => {
-    setForm(buildInitialForm(context))
+    setForm(buildInitialForm(context, initialPosition))
     setMoveScope('single')
     setMoveCollision(null)
     setError('')
     setBlockedLessons([])
-  }, [context])
+  }, [context, initialPosition])
+
+  useEffect(() => {
+    if (!moveOnly || !initialPosition) return
+    let cancelled = false
+    setPreparingMove(true)
+    async function prepareMove() {
+      try {
+        const collision = await lessonRepository.findMoveCollision(lesson.id, initialPosition!)
+        let label = ''
+        if (collision) {
+          const assignment = await maProfessorDb.teachingAssignments.get(collision.teachingAssignmentId)
+          if (assignment) {
+            const [group, subject] = await Promise.all([
+              maProfessorDb.groups.get(assignment.groupId),
+              maProfessorDb.subjects.get(assignment.subjectId)
+            ])
+            label = `${group?.name ?? ''} · ${subject?.shortName || subject?.name || ''}`
+          }
+        }
+        if (!cancelled) { setMoveCollision(collision); setMoveCollisionLabel(label) }
+      } catch (cause) {
+        if (!cancelled) setError(getErrorMessage(cause))
+      } finally {
+        if (!cancelled) setPreparingMove(false)
+      }
+    }
+    void prepareMove()
+    return () => { cancelled = true }
+  }, [initialPosition, lesson.id, moveOnly])
 
   useEffect(() => {
     let cancelled = false
@@ -516,7 +552,8 @@ export default function LessonEditorDialog({
   async function handleSubmit(
     event: { preventDefault(): void },
     confirmedSwap?: Lesson,
-    moveOptions: LessonMoveOptions = {}
+    moveOptions: LessonMoveOptions = {},
+    requestedMoveScope: LessonMoveScope = moveScope
   ) {
     event.preventDefault()
 
@@ -527,6 +564,30 @@ export default function LessonEditorDialog({
     setBlockedLessons([])
     setSubmittedMoveNotice(null)
     setRecordsMoveNotice(null)
+
+    if (moveOnly) {
+      setSaving(true)
+      setError('')
+      try {
+        const updated = await lessonRepository.moveLessonWithScope(
+          lesson.id, form, lesson.updatedAt, requestedMoveScope,
+          confirmedSwap ? { id: confirmedSwap.id, updatedAt: confirmedSwap.updatedAt } : undefined,
+          moveOptions
+        )
+        await onSaved(updated)
+      } catch (saveError) {
+        setError(getErrorMessage(saveError))
+        setPendingMove({ swap: confirmedSwap, options: moveOptions })
+        if (saveError instanceof LessonMoveBlockedError) {
+          setBlockedLessons(saveError.lessons)
+          setSubmittedMoveNotice(saveError)
+        }
+        if (saveError instanceof LessonMoveRecordsError) setRecordsMoveNotice(saveError)
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
 
     const periodCount = Number(form.periodCount)
 
@@ -733,6 +794,111 @@ export default function LessonEditorDialog({
     } finally {
       setSaving(false)
     }
+  }
+
+
+  const moveErrorNotice = (
+    error ? (
+                  <div
+                    role="alert"
+                    className="rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
+                  >
+                    {error}
+                    {blockedLessons.length ? (
+                      <ul className="mt-3 space-y-2">
+                        {blockedLessons.map(blocked => (
+                          <li key={blocked.id}>
+                            <button type="button" disabled={saving}
+                              onClick={() => void onOpenLesson(blocked.id)}
+                              className="text-left font-bold underline underline-offset-4 hover:text-white disabled:opacity-60">
+                              Abrir aula de {formatDate(blocked.date)} · {blocked.startTime}–{blocked.endTime}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {submittedMoveNotice && pendingMove ? (
+                      <div className="mt-4 space-y-3">
+                        <p>Retirar o visto altera apenas o estado no MA-Professor. A submissão no programa oficial/GIAE mantém-se.</p>
+                        {blockedLessons.some(row => row.id === lesson.id) ? <p>{moveScope === 'single'
+                          ? 'Para deslocar a aula selecionada, confirme a retirada do seu visto ou abra-a para o corrigir manualmente.'
+                          : 'Ao saltar, as aulas indicadas ficam intactas, incluindo a aula selecionada. A alteração aplica-se às restantes ocorrências.'}</p> : null}
+                        <div className="flex flex-wrap gap-3">
+                          {!blockedLessons.some(row => row.id === lesson.id) || moveScope !== 'single' ? (
+                            <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
+                              onClick={event => void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, submitted: { action: 'skip', confirmationKey: submittedMoveNotice.confirmationKey } })}>
+                              Saltar as submetidas e continuar
+                            </button>
+                          ) : null}
+                          <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
+                            onClick={event => {
+                              if (window.confirm('Retirar os vistos locais das aulas indicadas e continuar? A submissão no programa oficial/GIAE mantém-se.\n\n' + blockedLessons.map(row => formatDate(row.date) + ' · ' + row.startTime + '–' + row.endTime).join('\n'))) {
+                                void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, submitted: { action: 'clear', confirmationKey: submittedMoveNotice.confirmationKey } })
+                              }
+                            }}>
+                            Retirar os vistos locais e continuar
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {recordsMoveNotice && pendingMove ? (
+                      <div className="mt-4 space-y-3">
+                        <p>{recordsMoveNotice.absenceCount} {recordsMoveNotice.absenceCount === 1 ? 'falta' : 'faltas'} e {recordsMoveNotice.assessmentCount} {recordsMoveNotice.assessmentCount === 1 ? 'avaliação' : 'avaliações'} nas aulas seguintes:</p>
+                        <ul className="space-y-1">{recordsMoveNotice.lessons.map(row => <li key={row.id}>{formatDate(row.date)} · {row.startTime}–{row.endTime}</li>)}</ul>
+                        <p>Manter faz os registos acompanhar cada aula para a nova data/hora. Eliminar apaga definitivamente apenas as faltas e avaliações dessas aulas, incluindo as classificações associadas.</p>
+                        <div className="flex flex-wrap gap-3">
+                          <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
+                            onClick={event => void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, records: { action: 'transfer', confirmationKey: recordsMoveNotice.confirmationKey } })}>
+                            {pendingMove.swap ? 'Manter as faltas e avaliações' : 'Mover a aula e transferir as faltas e avaliações'}
+                          </button>
+                          <button type="button" disabled={saving} className="rounded-lg border border-rose-300/40 px-3 py-2"
+                            onClick={event => {
+                              if (window.confirm('Confirma a eliminação definitiva das faltas, avaliações e classificações associadas às aulas indicadas? Esta ação não pode ser desfeita. Os sumários e as restantes aulas mantêm-se.\n\n' + recordsMoveNotice.lessons.map(row => formatDate(row.date) + ' · ' + row.startTime + '–' + row.endTime).join('\n'))) {
+                                void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, records: { action: 'delete', confirmationKey: recordsMoveNotice.confirmationKey, deletionConfirmed: true } })
+                              }
+                            }}>
+                            {pendingMove.swap ? 'Trocar apenas as aulas e eliminar as faltas e avaliações' : 'Mover apenas a aula e eliminar as faltas e avaliações'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null
+  )
+
+  if (moveOnly) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/90 p-4 text-white backdrop-blur-sm">
+        <section role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"
+          className="my-auto w-full max-w-xl rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-2xl sm:p-7">
+          <h2 id="lesson-editor-title" className="text-xl font-black">
+            {preparingMove ? 'A preparar a alteração…' : moveCollision ? 'Deseja permutar?' : 'Mover esta aula?'}
+          </h2>
+          <p className="mt-4 text-sm font-bold">{context.lessonRow.group.name} · {subjectLabel}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            {formatDate(lesson.date)} · {lesson.startTime}–{lesson.endTime}
+            {' → '}{formatDate(form.date)} · {form.startTime}–{form.endTime}
+          </p>
+          {moveCollision ? (
+            <p className="mt-3 text-sm leading-6 text-amber-100">
+              {moveCollisionLabel || 'A aula que ocupa o destino'} passa para {formatDate(lesson.date)} · {lesson.startTime}–{lesson.endTime}.
+            </p>
+          ) : null}
+          <div className="mt-5">{moveErrorNotice}</div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {([['single', 'Só desta vez'], ['from_here', 'Daqui até ao final do ano']] as const).map(([scope, label]) => (
+              <button key={scope} type="button" disabled={saving || preparingMove}
+                onClick={event => { setMoveScope(scope); void handleSubmit(event, moveCollision ?? undefined, {}, scope) }}
+                className="min-h-11 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-50 disabled:opacity-50">
+                {label}
+              </button>
+            ))}
+            <button type="button" disabled={saving} onClick={onClose}
+              className="min-h-11 rounded-xl border border-white/15 px-4 py-3 text-sm font-bold disabled:opacity-50">Cancelar</button>
+          </div>
+        </section>
+      </div>
+    )
   }
 
   return (
@@ -1437,72 +1603,7 @@ export default function LessonEditorDialog({
                     <button type="button" disabled={saving} onClick={event => void handleSubmit(event, moveCollision)} className="rounded-lg border px-3 py-2">Trocar as duas aulas de horário</button>
                   </div>
                 </div> : null}
-                {error ? (
-                  <div
-                    role="alert"
-                    className="rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4 text-sm leading-6 text-rose-100"
-                  >
-                    {error}
-                    {blockedLessons.length ? (
-                      <ul className="mt-3 space-y-2">
-                        {blockedLessons.map(blocked => (
-                          <li key={blocked.id}>
-                            <button type="button" disabled={saving}
-                              onClick={() => void onOpenLesson(blocked.id)}
-                              className="text-left font-bold underline underline-offset-4 hover:text-white disabled:opacity-60">
-                              Abrir aula de {formatDate(blocked.date)} · {blocked.startTime}–{blocked.endTime}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {submittedMoveNotice && pendingMove ? (
-                      <div className="mt-4 space-y-3">
-                        <p>Retirar o visto altera apenas o estado no MA-Professor. A submissão no programa oficial/GIAE mantém-se.</p>
-                        {blockedLessons.some(row => row.id === lesson.id) ? <p>{moveScope === 'single'
-                          ? 'Para deslocar a aula selecionada, confirme a retirada do seu visto ou abra-a para o corrigir manualmente.'
-                          : 'Ao saltar, as aulas indicadas ficam intactas, incluindo a aula selecionada. A alteração aplica-se às restantes ocorrências.'}</p> : null}
-                        <div className="flex flex-wrap gap-3">
-                          {!blockedLessons.some(row => row.id === lesson.id) || moveScope !== 'single' ? (
-                            <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
-                              onClick={event => void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, submitted: { action: 'skip', confirmationKey: submittedMoveNotice.confirmationKey } })}>
-                              Saltar as submetidas e continuar
-                            </button>
-                          ) : null}
-                          <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
-                            onClick={event => {
-                              if (window.confirm('Retirar os vistos locais das aulas indicadas e continuar? A submissão no programa oficial/GIAE mantém-se.\n\n' + blockedLessons.map(row => formatDate(row.date) + ' · ' + row.startTime + '–' + row.endTime).join('\n'))) {
-                                void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, submitted: { action: 'clear', confirmationKey: submittedMoveNotice.confirmationKey } })
-                              }
-                            }}>
-                            Retirar os vistos locais e continuar
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                    {recordsMoveNotice && pendingMove ? (
-                      <div className="mt-4 space-y-3">
-                        <p>{recordsMoveNotice.absenceCount} {recordsMoveNotice.absenceCount === 1 ? 'falta' : 'faltas'} e {recordsMoveNotice.assessmentCount} {recordsMoveNotice.assessmentCount === 1 ? 'avaliação' : 'avaliações'} nas aulas seguintes:</p>
-                        <ul className="space-y-1">{recordsMoveNotice.lessons.map(row => <li key={row.id}>{formatDate(row.date)} · {row.startTime}–{row.endTime}</li>)}</ul>
-                        <p>Manter faz os registos acompanhar cada aula para a nova data/hora. Eliminar apaga definitivamente apenas as faltas e avaliações dessas aulas, incluindo as classificações associadas.</p>
-                        <div className="flex flex-wrap gap-3">
-                          <button type="button" disabled={saving} className="rounded-lg border px-3 py-2"
-                            onClick={event => void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, records: { action: 'transfer', confirmationKey: recordsMoveNotice.confirmationKey } })}>
-                            {pendingMove.swap ? 'Manter as faltas e avaliações' : 'Mover a aula e transferir as faltas e avaliações'}
-                          </button>
-                          <button type="button" disabled={saving} className="rounded-lg border border-rose-300/40 px-3 py-2"
-                            onClick={event => {
-                              if (window.confirm('Confirma a eliminação definitiva das faltas, avaliações e classificações associadas às aulas indicadas? Esta ação não pode ser desfeita. Os sumários e as restantes aulas mantêm-se.\n\n' + recordsMoveNotice.lessons.map(row => formatDate(row.date) + ' · ' + row.startTime + '–' + row.endTime).join('\n'))) {
-                                void handleSubmit(event, pendingMove.swap, { ...pendingMove.options, records: { action: 'delete', confirmationKey: recordsMoveNotice.confirmationKey, deletionConfirmed: true } })
-                              }
-                            }}>
-                            {pendingMove.swap ? 'Trocar apenas as aulas e eliminar as faltas e avaliações' : 'Mover apenas a aula e eliminar as faltas e avaliações'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                {moveErrorNotice}
               </div>
             </div>
           </div>

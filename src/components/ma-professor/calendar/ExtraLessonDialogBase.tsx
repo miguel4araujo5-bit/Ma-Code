@@ -110,8 +110,8 @@ function buildInitialForm(
     teachingAssignmentId: context.defaultTeachingAssignmentId ?? '',
     moduleId: context.defaultModuleId ?? '',
     date: context.date,
-    startTime: '09:00',
-    endTime: '10:00',
+    startTime: context.defaultStartTime ?? '09:00',
+    endTime: context.defaultEndTime ?? '10:00',
     periodCount: '1',
     status: 'planned',
     countTowardProgress: true,
@@ -325,6 +325,12 @@ export default function ExtraLessonDialog({
 
   const matchingScheduleSlots =
     selectionContext?.matchingScheduleSlots ?? []
+
+  function getModuleCounter(module: NonNullable<typeof selectedModule>) {
+    const taught = selectionContext?.periodsTaughtByModuleId?.[module.id] ?? 0
+    const remaining = Math.max(0, module.plannedPeriods - taught)
+    return `${taught} de ${module.plannedPeriods} tempos — ${remaining === 1 ? 'falta 1' : `faltam ${remaining}`}`
+  }
 
   const canSubmitToGIAE =
     form.status === 'taught' && Boolean(form.summary.trim())
@@ -933,13 +939,17 @@ export default function ExtraLessonDialog({
                         {getModuleLabel(
                           module.code,
                           module.name
-                        )}
+                        )} · {getModuleCounter(module)}
                       </option>
                     ))}
                   </select>
                 </label>
-
-
+                {selectedModule ? (
+                  <p role="status" className="mt-3 text-sm font-bold text-cyan-100">
+                    {getModuleCounter(selectedModule)}
+                    {selectedModule.id === selectionContext?.suggestedModule?.id ? ' · Recomendada' : ''}
+                  </p>
+                ) : null}
               </section>
 
               <section className="grid gap-5 xl:grid-cols-2">

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState
 } from 'react'
 
@@ -16,6 +17,7 @@ import type {
   ISODate
 } from '../types'
 import type { HistoryLocation } from '../history/databaseHistory'
+import { useCalendarExtraLesson } from '../product/useCalendarExtraLesson'
 
 import DailyUfcdProgressNotice from './DailyUfcdProgressNotice'
 import DailyUnifiedWeekOverview from './DailyUnifiedWeekOverview'
@@ -71,6 +73,11 @@ export default function DailyWorkspaceWithDuties({
   onOpenBackup,
   onNavigationGuardChange
 }: DailyWorkspaceWithDutiesProps) {
+  const dailyNavigationGuard = useRef<(() => Promise<boolean>) | null>(null)
+  const registerNavigationGuard = useCallback((guard: (() => Promise<boolean>) | null) => {
+    dailyNavigationGuard.current = guard
+    onNavigationGuardChange?.(guard)
+  }, [onNavigationGuardChange])
   const [
     activeDate,
     setActiveDate
@@ -188,9 +195,25 @@ export default function DailyWorkspaceWithDuties({
       await onSaved?.()
     }
 
+  const lessonActions = useCalendarExtraLesson(academicYearId, activeDate, null, async lesson => {
+    setActiveDate(lesson.date)
+    setActiveLessonId(lesson.id)
+    setHistoryRevision(current => current + 1)
+    await handleSaved()
+  })
+
   return (
     <div className="ma-professor-unified-daily bg-slate-950">
+      {lessonActions.dialog}
       <DailyUnifiedWeekOverview
+        onCreateLesson={async (date, position) => {
+          if (dailyNavigationGuard.current && !await dailyNavigationGuard.current()) return
+          await lessonActions.createLesson(date, position)
+        }}
+        onMoveLesson={async (lessonId, position) => {
+          if (dailyNavigationGuard.current && !await dailyNavigationGuard.current()) return
+          await lessonActions.openMoveLesson(lessonId, position)
+        }}
         academicYearId={
           academicYearId
         }
@@ -267,7 +290,7 @@ export default function DailyWorkspaceWithDuties({
           handleHistoryNavigate
         }
         onNavigationGuardChange={
-          onNavigationGuardChange
+          registerNavigationGuard
         }
       />
 

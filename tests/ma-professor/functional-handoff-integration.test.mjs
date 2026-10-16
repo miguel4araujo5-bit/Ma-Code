@@ -270,14 +270,15 @@ test('move uses only date/time; submitted destinations and stale versions roll b
  assert.equal(moved.moduleId,'b');assert.equal(moved.summary,'Sumário');assert.equal(moved.giaeStatus,'pending')
 })
 
-test('an anticipated scheduled lesson reserves its original occurrence instead of being recreated',async()=>{
+test('anticipating onto a day without this subject preserves the last occurrence and its original reservation',async()=>{
  const slot={...audit,id:'slot',academicYearId:'y',teachingAssignmentId:'a',weekday:1,startTime:'09:00',endTime:'09:50',periodCount:1,validFrom:'2026-09-01',validUntil:'2027-07-31',active:true}
  await db.weeklyScheduleSlots.put(slot)
  await db.lessons.put(lesson('future',{origin:'scheduled',scheduleSlotId:'slot',date:'2026-10-12',summary:'',plannedActivity:'',notes:'',status:'planned',giaeStatus:'pending',giaeSubmittedAt:null,planificationItemIds:[]}))
  const anticipated=await api.extraLessonRepository.createExtraLesson({
-  academicYearId:'y',teachingAssignmentId:'a',moduleId:'b',date:'2026-10-05',startTime:'11:00',endTime:'11:50',periodCount:1,status:'planned',countTowardProgress:true,plannedActivity:'',summary:'',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending'
+  academicYearId:'y',teachingAssignmentId:'a',moduleId:'b',date:'2026-10-06',startTime:'11:00',endTime:'11:50',periodCount:1,status:'planned',countTowardProgress:true,plannedActivity:'',summary:'',summarySource:'manual',planificationItemIds:[],notes:'',giaeStatus:'pending'
  })
  assert.equal(anticipated.id,'future')
+ assert.equal(anticipated.date,'2026-10-06')
  assert.equal(anticipated.origin,'scheduled')
  assert.equal(anticipated.scheduleSlotId,'slot')
  assert.deepEqual(anticipated.scheduleOriginalPosition,{date:'2026-10-12',startTime:'09:00'})

@@ -34,6 +34,8 @@ export interface ExtraLessonAssignmentOption {
 export interface ExtraLessonCreateContext {
   academicYear: AcademicYear
   date: ISODate
+  defaultStartTime?: LocalTime
+  defaultEndTime?: LocalTime
   assignmentOptions: ExtraLessonAssignmentOption[]
   defaultTeachingAssignmentId: EntityId | null
   defaultModuleId: EntityId | null
@@ -47,6 +49,7 @@ export interface ExtraLessonSelectionContext {
   previousLessonTemplate: PreviousLessonTemplate | null
   nextPlanificationItem: PlanificationItem | null
   matchingScheduleSlots: WeeklyScheduleSlot[]
+  periodsTaughtByModuleId: Record<EntityId, number>
 }
 
 export interface ExtraLessonDraft {
@@ -216,10 +219,16 @@ function selectSuggestedModule(
   periodsTaughtByModuleId: Map<
     EntityId,
     number
-  >
+  >,
+  currentModuleId?: EntityId
 ) {
   const orderedModules =
     sortModules([...modules])
+
+  const currentModule = orderedModules.find(module => module.id === currentModuleId)
+  if (currentModule && (periodsTaughtByModuleId.get(currentModule.id) ?? 0) < currentModule.plannedPeriods) {
+    return currentModule
+  }
 
   const startedIncomplete =
     orderedModules.find(
@@ -719,10 +728,19 @@ export class ExtraLessonRepository {
         }
       )
 
+    const lastWorkedLesson = lessons
+      .filter(lesson =>
+        lesson.status !== 'cancelled' &&
+        (lesson.date < date || (lesson.date === date && lesson.startTime <= startTime)) &&
+        Boolean(lesson.summary.trim() || lesson.plannedActivity.trim() || lesson.planificationItemIds.length || lesson.giaeStatus === 'submitted')
+      )
+      .sort(sortLessonsLatestFirst)[0]
+
     const suggestedModule =
       selectSuggestedModule(
         activeModules,
-        periodsTaughtByModuleId
+        periodsTaughtByModuleId,
+        lastWorkedLesson?.moduleId
       )
 
     const nextPlanificationItem =
@@ -774,7 +792,8 @@ export class ExtraLessonRepository {
       suggestedModule,
       previousLessonTemplate,
       nextPlanificationItem,
-      matchingScheduleSlots
+      matchingScheduleSlots,
+      periodsTaughtByModuleId: Object.fromEntries(periodsTaughtByModuleId)
     }
   }
 
@@ -906,6 +925,13 @@ export class ExtraLessonRepository {
         }
       }
 
+      // Use the validated timetable move, which supports exceptions on other
+      // weekdays while retaining the reservation of the original occurrence.
+      const positionedLesson = await lessonRepository.moveLesson(
+        sourceLesson.id,
+        { date: input.date, startTime: input.startTime, endTime: input.endTime },
+        sourceLesson.updatedAt
+      )
       let lesson = await lessonRepository.updateLesson(
         sourceLesson.id,
         {
@@ -931,7 +957,7 @@ export class ExtraLessonRepository {
           planificationItemIds: input.planificationItemIds,
           notes: input.notes
         },
-        { expectedUpdatedAt: sourceLesson.updatedAt }
+        { expectedUpdatedAt: positionedLesson.updatedAt }
       )
 
       if (input.giaeStatus === 'submitted') {

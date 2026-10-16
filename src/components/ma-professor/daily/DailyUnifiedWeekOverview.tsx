@@ -26,6 +26,7 @@ import {
 import type {
   EntityId,
   ISODate,
+  Lesson,
   SchoolCalendarEvent
 } from '../types'
 
@@ -34,6 +35,8 @@ interface DailyUnifiedWeekOverviewProps {
   date: ISODate
   selectedLessonId?: EntityId | null
   refreshToken?: number
+  onCreateLesson?: (date: ISODate, position?: Pick<Lesson, 'startTime' | 'endTime'>) => void | Promise<void>
+  onMoveLesson?: (lessonId: EntityId, position: Pick<Lesson, 'date' | 'startTime' | 'endTime'>) => void | Promise<void>
   onSelectDate: (
     date: ISODate
   ) => void
@@ -55,6 +58,13 @@ interface WeekTimeSlot {
   key: string
   startTime: string
   endTime: string
+}
+
+interface LessonCellTarget {
+  date: ISODate
+  startTime: string
+  endTime: string
+  lessonId: EntityId | null
 }
 
 const DUTY_DISCARD_MESSAGE =
@@ -411,10 +421,29 @@ export default function DailyUnifiedWeekOverview({
   date,
   selectedLessonId = null,
   refreshToken = 0,
+  onCreateLesson,
+  onMoveLesson,
   onSelectDate,
   onSelectLesson,
   onSaved
 }: DailyUnifiedWeekOverviewProps) {
+  const [cellMenu, setCellMenu] = useState<LessonCellTarget | null>(null)
+  const [movingLesson, setMovingLesson] = useState<{ id: EntityId; label: string } | null>(null)
+  const longPressRef = useRef<{ timer: number; x: number; y: number } | null>(null)
+  const suppressClickUntil = useRef(0)
+
+  function cancelLongPress() {
+    if (longPressRef.current) window.clearTimeout(longPressRef.current.timer)
+    longPressRef.current = null
+  }
+
+  useEffect(() => {
+    function escape(event: KeyboardEvent) {
+      if (event.key === 'Escape') { setCellMenu(null); setMovingLesson(null) }
+    }
+    window.addEventListener('keydown', escape)
+    return () => { window.removeEventListener('keydown', escape); cancelLongPress() }
+  }, [])
   const [
     snapshot,
     setSnapshot
@@ -916,6 +945,12 @@ export default function DailyUnifiedWeekOverview({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
+            {onCreateLesson ? (
+              <button type="button" disabled={loading} onClick={() => void onCreateLesson(date)}
+                className="min-h-8 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-1.5 text-[0.66rem] font-black text-cyan-100 disabled:opacity-40">
+                + Adicionar aula
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() =>
@@ -980,6 +1015,12 @@ export default function DailyUnifiedWeekOverview({
           </div>
         </div>
 
+        {movingLesson ? (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-50">
+            <p>Escolha o destino para {movingLesson.label}.</p>
+            <button type="button" onClick={() => setMovingLesson(null)} className="min-h-9 rounded-lg border border-cyan-300/30 px-3 py-2 font-bold">Cancelar movimento</button>
+          </div>
+        ) : null}
         {loadError ? (
           <div className="m-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3">
             <p className="text-xs font-semibold text-rose-100">
@@ -1163,6 +1204,47 @@ export default function DailyUnifiedWeekOverview({
                           return (
                             <div
                               key={`${day.date}-${slot.key}`}
+                              data-lesson-cell={`${day.date}T${slot.startTime}`}
+                              style={{ WebkitTouchCallout: 'none' }}
+                              onContextMenu={event => {
+                                if (!day.isWithinAcademicYear || (!onCreateLesson && !onMoveLesson)) return
+                                event.preventDefault()
+                                cancelLongPress()
+                                const selectedId = (event.target as Element).closest('[data-lesson-id]')?.getAttribute('data-lesson-id')
+                                setCellMenu({ date: day.date, startTime: slot.startTime, endTime: slot.endTime, lessonId: selectedId ?? lessons[0]?.lesson.id ?? null })
+                              }}
+                              onPointerDown={event => {
+                                if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
+                                if (!day.isWithinAcademicYear || (!onCreateLesson && !onMoveLesson)) return
+                                cancelLongPress()
+                                const selectedId = (event.target as Element).closest('[data-lesson-id]')?.getAttribute('data-lesson-id')
+                                const target = { date: day.date, startTime: slot.startTime, endTime: slot.endTime, lessonId: selectedId ?? lessons[0]?.lesson.id ?? null }
+                                longPressRef.current = { x: event.clientX, y: event.clientY, timer: window.setTimeout(() => {
+                                  longPressRef.current = null
+                                  suppressClickUntil.current = Date.now() + 800
+                                  setCellMenu(target)
+                                }, 550) }
+                              }}
+                              onPointerMove={event => {
+                                const press = longPressRef.current
+                                if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancelLongPress()
+                              }}
+                              onPointerUp={cancelLongPress}
+                              onPointerCancel={cancelLongPress}
+                              onClickCapture={event => {
+                                if (Date.now() < suppressClickUntil.current) { event.preventDefault(); event.stopPropagation(); return }
+                                if (movingLesson && onMoveLesson && day.isWithinAcademicYear) {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  const source = movingLesson.id
+                                  setMovingLesson(null)
+                                  void onMoveLesson(source, { date: day.date, startTime: slot.startTime, endTime: slot.endTime })
+                                }
+                              }}
+                              onClick={event => {
+                                if ((event.target as Element).closest('button, a, input, select, textarea')) return
+                                if (day.isWithinAcademicYear && (onCreateLesson || onMoveLesson)) setCellMenu({ date: day.date, startTime: slot.startTime, endTime: slot.endTime, lessonId: lessons[0]?.lesson.id ?? null })
+                              }}
                               className={`relative min-h-[4.5rem] overflow-hidden border-r border-white/[0.07] p-1.5 last:border-r-0 ${
                                 currentSlotProgress !==
                                 null
@@ -1201,6 +1283,13 @@ export default function DailyUnifiedWeekOverview({
                               ) : null}
 
                               <div className="relative z-10 space-y-1.5">
+                                {lessons.length === 0 && cellDuties.length === 0 && onCreateLesson && day.isWithinAcademicYear ? (
+                                  <button type="button" aria-label={`Adicionar aula em ${day.date} às ${slot.startTime}`}
+                                    onClick={() => setCellMenu({ date: day.date, startTime: slot.startTime, endTime: slot.endTime, lessonId: null })}
+                                    className="min-h-[3.5rem] w-full rounded-lg text-xs font-bold text-slate-500 transition hover:bg-cyan-300/10 hover:text-cyan-100 focus-visible:bg-cyan-300/10 focus-visible:text-cyan-100">
+                                    +
+                                  </button>
+                                ) : null}
                                 {lessons.map(
                                   row => {
                                     const active =
@@ -1226,6 +1315,7 @@ export default function DailyUnifiedWeekOverview({
                                     return (
                                       <button
                                         key={row.lesson.id}
+                                        data-lesson-id={row.lesson.id}
                                         type="button"
                                         onClick={() =>
                                           onSelectLesson(
@@ -1359,6 +1449,29 @@ export default function DailyUnifiedWeekOverview({
         ) : null}
       </div>
 
+      {cellMenu ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/80 p-4" onClick={() => setCellMenu(null)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="lesson-cell-menu-title" onClick={event => event.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-2xl">
+            <h2 id="lesson-cell-menu-title" className="text-lg font-black">{cellMenu.lessonId ? 'Ações da aula' : 'Adicionar aula'}</h2>
+            <p className="mt-2 text-sm text-slate-400">{cellMenu.date} · {cellMenu.startTime}–{cellMenu.endTime}</p>
+            <div className="mt-5 grid gap-3">
+              {!cellMenu.lessonId && onCreateLesson ? (
+                <button type="button" onClick={() => { const target = cellMenu; setCellMenu(null); void onCreateLesson(target.date, target) }}
+                  className="min-h-11 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-left text-sm font-bold text-cyan-50">Antecipar aula</button>
+              ) : null}
+              {cellMenu.lessonId && onMoveLesson ? (
+                <button type="button" onClick={() => {
+                  const row = snapshot?.days.flatMap(day => day.lessons).find(row => row.lesson.id === cellMenu.lessonId)
+                  setMovingLesson({ id: cellMenu.lessonId!, label: row ? `${row.group.name} · ${getSubjectLabel(row)}` : 'a aula selecionada' })
+                  setCellMenu(null)
+                }} className="min-h-11 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-left text-sm font-bold text-cyan-50">Mover ou permutar</button>
+              ) : null}
+              <button type="button" onClick={() => setCellMenu(null)} className="min-h-11 rounded-xl border border-white/15 px-4 py-3 text-left text-sm font-bold">Cancelar</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       {selectedDuty ? (
         <div
           ref={editorRef}
