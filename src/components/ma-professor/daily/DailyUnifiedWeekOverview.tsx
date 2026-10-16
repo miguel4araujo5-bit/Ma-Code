@@ -1209,6 +1209,7 @@ export default function DailyUnifiedWeekOverview({
                               onContextMenu={event => {
                                 if (!day.isWithinAcademicYear || (!onCreateLesson && !onMoveLesson)) return
                                 event.preventDefault()
+                                if (longPressRef.current) suppressClickUntil.current = Date.now() + 800
                                 cancelLongPress()
                                 const selectedId = (event.target as Element).closest('[data-lesson-id]')?.getAttribute('data-lesson-id')
                                 setCellMenu({ date: day.date, startTime: slot.startTime, endTime: slot.endTime, lessonId: selectedId ?? lessons[0]?.lesson.id ?? null })

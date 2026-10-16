@@ -149,6 +149,14 @@ test('moving into an empty cell leaves the source free and cancellation changes 
 test('touch long press opens the menu, suppresses the tap, and scrolling cancels the gesture', async () => {
   await mount()
   const source = cell('2026-09-21').querySelector('[data-lesson-id]')
+  // Some touch browsers emit contextmenu before the custom hold timer.
+  await pointer(source, 'pointerdown')
+  await context(source)
+  await pointer(source, 'pointerup')
+  await click(source)
+  assert.equal(selected.length, 0)
+  await click(button('Cancelar'))
+  await act(() => delay(850))
   await pointer(source, 'pointerdown')
   await act(() => delay(600))
   assert.ok(button('Mover ou permutar'))
