@@ -10,9 +10,14 @@ const OPAQUE_KEY = 'ma-professor-opaque-auth-v1'
 
 // Execute the production bridges and the vendored OPAQUE implementation.
 // Only the storage and Wasm loading are adapted to the Node test runtime.
-async function loadRuntime(path) {
+async function loadRuntime(path, includeClient = false) {
   const result = await build({
-    entryPoints: [fileURLToPath(new URL(path, root))],
+    ...(includeClient ? {
+      stdin: {
+        resolveDir: fileURLToPath(root),
+        contents: `export * from './${path}'; export * from './src/components/ma-professor/access/opaqueClient.ts'`
+      }
+    } : { entryPoints: [fileURLToPath(new URL(path, root))] }),
     bundle: true,
     write: false,
     format: 'esm',
@@ -35,7 +40,7 @@ async function loadRuntime(path) {
 
 const [worker, client, api] = await Promise.all([
   loadRuntime('worker/maProfessorAccessRetentionBridge.ts'),
-  loadRuntime('src/components/ma-professor/access/opaqueAccess.ts'),
+  loadRuntime('src/components/ma-professor/access/opaqueAccess.ts', true),
   loadRuntime('src/components/ma-professor/access/accessApi.ts')
 ])
 
@@ -85,6 +90,7 @@ function setup() {
   const restart = () => { object = new worker.MaProfessorAccessDurableObject(state, {}) }
   return { storage, requests, post, fetch, approve, readAccess, restart }
 }
+
 
 async function assertNewSessionLifetime(fixture, email, deviceId) {
   const session = Object.values((await fixture.readAccess()).sessions)
@@ -516,4 +522,62 @@ test('OPAQUE enrollment shares the MP activation attempt limit and generic failu
   })
   assert.equal(blocked.status, 429)
   assert.equal(await fixture.storage.get(OPAQUE_KEY), undefined)
+})
+
+test('an existing RFC account migrates on desktop and reopens its unchanged V3 backup on iPhone', { timeout: 90_000 }, async t => {
+  const fixture = setup()
+  t.mock.method(globalThis, 'fetch', fixture.fetch)
+  const email = 'existing-safari@example.test'
+  const password = 'Fictional-Existing-Account-2026!'
+  const deviceId = 'existing-desktop'
+  await api.submitMAProfessorAccessRequest(email)
+  const start = await client.startMAProfessorOpaqueClientRegistration(password)
+  const response = await fixture.post('/api/ma-professor/access/opaque/enroll/start', {
+    email, deviceId, registrationRequest: start.registrationRequest,
+    accountRequest: true, termsVersion: api.MA_PROFESSOR_TERMS_VERSION,
+    keyStretching: 'rfc-recommended'
+  })
+  assert.equal(response.status, 200)
+  const enrollment = await response.json()
+  const registered = await client.finishMAProfessorOpaqueClientRegistration(
+    password, start.clientRegistrationState, enrollment.registrationResponse, 'rfc-recommended'
+  )
+  await api.finishMAProfessorOpaqueEnrollment(email, deviceId, enrollment.enrollmentId, registered.registrationRecord)
+  const before = await fixture.storage.get(OPAQUE_KEY)
+  const accessBefore = await fixture.readAccess()
+  const backup = await loadRuntime('src/components/ma-professor/sync/cloudBackupV3Crypto.ts')
+  const material = await backup.createMAProfessorBackupV3KeyMaterial(registered.exportKey)
+  const plaintext = new TextEncoder().encode('Cópia fictícia anterior à migração')
+  const ciphertext = await backup.encryptMAProfessorBackupV3Data(material.masterKey, plaintext, 'migration-test')
+  const originalBackup = JSON.stringify({ wrapped: material.wrapped, ciphertext })
+
+  const desktop = await client.loginMAProfessorOpaqueOnly(email, password, deviceId)
+  assert.equal(desktop.exportKey, registered.exportKey)
+  const after = await fixture.storage.get(OPAQUE_KEY)
+  assert.deepEqual(Object.keys(after.registrations), Object.keys(before.registrations))
+  assert.equal(after.registrations[email].createdAt, before.registrations[email].createdAt)
+  assert.equal(after.registrations[email].keyStretching, 'memory-constrained')
+  assert.ok(after.registrations[email].legacyKeyWrap)
+  assert.deepEqual((await fixture.readAccess()).licenses, accessBefore.licenses)
+  assert.deepEqual((await fixture.readAccess()).accessRequests, accessBefore.accessRequests)
+
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    userAgent: 'Mozilla/5.0 (iPhone) Version/26.0 Mobile Safari/605.1.15', platform: 'iPhone', maxTouchPoints: 5
+  } })
+  t.after(() => {
+    if (navigatorDescriptor) Object.defineProperty(globalThis, 'navigator', navigatorDescriptor)
+    else delete globalThis.navigator
+  })
+  fixture.restart()
+  fixture.requests.length = 0
+  const mobile = await client.loginMAProfessorOpaqueOnly(email, password, 'existing-iphone')
+  assert.equal(mobile.exportKey, registered.exportKey)
+  assert.deepEqual(fixture.requests.map(request => request.path), [
+    '/api/ma-professor/access/opaque/login/start', '/api/ma-professor/access/opaque/login/finish'
+  ])
+  const masterKey = await backup.unwrapMAProfessorBackupV3MasterKey(mobile.exportKey, material.wrapped)
+  assert.deepEqual(await backup.decryptMAProfessorBackupV3Data(masterKey, ciphertext, 'migration-test'), plaintext)
+  assert.equal(JSON.stringify({ wrapped: material.wrapped, ciphertext }), originalBackup)
+  assert.ok(fixture.requests.every(request => !JSON.stringify(request.body).includes(password)))
 })

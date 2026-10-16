@@ -252,7 +252,7 @@ test('another account stays signed in while opening the linked login and after a
     new fixture.dom.window.Event('submit', { bubbles: true, cancelable: true })
   ))
   assert.equal(loginAttempts, 1)
-  assert.ok(document.body.textContent.includes('Password incorreta.'))
+  assert.ok(document.body.textContent.includes('Não foi possível entrar. Verifique o email e a password.'))
   assert.equal(window.localStorage.getItem(accessKey), original)
   assert.deepEqual(gate.readMAProfessorStoredAccess(), otherAccount)
   assert.equal(gate.readMAProfessorOpaqueExportKey(otherAccount.email), 'other-export-key')

@@ -12,6 +12,7 @@ import ProductIntroPanel from './ProductIntroPanel'
 
 import {
   activateMAProfessorAccessPeriod,
+  MAProfessorAccessApiError,
   MA_PROFESSOR_TERMS_VERSION,
   submitMAProfessorAccessRequest
 } from './accessApi'
@@ -35,6 +36,8 @@ import {
 import type {
   MAProfessorAccessResponse
 } from './accessTypes'
+
+import { ProblemReportDialog } from '../support/ProblemReportDialog'
 
 type Mode =
   | 'intro'
@@ -62,6 +65,35 @@ function getErrorMessage(
     error.message.trim()
     ? error.message
     : 'Não foi possível concluir a operação.'
+}
+
+function getLoginFeedback(error: unknown) {
+  const name = error instanceof Error ? error.name : ''
+  const status = error instanceof MAProfessorAccessApiError ? error.status : 0
+  // Only allowlisted categories leave this function. Vendor messages can
+  // contain credential material and must never enter the UI or a report.
+  const category = [
+    'MAProfessorOpaqueMobileCompatibilityError', 'MAProfessorOpaqueTimeoutError',
+    'MAProfessorAccessApiError', 'TypeError', 'RuntimeError', 'AbortError'
+  ].includes(name) ? name : 'UnexpectedError'
+  let message = 'Não foi possível iniciar sessão. Tente novamente ou comunique o problema.'
+  if (status === 429) {
+    message = 'Existem muitos pedidos de entrada. Aguarde um pouco antes de tentar novamente.'
+  } else if (name === 'MAProfessorOpaqueTimeoutError' || name === 'AbortError') {
+    message = 'A entrada demorou demasiado. Verifique a ligação à Internet e tente novamente.'
+  } else if (status === 401 || (
+    error instanceof Error && error.message === 'Não foi possível iniciar sessão com estas credenciais.'
+  )) {
+    message = 'Não foi possível entrar. Verifique o email e a password.'
+  } else if (status === 403 && error instanceof Error && [
+    'Esta conta não tem um período de acesso ativo.',
+    'O acesso desta conta foi revogado.',
+    'O período de acesso desta conta terminou. É necessária uma nova ativação para continuar.',
+    'Foi atingido o número máximo de dispositivos associados a esta conta.'
+  ].includes(error.message)) {
+    message = error.message
+  }
+  return { message, diagnostic: `Login: ${category}${status ? ` (HTTP ${status})` : ''}` }
 }
 
 function Shell({
@@ -222,6 +254,9 @@ export default function MAProfessorAuthGate({
     setBusy
   ] = useState(false)
 
+  const [loginDiagnostic, setLoginDiagnostic] = useState('')
+  const [reportOpen, setReportOpen] = useState(false)
+
   const [
     copied,
     setCopied
@@ -356,6 +391,8 @@ export default function MAProfessorAuthGate({
   const resetFeedback =
     () => {
       setError('')
+      setLoginDiagnostic('')
+      setReportOpen(false)
       setMessage('')
       setCopied(false)
     }
@@ -549,11 +586,9 @@ export default function MAProfessorAuthGate({
         loginError
       ) {
         if (!previousAccess) clearMAProfessorStoredAccess()
-        setError(
-          getErrorMessage(
-            loginError
-          )
-        )
+        const feedback = getLoginFeedback(loginError)
+        setError(feedback.message)
+        setLoginDiagnostic(feedback.diagnostic)
       } finally {
         setBusy(false)
       }
@@ -1009,9 +1044,14 @@ export default function MAProfessorAuthGate({
             </label>
 
             {error ? (
-              <p className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">
-                {error}
-              </p>
+              <div role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">
+                <p>{error}</p>
+                {loginDiagnostic ? (
+                  <button type="button" onClick={() => setReportOpen(true)} className="mt-2 font-bold underline underline-offset-4">
+                    Comunicar um problema
+                  </button>
+                ) : null}
+              </div>
             ) : null}
 
             <button
@@ -1024,6 +1064,8 @@ export default function MAProfessorAuthGate({
                 : 'Entrar'}
             </button>
           </form>
+
+          <ProblemReportDialog open={reportOpen} errorSummary={loginDiagnostic} screen="Entrar" onClose={() => setReportOpen(false)} />
 
           <button
             type="button"
