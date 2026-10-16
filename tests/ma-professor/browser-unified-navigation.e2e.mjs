@@ -625,6 +625,9 @@ try {
   await page.getByRole('button', { name: '+ Aula extra', exact: true }).click()
   const extra = page.getByRole('dialog', { name: 'Antecipar aula', exact: true })
   await extra.waitFor()
+  // The default Monday time overlaps the existing lesson. Exercise the reported
+  // regression on an actually empty Tuesday, outside this subject's timetable.
+  await extra.locator('input[type="date"]').fill('2026-09-22')
   const beforeAnticipation = await page.evaluate(async () => {
     const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
     const db = await openMAProfessorDatabase()
@@ -658,6 +661,32 @@ try {
 
   await primary(page).getByRole('button', { name: 'Hoje', exact: false }).click()
   await page.getByText('Painel do ano letivo', { exact: true }).waitFor()
+  const anticipatedId = await page.evaluate(async () => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    return (await (await openMAProfessorDatabase()).lessons.toArray()).find(lesson => lesson.plannedActivity === 'Antecipação de navegação')?.id
+  })
+  assert.ok(anticipatedId)
+  const anticipatedButton = page.locator(`[data-lesson-id="${anticipatedId}"]`)
+  const moveTarget = page.locator('[data-lesson-cell="2026-09-23T09:00"]')
+  await anticipatedButton.click({ button: 'right' })
+  await page.getByRole('button', { name: 'Mover ou permutar', exact: true }).click()
+  await moveTarget.click()
+  const movePreview = page.getByRole('dialog', { name: 'Mover esta aula?', exact: true })
+  await movePreview.waitFor()
+  await movePreview.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  await movePreview.waitFor({ state: 'hidden' })
+  await anticipatedButton.click({ button: 'right' })
+  await page.getByRole('button', { name: 'Mover ou permutar', exact: true }).click()
+  await moveTarget.click()
+  await movePreview.getByRole('button', { name: 'Só desta vez', exact: true }).click()
+  await movePreview.waitFor({ state: 'hidden' })
+  const movedAnticipation = await page.evaluate(async id => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    return (await openMAProfessorDatabase()).lessons.get(id)
+  }, anticipatedId)
+  assert.equal(movedAnticipation.date, '2026-09-23')
+  assert.equal(movedAnticipation.startTime, '09:00')
+  evidence.push('grelha real: clique direito, escolha de origem e destino, cancelamento sem gravação e movimento confirmado para uma célula vazia')
   assert.equal(
     await page.getByRole('complementary', { name: 'Navegação completa do MA-Professor' })
       .getByRole('button')
