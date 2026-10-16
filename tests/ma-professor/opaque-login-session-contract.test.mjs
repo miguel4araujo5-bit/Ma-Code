@@ -38,7 +38,7 @@ test(
 
     assert.match(
       source,
-      /return this\.issueAccountSession\(\s*email,\s*deviceId,\s*accessState\s*\)/
+      /return this\.issueAccountSession\(\s*email,\s*deviceId,\s*accessState,\s*delegatedBody\s*\)/
     )
   }
 )

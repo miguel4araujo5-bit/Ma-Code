@@ -136,16 +136,6 @@ export class MAProfessorErrorBoundary
             O MA-Professor encontrou um problema nesta área. Os dados que já tinham sido guardados neste dispositivo não são apagados por este ecrã. Alterações ainda não guardadas podem não ter sido gravadas.
           </p>
 
-          <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-              Detalhe técnico
-            </p>
-
-            <p className="mt-2 text-sm text-slate-300">
-              {this.state.errorSummary}
-            </p>
-          </div>
-
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"

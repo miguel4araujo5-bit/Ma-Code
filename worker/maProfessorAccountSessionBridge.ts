@@ -472,7 +472,8 @@ export class MaProfessorAccessDurableObject {
     email: string,
     deviceId: string,
     accessState:
-      AccessStateSnapshot
+      AccessStateSnapshot,
+    opaqueMetadata?: JsonObject | null
   ) {
     const sessions =
       accessState.sessions || {}
@@ -574,7 +575,15 @@ export class MaProfessorAccessDurableObject {
           ? buildLicenseSummary(
               license
             )
-          : null
+          : null,
+      // These fields come only from the authenticated internal response,
+      // never from the request. The account-only session must retain them.
+      ...(opaqueMetadata?.opaqueMigrationId
+        ? { opaqueMigrationId: opaqueMetadata.opaqueMigrationId }
+        : {}),
+      ...(opaqueMetadata?.opaqueLegacyExportKeyWrap
+        ? { opaqueLegacyExportKeyWrap: opaqueMetadata.opaqueLegacyExportKeyWrap }
+        : {})
     })
   }
 
@@ -665,7 +674,8 @@ export class MaProfessorAccessDurableObject {
     return this.issueAccountSession(
       email,
       deviceId,
-      accessState
+      accessState,
+      delegatedBody
     )
   }
 

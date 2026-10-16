@@ -1994,6 +1994,14 @@ export class MaProfessorAccessDurableObject {
         null
     }
   ) {
+    const opaqueResponseMetadata = {
+      ...(opaqueMetadata?.migrationId
+        ? { opaqueMigrationId: opaqueMetadata.migrationId }
+        : {}),
+      ...(opaqueMetadata?.legacyKeyWrap
+        ? { opaqueLegacyExportKeyWrap: opaqueMetadata.legacyKeyWrap }
+        : {})
+    }
     const accessState =
       await this.state.storage.get<AccessStateSnapshot>(
         STORAGE_KEY
@@ -2013,7 +2021,8 @@ export class MaProfessorAccessDurableObject {
           success:
             false,
           message:
-            'Esta conta não tem um período de acesso ativo.'
+            'Esta conta não tem um período de acesso ativo.',
+          ...opaqueResponseMetadata
         },
         403
       )
@@ -2032,7 +2041,8 @@ export class MaProfessorAccessDurableObject {
             license.revokedAt !==
               null
               ? 'O acesso desta conta foi revogado.'
-              : 'O período de acesso desta conta terminou. É necessária uma nova ativação para continuar.'
+              : 'O período de acesso desta conta terminou. É necessária uma nova ativação para continuar.',
+          ...opaqueResponseMetadata
         },
         403
       )
@@ -2149,22 +2159,7 @@ export class MaProfessorAccessDurableObject {
         buildLicenseSummary(
           license
         ),
-      ...(opaqueMetadata
-        ?.migrationId
-        ? {
-            opaqueMigrationId:
-              opaqueMetadata
-                .migrationId
-          }
-        : {}),
-      ...(opaqueMetadata
-        ?.legacyKeyWrap
-        ? {
-            opaqueLegacyExportKeyWrap:
-              opaqueMetadata
-                .legacyKeyWrap
-          }
-        : {})
+      ...opaqueResponseMetadata
     })
 
   }

@@ -186,57 +186,9 @@ export function ProblemReportDialog({
         ) : (
           <>
             <p className="mt-4 text-sm leading-6 text-slate-300">
-              Confirme os dados técnicos abaixo. Nenhum dado escolar, ficheiro, conteúdo do IndexedDB ou password é incluído automaticamente.
+              Ao enviar, partilha a informação técnica necessária para analisarmos o problema. Nenhum dado escolar, ficheiro ou password é incluído automaticamente.
             </p>
             <p className="mt-2 text-xs text-slate-400">Se houver uma sessão válida, o relatório fica associado à sua conta para podermos prestar apoio.</p>
-
-            <dl className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-xs">
-              <div><dt className="font-black text-slate-400">Dispositivo</dt><dd className="mt-1 text-slate-200">{draft.device}</dd></div>
-              <div>
-                <dt className="font-black text-slate-400">
-                  Erro
-                </dt>
-                <dd className="mt-1 break-words text-slate-200">
-                  {draft.error}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="font-black text-slate-400">
-                  Versão
-                </dt>
-                <dd className="mt-1 break-words text-slate-200">
-                  {draft.version}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="font-black text-slate-400">
-                  Ecrã
-                </dt>
-                <dd className="mt-1 break-words text-slate-200">
-                  {draft.screen}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="font-black text-slate-400">
-                  Navegador
-                </dt>
-                <dd className="mt-1 break-words text-slate-200">
-                  {draft.browser}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="font-black text-slate-400">
-                  Data
-                </dt>
-                <dd className="mt-1 break-words text-slate-200">
-                  {draft.occurredAt}
-                </dd>
-              </div>
-            </dl>
 
             <label className="mt-4 block">
               <span className="text-sm font-black text-slate-200">

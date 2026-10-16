@@ -66,7 +66,7 @@ test(
 
     assert.match(
       dialogSource,
-      /Nenhum dado escolar, ficheiro, conteúdo do IndexedDB ou password é incluído automaticamente/
+      /Nenhum dado escolar, ficheiro ou password é incluído automaticamente/
     )
 
     assert.match(

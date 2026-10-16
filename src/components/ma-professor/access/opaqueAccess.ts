@@ -47,7 +47,7 @@ export class MAProfessorOpaqueMobileCompatibilityError
   extends Error {
   constructor() {
     super(
-      'Esta conta ainda utiliza a proteção anterior, que pode exceder a memória disponível num telemóvel. Entre uma vez no MA-Professor num computador para atualizar a proteção da conta e depois volte a tentar neste dispositivo.'
+      'Não foi possível iniciar sessão neste dispositivo. Comunique o problema para podermos ajudar.'
     )
     this.name =
       'MAProfessorOpaqueMobileCompatibilityError'
