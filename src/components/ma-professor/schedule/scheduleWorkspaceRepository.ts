@@ -1129,6 +1129,21 @@ export class ScheduleWorkspaceRepository {
     return updated
   }
 
+  async removeSummaryReminder(slotId: EntityId) {
+    await this.initialize()
+
+    const current = await maProfessorDb.weeklyScheduleSlots.get(slotId)
+    if (!current) {
+      throw new Error('O bloco de horário indicado não existe.')
+    }
+
+    await maProfessorDb.weeklyScheduleSlots.put({
+      ...current,
+      summaryReminderText: '',
+      updatedAt: now()
+    })
+  }
+
   async deleteScheduleSlot(
     slotId: EntityId
   ) {
