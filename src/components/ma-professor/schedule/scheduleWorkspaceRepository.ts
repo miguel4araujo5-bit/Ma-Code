@@ -7,6 +7,7 @@ import type {
   AcademicYear,
   ClassGroup,
   EntityId,
+  ISODate,
   SchoolCalendarEvent,
   SchoolCalendarEventScope,
   SchoolCalendarEventType,
