@@ -602,6 +602,8 @@ export default function DailyWorkspaceView({
     ] = useState<{
         slotId: EntityId;
         text: string;
+        startDate?: ISODate;
+        endDate?: ISODate;
     } | null>(null);
 
     const [
@@ -1053,8 +1055,10 @@ export default function DailyWorkspaceView({
         );
 
     const summaryReminderText =
-        summaryReminder?.slotId ===
-        scheduleSlotId
+        summaryReminder?.slotId === scheduleSlotId &&
+        lessonRow &&
+        (!summaryReminder.startDate || lessonRow.lesson.date >= summaryReminder.startDate) &&
+        (!summaryReminder.endDate || lessonRow.lesson.date <= summaryReminder.endDate)
             ? summaryReminder.text
             : '';
 
@@ -1095,7 +1099,9 @@ export default function DailyWorkspaceView({
                         ? {
                               slotId:
                                   scheduleSlotId,
-                              text
+                              text,
+                              startDate: slot?.summaryReminderStartDate,
+                              endDate: slot?.validUntil
                           }
                         : null
                 );
@@ -1529,7 +1535,8 @@ export default function DailyWorkspaceView({
             const updated =
                 await scheduleWorkspaceRepository.updateSummaryReminder(
                     scheduleSlotId,
-                    text
+                    text,
+                    lessonRow!.lesson.date
                 );
 
             const nextText =
@@ -1538,7 +1545,9 @@ export default function DailyWorkspaceView({
 
             setSummaryReminder({
                 slotId: scheduleSlotId,
-                text: nextText
+                text: nextText,
+                startDate: updated.summaryReminderStartDate,
+                endDate: updated.validUntil
             });
             setSummaryReminderDraft(
                 nextText
