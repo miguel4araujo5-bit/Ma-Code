@@ -1560,6 +1560,26 @@ export default function DailyWorkspaceView({
         }
     }
 
+    async function handleRemoveSummaryReminder() {
+        if (!scheduleSlotId || summaryReminderSaving) return;
+        if (!window.confirm('Deseja remover este lembrete semanal?')) return;
+
+        setSummaryReminderSaving(true);
+        setError('');
+        setSuccess('');
+        try {
+            await scheduleWorkspaceRepository.removeSummaryReminder(scheduleSlotId);
+            setSummaryReminder(null);
+            setSummaryReminderDraft('');
+            setShowSummaryReminderEditor(false);
+            setSuccess('Lembrete semanal removido.');
+        } catch (reminderError) {
+            setError(reminderError instanceof Error ? reminderError.message : 'Não foi possível remover o lembrete.');
+        } finally {
+            setSummaryReminderSaving(false);
+        }
+    }
+
     function handleAddSummaryReminderToSummary() {
         const reminder =
             summaryReminderText.trim();
@@ -3362,7 +3382,16 @@ export default function DailyWorkspaceView({
                                             </p>
                                         </div>
 
-                                        <button
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <button
+                                                type="button"
+                                                aria-label="Remover lembrete semanal"
+                                                title="Remover lembrete semanal"
+                                                onClick={() => void handleRemoveSummaryReminder()}
+                                                disabled={summaryReminderSaving || saving}
+                                                className="grid h-8 w-8 place-items-center rounded-lg border border-amber-300/25 text-lg font-bold text-amber-100 hover:bg-amber-300/10 disabled:opacity-35"
+                                            >×</button>
+                                            <button
                                             type="button"
                                             onClick={
                                                 handleAddSummaryReminderToSummary
@@ -3376,6 +3405,7 @@ export default function DailyWorkspaceView({
                                         >
                                             Adicionar ao sumário
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                             ) : null}
