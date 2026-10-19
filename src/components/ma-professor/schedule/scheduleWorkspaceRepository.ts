@@ -1140,10 +1140,10 @@ export class ScheduleWorkspaceRepository {
       throw new Error('O bloco de horário indicado não existe.')
     }
 
+    const { summaryReminderStartDate: _previousStartDate, ...withoutReminderStartDate } = current
     await maProfessorDb.weeklyScheduleSlots.put({
-      ...current,
+      ...withoutReminderStartDate,
       summaryReminderText: '',
-      summaryReminderStartDate: undefined,
       updatedAt: now()
     })
   }
