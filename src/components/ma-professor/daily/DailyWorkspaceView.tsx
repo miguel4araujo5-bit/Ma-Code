@@ -619,6 +619,8 @@ export default function DailyWorkspaceView({
         setSummaryReminderSaving
     ] = useState(false);
 
+    const [confirmRemoveSummaryReminder, setConfirmRemoveSummaryReminder] = useState(false);
+
     const loadRequestRef = useRef(0);
     const savingRef = useRef(false);
     const draftWriteEpochRef =
@@ -1062,6 +1064,7 @@ export default function DailyWorkspaceView({
         setShowSummaryReminderEditor(
             false
         );
+        setConfirmRemoveSummaryReminder(false);
 
         if (
             !hasWeeklySummaryReminder ||
@@ -1562,7 +1565,6 @@ export default function DailyWorkspaceView({
 
     async function handleRemoveSummaryReminder() {
         if (!scheduleSlotId || summaryReminderSaving) return;
-        if (!window.confirm('Deseja remover este lembrete semanal?')) return;
 
         setSummaryReminderSaving(true);
         setError('');
@@ -1572,6 +1574,7 @@ export default function DailyWorkspaceView({
             setSummaryReminder(null);
             setSummaryReminderDraft('');
             setShowSummaryReminderEditor(false);
+            setConfirmRemoveSummaryReminder(false);
             setSuccess('Lembrete semanal removido.');
         } catch (reminderError) {
             setError(reminderError instanceof Error ? reminderError.message : 'Não foi possível remover o lembrete.');
@@ -3382,30 +3385,27 @@ export default function DailyWorkspaceView({
                                             </p>
                                         </div>
 
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                            {confirmRemoveSummaryReminder ? (
+                                                <>
+                                                    <button type="button" onClick={() => setConfirmRemoveSummaryReminder(false)} disabled={summaryReminderSaving} className="rounded-lg border border-white/15 px-3 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:bg-white/10 disabled:opacity-35">Cancelar</button>
+                                                    <button type="button" onClick={() => void handleRemoveSummaryReminder()} disabled={summaryReminderSaving || saving} className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-35">{summaryReminderSaving ? 'A remover…' : 'Remover lembrete'}</button>
+                                                </>
+                                            ) : (
+                                                <button type="button" aria-label="Remover lembrete semanal" title="Remover lembrete semanal" onClick={() => setConfirmRemoveSummaryReminder(true)} disabled={summaryReminderSaving || saving} className="grid h-8 w-8 place-items-center rounded-lg border border-amber-300/25 text-lg font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:opacity-35">×</button>
+                                            )}
                                             <button
                                                 type="button"
-                                                aria-label="Remover lembrete semanal"
-                                                title="Remover lembrete semanal"
-                                                onClick={() => void handleRemoveSummaryReminder()}
-                                                disabled={summaryReminderSaving || saving}
-                                                className="grid h-8 w-8 place-items-center rounded-lg border border-amber-300/25 text-lg font-bold text-amber-100 hover:bg-amber-300/10 disabled:opacity-35"
-                                            >×</button>
-                                            <button
-                                            type="button"
-                                            onClick={
-                                                handleAddSummaryReminderToSummary
-                                            }
-                                            disabled={
-                                                saving ||
-                                                lessonForm.status ===
-                                                    'cancelled'
-                                            }
-                                            className="shrink-0 rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-35"
-                                        >
-                                            Adicionar ao sumário
-                                        </button>
+                                                onClick={handleAddSummaryReminderToSummary}
+                                                disabled={saving || lessonForm.status === 'cancelled'}
+                                                className="shrink-0 rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-35"
+                                            >
+                                                Adicionar ao sumário
+                                            </button>
                                         </div>
+                                        {confirmRemoveSummaryReminder ? (
+                                            <p role="status" className="w-full text-right text-xs font-semibold text-amber-100">Deseja deixar de receber este lembrete semanal?</p>
+                                        ) : null}
                                     </div>
                                 </div>
                             ) : null}
