@@ -3392,7 +3392,7 @@ export default function DailyWorkspaceView({
                                                     <button type="button" onClick={() => void handleRemoveSummaryReminder()} disabled={summaryReminderSaving || saving} className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-[0.68rem] font-black text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-35">{summaryReminderSaving ? 'A remover…' : 'Remover lembrete'}</button>
                                                 </>
                                             ) : (
-                                                <button type="button" aria-label="Remover lembrete semanal" title="Remover lembrete semanal" onClick={() => setConfirmRemoveSummaryReminder(true)} disabled={summaryReminderSaving || saving} className="grid h-8 w-8 place-items-center rounded-lg border border-amber-300/25 text-lg font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:opacity-35">×</button>
+                                                <button type="button" onClick={() => setConfirmRemoveSummaryReminder(true)} disabled={summaryReminderSaving || saving} className="shrink-0 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] font-black text-slate-200 transition hover:border-white/25 hover:bg-white/10 disabled:opacity-35">Remover lembrete</button>
                                             )}
                                             <button
                                                 type="button"
