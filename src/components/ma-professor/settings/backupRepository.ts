@@ -252,7 +252,11 @@ export async function createMAProfessorBackup(): Promise<MAProfessorBackup> {
           assessmentCriteria,
           planifications,
           planificationItems,
-          weeklyScheduleSlots,
+          weeklyScheduleSlots: weeklyScheduleSlots.map(slot => {
+            if (slot.summaryReminderStartDate !== undefined) return slot
+            const { summaryReminderStartDate: _unused, ...legacySlot } = slot
+            return legacySlot
+          }),
           schoolCalendarEvents,
           paaActivities,
           lessons,
