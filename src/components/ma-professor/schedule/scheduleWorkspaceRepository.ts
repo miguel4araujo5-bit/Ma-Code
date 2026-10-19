@@ -1086,7 +1086,8 @@ export class ScheduleWorkspaceRepository {
 
   async updateSummaryReminder(
     slotId: EntityId,
-    text: string
+    text: string,
+    startDate: ISODate
   ) {
     await this.initialize()
 
@@ -1119,6 +1120,7 @@ export class ScheduleWorkspaceRepository {
     const updated: WeeklyScheduleSlot = {
       ...current,
       summaryReminderText,
+      summaryReminderStartDate: current.summaryReminderText?.trim() ? (current.summaryReminderStartDate ?? startDate) : startDate,
       updatedAt: now()
     }
 
@@ -1140,6 +1142,7 @@ export class ScheduleWorkspaceRepository {
     await maProfessorDb.weeklyScheduleSlots.put({
       ...current,
       summaryReminderText: '',
+      summaryReminderStartDate: undefined,
       updatedAt: now()
     })
   }
