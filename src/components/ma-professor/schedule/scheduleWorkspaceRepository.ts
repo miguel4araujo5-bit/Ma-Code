@@ -1121,7 +1121,9 @@ export class ScheduleWorkspaceRepository {
     const updated: WeeklyScheduleSlot = {
       ...current,
       summaryReminderText,
-      summaryReminderStartDate: current.summaryReminderText?.trim() ? (current.summaryReminderStartDate ?? startDate) : startDate,
+      ...(current.summaryReminderText?.trim() && !current.summaryReminderStartDate
+        ? {}
+        : { summaryReminderStartDate: current.summaryReminderStartDate ?? startDate }),
       updatedAt: now()
     }
 
