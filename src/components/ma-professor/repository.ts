@@ -546,6 +546,7 @@ export class MAProfessorRepository {
       startDate: string
       endDate: string
       active?: boolean
+      otherSchoolCalendarReview?: 'pending'
     }
   ) {
     await this.initialize()
@@ -599,7 +600,10 @@ export class MAProfessorRepository {
             input.endDate,
           active,
           setupCompletedAt:
-            null
+            null,
+          ...(input.otherSchoolCalendarReview === 'pending'
+            ? { otherSchoolCalendarReview: 'pending' as const }
+            : {})
         }
       )
 
@@ -2597,3 +2601,4 @@ export class MAProfessorRepository {
 
 export const maProfessorRepository =
   new MAProfessorRepository()
+
