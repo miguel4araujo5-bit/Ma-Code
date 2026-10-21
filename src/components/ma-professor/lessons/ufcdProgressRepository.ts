@@ -23,6 +23,7 @@ import type {
 } from '../types'
 import {
   buildUfcdModuleProgress,
+  buildUfcdModuleAllocation,
   calculateCompletionPercent,
   compareLessonsChronologically,
   lessonCountsTowardUfcdProgress,
@@ -720,13 +721,10 @@ export class UfcdProgressRepository {
         lesson.teachingAssignmentId
       )
 
-    const referenceToday = todayISO()
-    const progress =
-      buildProgressBeforeLesson(
-        data,
-        lesson,
-        referenceToday
-      )
+    const progress = buildUfcdModuleAllocation(
+      data.modules,
+      data.lessons.filter(candidate => lessonOccursBefore(candidate, lesson))
+    )
 
     const currentModule =
       selectCurrentUfcd(

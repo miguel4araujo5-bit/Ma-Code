@@ -107,6 +107,7 @@ export interface CalendarWorkspaceSnapshot {
 
 export interface CalendarLessonEditorContext {
   lessonNumber?: string | null
+  lessonNumberConfirmed?: boolean
   hasUnsubmittedLessons?: boolean
   lessonRow: CalendarLessonRow
   assignmentModules: ModuleUnit[]

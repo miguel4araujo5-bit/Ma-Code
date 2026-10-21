@@ -470,6 +470,31 @@ try {
   await page.reload()
   assert.equal(await (await summaryEditor(page)).textarea.inputValue(), SUMMARY)
 
+  // A pending lesson already has its planned number, without confirmed progress.
+  const plannedNumber = page.locator('.ma-professor-unified-daily').getByText(/^Lição \d+(?:–\d+)? · prevista$/)
+  await plannedNumber.waitFor({ state: 'visible' })
+  const plannedLabel = await plannedNumber.innerText()
+  assert.match(await plannedNumber.getAttribute('class'), /text-slate-400/)
+  const originalNumberedLesson = await page.evaluate(async summary => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    const { lessonRepository } = await import('/src/components/ma-professor/lessons/lessonRepository.ts')
+    const db = await openMAProfessorDatabase()
+    const lesson = (await db.lessons.toArray()).find(row => row.summary === summary)
+    await lessonRepository.markGIAESubmittedExplicit(lesson.id, lesson.updatedAt)
+    return lesson
+  }, SUMMARY)
+  await page.reload()
+  const confirmedNumber = page.locator('.ma-professor-unified-daily').getByText(plannedLabel.replace(' · prevista', ''), { exact: true })
+  await confirmedNumber.waitFor({ state: 'visible' })
+  assert.match(await confirmedNumber.getAttribute('class'), /text-emerald-300/)
+  await page.evaluate(async original => {
+    const { openMAProfessorDatabase } = await import('/src/components/ma-professor/db.ts')
+    await (await openMAProfessorDatabase()).lessons.put(original)
+  }, originalNumberedLesson)
+  await page.reload()
+  await page.locator('.ma-professor-unified-daily').getByText(plannedLabel, { exact: true }).waitFor({ state: 'visible' })
+  evidence.push('numeração prevista cinzenta, confirmação GIAE verde sem mudar o número, e regresso a pendente após reload')
+
   // A failed save must keep the Daily editor and its draft on screen.
   const draftEditor = await summaryEditor(page)
   const navigationDraft = SUMMARY + ' Alteração antes de navegar.'
