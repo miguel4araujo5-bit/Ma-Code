@@ -3592,7 +3592,7 @@ export default function DailyWorkspaceView({
                                             } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível emitir a folha.'); }
                                           }}>Emitir novamente Excel e PDF</button>
                                         </p> : null}
-                                        {selectedLesson.context.lessonNumber ? <p className="mt-2 text-xs text-slate-400">Lição {selectedLesson.context.lessonNumber}</p> : null}
+                                        {selectedLesson.context.lessonNumber ? <p className={`mt-2 text-xs ${selectedLesson.context.lessonNumberConfirmed ? 'text-emerald-300' : 'text-slate-400'}`}>Lição {selectedLesson.context.lessonNumber}{selectedLesson.context.lessonNumberConfirmed ? '' : ' · prevista'}</p> : null}
                                         {selectedLesson.context.hasUnsubmittedLessons ? <p className="mt-1 text-xs text-amber-300" role="status">Há lições por submeter.</p> : null}
                                         <div className="mt-2 flex flex-col gap-2">
                                             <p className="min-w-0 text-[0.68rem] leading-4 text-slate-500">

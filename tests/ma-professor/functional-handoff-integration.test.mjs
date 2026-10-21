@@ -82,15 +82,17 @@ test('only submitted lessons affect progress, attendance and assessment; unticki
  assert.equal((await api.assessmentWorkspaceRepository.getWorkspace('y',{moduleId:'b',teachingAssignmentId:'a'})).studentRows[0].gradeSummary.provisionalAverage,15)
 })
 
-test('numbering follows submission chronology, and early C periods do not displace unfinished B',()=>{
+test('numbering follows planned chronology while submission alone confirms progress, and early C periods do not displace unfinished B',()=>{
  const lessons=[lesson('1'),lesson('2',{moduleId:'c',date:'2026-09-15'}),lesson('3',{date:'2026-09-16'})]
  let progress=api.buildUfcdModuleProgress([module(),module('c',2)],lessons)
  assert.equal(api.selectCurrentUfcd([module(),module('c',2)],progress).id,'b')
  assert.equal(progress[1].periodsRemaining,29)
  assert.equal(api.getLessonNumbering(lessons[2],lessons).lessonNumber,'3')
  lessons[0].giaeStatus='pending'
- assert.equal(api.getLessonNumbering(lessons[0],lessons).lessonNumber,null)
- assert.equal(api.getLessonNumbering(lessons[2],lessons).lessonNumber,'2')
+ assert.equal(api.getLessonNumbering(lessons[0],lessons).lessonNumber,'1')
+ assert.equal(api.getLessonNumbering(lessons[0],lessons).lessonNumberConfirmed,false)
+ assert.equal(api.getLessonNumbering(lessons[2],lessons).lessonNumber,'3')
+ assert.equal(api.getLessonNumbering(lessons[2],lessons).lessonNumberConfirmed,true)
  assert.equal(api.getLessonNumbering(lessons[2],lessons).hasUnsubmittedLessons,true)
 })
 

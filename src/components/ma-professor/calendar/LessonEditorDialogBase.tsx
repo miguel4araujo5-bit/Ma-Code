@@ -1446,7 +1446,7 @@ export default function LessonEditorDialog({
                       Submetida no programa oficial
                     </button>
                   </div>
-                  {context.lessonNumber ? <p className="mt-2 text-xs text-slate-400">Lição {context.lessonNumber}</p> : null}
+                  {context.lessonNumber ? <p className={`mt-2 text-xs ${context.lessonNumberConfirmed ? 'text-emerald-300' : 'text-slate-400'}`}>Lição {context.lessonNumber}{context.lessonNumberConfirmed ? '' : ' · prevista'}</p> : null}
                   {context.hasUnsubmittedLessons ? <p className="mt-2 text-xs text-amber-300">Há lições por submeter.</p> : null}
                 </section>
               </div>

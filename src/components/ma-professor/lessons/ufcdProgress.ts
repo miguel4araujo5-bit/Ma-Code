@@ -131,7 +131,7 @@ export function buildUfcdModuleProgress(
 
 export function selectCurrentUfcd(
   modules: ModuleUnit[],
-  progress: UfcdModuleProgress[]
+  progress: Pick<UfcdModuleProgress, 'moduleId' | 'periodsRemaining'>[]
 ) {
   const progressByModuleId =
     new Map(
@@ -166,11 +166,30 @@ export function selectCurrentUfcd(
   )
 }
 
+export function lessonReservesUfcdPeriods(lesson: Lesson) {
+  return lesson.status !== 'cancelled' && lesson.countTowardProgress &&
+    Number.isFinite(lesson.periodCount) && lesson.periodCount > 0
+}
+
+// A sequência planeada inclui aulas pendentes. Não altera o progresso
+// efetivo, que continua a depender exclusivamente do visto GIAE.
+export function buildUfcdModuleAllocation(modules: ModuleUnit[], lessons: Lesson[]) {
+  const allocated = new Map<EntityId, number>()
+  for (const lesson of lessons.filter(lessonReservesUfcdPeriods)) {
+    allocated.set(lesson.moduleId, (allocated.get(lesson.moduleId) ?? 0) + lesson.periodCount)
+  }
+  return modules.map(module => ({
+    moduleId: module.id,
+    periodsRemaining: Math.max(0, module.plannedPeriods - (allocated.get(module.id) ?? 0))
+  }))
+}
+
 export function getLessonNumbering(lesson: Lesson, lessons: Lesson[]) {
-  const previous = lessons.filter(candidate => candidate.teachingAssignmentId === lesson.teachingAssignmentId && lessonOccursBefore(candidate, lesson))
-  const first = previous.filter(candidate => lessonCountsTowardUfcdProgress(candidate)).reduce((sum, candidate) => sum + candidate.periodCount, 0) + 1
+  const previous = lessons.filter(candidate => candidate.teachingAssignmentId === lesson.teachingAssignmentId && candidate.academicYearId === lesson.academicYearId && lessonOccursBefore(candidate, lesson))
+  const first = previous.filter(lessonReservesUfcdPeriods).reduce((sum, candidate) => sum + candidate.periodCount, 0) + 1
   return {
-    lessonNumber: lessonCountsTowardUfcdProgress(lesson) ? (lesson.periodCount > 1 ? `${first}–${first + lesson.periodCount - 1}` : String(first)) : null,
-    hasUnsubmittedLessons: previous.some(candidate => candidate.status !== 'cancelled' && candidate.countTowardProgress && candidate.giaeStatus !== 'submitted')
+    lessonNumber: lessonReservesUfcdPeriods(lesson) ? (lesson.periodCount > 1 ? `${first}–${first + lesson.periodCount - 1}` : String(first)) : null,
+    lessonNumberConfirmed: lessonReservesUfcdPeriods(lesson) && lessonCountsTowardUfcdProgress(lesson),
+    hasUnsubmittedLessons: previous.some(candidate => lessonReservesUfcdPeriods(candidate) && candidate.giaeStatus !== 'submitted')
   }
 }
