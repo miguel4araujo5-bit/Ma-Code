@@ -449,7 +449,7 @@ export default function InitialSchoolCalendarBootstrap({
           Indique a sua escola ou agrupamento
         </h1>
         <p className="mt-3 text-sm leading-7 text-slate-400">
-          Nesta opção não são aplicadas regras específicas de S. Bento. O horário e o calendário escolar são configurados manualmente pelo professor.
+          Nesta opção não são aplicadas regras específicas de S. Bento. Reveja e confirme o calendário da sua escola. Depois pode importar o horário em PDF ou preenchê-lo manualmente.
         </p>
 
         <label className="mt-6 block">
@@ -495,7 +495,7 @@ export default function InitialSchoolCalendarBootstrap({
         >
           {saving
             ? 'A guardar…'
-            : 'Continuar com configuração manual'}
+            : 'Continuar'}
         </button>
       </SelectionShell>
     )
@@ -548,13 +548,13 @@ export default function InitialSchoolCalendarBootstrap({
           className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 text-left transition hover:border-violet-300/35 hover:bg-violet-300/[0.07] disabled:opacity-60"
         >
           <span className="block text-xs font-black uppercase tracking-[0.14em] text-violet-300">
-            Configuração manual
+            Outra escola
           </span>
           <span className="mt-2 block text-lg font-black text-white">
             Outra escola
           </span>
           <span className="mt-3 block text-sm leading-6 text-slate-400">
-            Indique a escola e configure manualmente o horário e o calendário, sem aplicar dados de S. Bento.
+            Indique a escola, confirme o calendário e importe ou preencha o horário, sem aplicar dados de S. Bento.
           </span>
           <span className="mt-4 block text-xs font-black text-violet-200">
             Indicar outra escola →
