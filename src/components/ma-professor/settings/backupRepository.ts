@@ -15,6 +15,7 @@ import {
   validateMAProfessorBackupDataIntegrity
 } from './backupValidation'
 
+import { clearOtherSchoolScheduleDrafts } from '../setup/otherSchoolScheduleDraftStorage'
 import { clearMAProfessorDailyDrafts } from '../daily/dailyDraftStorage'
 import { MAProfessorLocalSnapshotChangedError } from '../sync/guardedSnapshotRestore'
 
@@ -530,6 +531,7 @@ export async function restoreMAProfessorBackup(
 export async function resetMAProfessorDatabase() {
   await openMAProfessorDatabase()
   await clearMAProfessorDailyDrafts()
+  await clearOtherSchoolScheduleDrafts()
 
   await maProfessorDb.transaction(
     'rw',

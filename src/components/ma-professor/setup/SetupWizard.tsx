@@ -24,6 +24,7 @@ import ModulePlanificationImportPanel from './ModulePlanificationImportPanel'
 import ModulesSetupCourseSubjectGuard from './ModulesSetupCourseSubjectGuard'
 import PlanificationsSetupStep from './PlanificationsSetupStep'
 import SchedulePdfImportStep from './SchedulePdfImportStep'
+import OtherSchoolSchedulePdfImportStep from './OtherSchoolSchedulePdfImportStep'
 import SetupConfirmationStep from './SetupConfirmationStep'
 import StudentsSetupStep from './StudentsSetupStep'
 import SubjectsSetupStep from './SubjectsSetupStep'
@@ -468,6 +469,10 @@ export default function SetupWizard({
   onCompleted,
   initialMode = 'guided'
 }: SetupWizardProps) {
+  const isOtherSchoolSetup = snapshot.academicYear.otherSchoolCalendarReview === 'confirmed'
+  const ScheduleImportStep = isOtherSchoolSetup
+    ? OtherSchoolSchedulePdfImportStep
+    : SchedulePdfImportStep
   const setupAlreadyCompleted = Boolean(
     snapshot.academicYear.setupCompletedAt ||
     snapshot.progress?.completedAt
@@ -531,6 +536,14 @@ export default function SetupWizard({
     setAdvancedMode(true)
     setActiveStep(stepId)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function openManualSchedule() {
+    if (!isOtherSchoolSetup) { openAdvancedStep('weekly_schedule'); return }
+    const next = !snapshot.groups.some(group => group.active) ? 'groups'
+      : activeAssignmentIds(snapshot).length === 0 ? 'subjects'
+      : !hasModuleCoverage(snapshot) ? 'modules' : 'weekly_schedule'
+    openAdvancedStep(next)
   }
 
   async function refreshSnapshot() {
@@ -648,7 +661,7 @@ export default function SetupWizard({
       case 'weekly_schedule':
         return (
           <div className="space-y-6">
-            <SchedulePdfImportStep
+            <ScheduleImportStep
               snapshot={snapshot}
               onImported={async nextSnapshot => {
                 const synchronizedSnapshot =
@@ -660,7 +673,7 @@ export default function SetupWizard({
                 )
                 onSnapshotChange(prepared)
               }}
-              onContinueWithoutPdf={() => undefined}
+              onContinueWithoutPdf={isOtherSchoolSetup ? openManualSchedule : () => undefined}
             />
             <WeeklyScheduleSetupStep {...commonProps} />
           </div>
@@ -712,7 +725,7 @@ export default function SetupWizard({
                 Vamos preparar o essencial, um passo de cada vez.
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                Comece pelo horário. Depois usamos a estrutura já confirmada para associar planificações e critérios às disciplinas certas e, no fim, adicionar os alunos. Pode saltar qualquer etapa e voltar mais tarde.
+                {isOtherSchoolSetup ? 'O calendário está confirmado. Importe o horário ou escolha preencher sem PDF. Depois usamos' : 'Comece pelo horário. Depois usamos'} a estrutura já confirmada para associar planificações e critérios às disciplinas certas e, no fim, adicionar os alunos. Pode saltar qualquer etapa e voltar mais tarde.
               </p>
             </div>
 
@@ -734,10 +747,10 @@ export default function SetupWizard({
 
         {guidedStage === 'schedule' ? (
           <div className="mt-6">
-            <SchedulePdfImportStep
+            <ScheduleImportStep
               snapshot={snapshot}
               onImported={handleGuidedScheduleImported}
-              onContinueWithoutPdf={() => openAdvancedStep('weekly_schedule')}
+              onContinueWithoutPdf={openManualSchedule}
             />
           </div>
         ) : null}
@@ -1064,7 +1077,20 @@ export default function SetupWizard({
         ) : null}
       </section>
 
-      <div key={activeStep} className="mt-6">{renderActiveStep()}</div>
+      <div key={activeStep} className="mt-6">{isOtherSchoolSetup && ['groups', 'subjects', 'modules', 'weekly_schedule'].includes(activeStep) ? (
+            <section className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.04] p-5 text-slate-300">
+              <h2 className="font-bold text-white">Preencha o horário da sua escola</h2>
+              <p className="mt-2 text-sm leading-6">Adicione as turmas, associe as disciplinas e configure as UFCD, UC ou módulos. Depois preencha os dias e as horas na grelha. Os dados já guardados são aproveitados.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(['groups', 'subjects', 'modules', 'weekly_schedule'] as SetupStepId[]).map(step => (
+                  <button key={step} type="button" onClick={() => navigateToStep(step)} aria-current={activeStep === step ? 'step' : undefined} className={`rounded-xl border px-4 py-2 text-sm font-bold ${activeStep === step ? 'border-cyan-300/40 text-cyan-100' : 'border-white/15'}`}>
+                    {setupSteps.find(item => item.id === step)?.title}
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+          {renderActiveStep()}</div>
 
       <p className="mt-6 text-center text-xs leading-6 text-slate-500">
         A configuração avançada permanece disponível para correções e exceções. O assistente simples é o percurso recomendado para o primeiro arranque.

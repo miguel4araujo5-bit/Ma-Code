@@ -72,8 +72,9 @@ test(
   () => {
     assert.match(
       wizardSource,
-      /guidedStage === 'schedule'[\s\S]*?<SchedulePdfImportStep/
+      /guidedStage === 'schedule'[\s\S]*?<ScheduleImportStep/
     )
+    assert.match(wizardSource, /const ScheduleImportStep = isOtherSchoolSetup[\s\S]*?OtherSchoolSchedulePdfImportStep[\s\S]*?: SchedulePdfImportStep/)
     assert.match(
       wizardSource,
       /guidedStage === 'planifications'[\s\S]*?<ModulePlanificationImportPanel[\s\S]*?guided/
