@@ -72,6 +72,8 @@ import {
 } from './repository'
 
 import SetupWizard from './setup/SetupWizard'
+import OtherSchoolCalendarSetup from './calendar/OtherSchoolCalendarSetup'
+import { isSBentoSchoolName } from './setup/schoolDutyDatePolicy'
 
 import type {
   AcademicYear,
@@ -334,12 +336,18 @@ function AcademicYearSetup({
     setError('')
 
     try {
+      const profile = await maProfessorRepository.getTeacherProfile()
+      const needsCalendarReview = Boolean(profile?.schoolName.trim()) &&
+        !isSBentoSchoolName(profile!.schoolName)
       const academicYear =
         await maProfessorRepository.createAcademicYear({
           name: form.name,
           startDate: form.startDate,
           endDate: form.endDate,
-          active: true
+          active: true,
+          ...(needsCalendarReview
+            ? { otherSchoolCalendarReview: 'pending' as const }
+            : {})
         })
 
       await onCreated(
@@ -1740,6 +1748,16 @@ export default function MAProfessorApp({
       )
     }
 
+    if (snapshot.academicYear.otherSchoolCalendarReview === 'pending') {
+      return (
+        <OtherSchoolCalendarSetup
+          key={snapshot.academicYear.id}
+          snapshot={snapshot}
+          onConfirmed={setSnapshot}
+        />
+      )
+    }
+
     if (
       !setupCompleted
     ) {
@@ -2074,3 +2092,4 @@ export default function MAProfessorApp({
     </main>
   )
 }
+

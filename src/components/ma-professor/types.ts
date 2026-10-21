@@ -29,6 +29,8 @@ export interface AcademicYear extends AuditFields {
   endDate: ISODate
   active: boolean
   setupCompletedAt: ISODateTime | null
+  // Opt-in for newly created Other school years. Absence preserves older data.
+  otherSchoolCalendarReview?: 'pending' | 'confirmed'
 }
 
 export type EducationType =
@@ -589,3 +591,4 @@ export interface LicenseRenewalRequest extends AuditFields {
   requestedAt: ISODateTime
   resolvedAt: ISODateTime | null
 }
+
