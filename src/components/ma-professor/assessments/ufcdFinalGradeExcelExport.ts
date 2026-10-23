@@ -1,3 +1,4 @@
+import { resolveAssessmentResultScore } from './lessonGradeCalculation'
 import {
   downloadBlob
 } from '../../../lib/maPdf/fileUtils'
@@ -604,11 +605,9 @@ function populateMoment(
               studentRow.student.id
             )
 
-          if (
-            result?.status !== 'evaluated'
-          ) {
-            return
-          }
+          const sourceCriterion = [...snapshot.criteria, ...(snapshot.acsCriteria ?? [])].find(row => row.id === entry.criterionId)
+          const effectiveScore = result && result.status !== 'exempt' ? resolveAssessmentResultScore(result, sourceCriterion) : null
+          if (effectiveScore === null) return
 
           const usesAcs =
             studentRow.assessmentProfile === 'acs' || studentRow.finalGradeRecord?.usesAcs === true
@@ -621,7 +620,7 @@ function populateMoment(
             files,
             sheet.path,
             `${targetColumn}${14 + studentIndex}`,
-            result.score
+            effectiveScore
           )
         }
       )

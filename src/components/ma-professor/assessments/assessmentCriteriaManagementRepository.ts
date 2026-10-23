@@ -332,6 +332,7 @@ function buildCriteria(
         id:
           existing?.id ??
           createEntityId('criterion'),
+        ...(existing?.absenceGrade !== undefined ? { absenceGrade: existing.absenceGrade } : {}),
         schemeId,
         name:
           requireText(

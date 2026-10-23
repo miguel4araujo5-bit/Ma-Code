@@ -1,3 +1,4 @@
+import { resolveAssessmentResultScore } from '../assessments/lessonGradeCalculation'
 import {
   assessmentAtomicPersistenceRepository
 } from '../assessmentAtomicPersistenceRepository'
@@ -261,20 +262,15 @@ export class DailyCriteriaGridRepository {
 
         register.rows.forEach(
           row => {
-            if (
-              row.result?.status !==
-              'evaluated'
-            ) {
-              return
-            }
+            const effectiveScore = row.result && row.result.status !== 'exempt' ? resolveAssessmentResultScore(row.result, criterion) : null
+            if (effectiveScore === null) return
 
             const current =
               scoresByStudentId[
                 row.student.id
               ] ?? {}
 
-            current[criterion.id] =
-              row.result.score
+            current[criterion.id] = effectiveScore
 
             scoresByStudentId[
               row.student.id

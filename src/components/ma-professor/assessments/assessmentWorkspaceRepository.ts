@@ -21,7 +21,8 @@ import type {
 import {
   calculateStudentCriterionGradeBreakdown,
   calculateStudentLessonGradeSummary,
-  isGradeBearingAssessmentResult
+  isGradeBearingAssessmentResult,
+  resolveAssessmentResultScore
 } from './lessonGradeCalculation'
 
 import {
@@ -241,7 +242,7 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
                 result.assessmentId ===
                   activity.assessment.id &&
                 isGradeBearingAssessmentResult(
-                  result
+                  result, activity.criterion
                 )
             )
 
@@ -252,12 +253,12 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
               calculateAverage(
                 gradeBearingResults.map(
                   result =>
-                    result.score
+                    resolveAssessmentResultScore(result, activity.criterion)!
                 )
               ),
             complete:
               activity.complete &&
-              activity.absentCount === 0
+              (activity.absentCount === 0 || activity.criterion.absenceGrade != null)
           }
         }
       )

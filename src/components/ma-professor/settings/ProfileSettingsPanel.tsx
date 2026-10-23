@@ -265,25 +265,6 @@ export function ProfileSettingsPanel() {
           </label>
 
           <label className="text-sm font-bold text-slate-300">
-            Nota quando faltou
-            <input
-              type="number"
-              min="0"
-              max="20"
-              step="0.1"
-              value={form.defaultAbsentAssessmentScore}
-              disabled={loading || saving}
-              onChange={event =>
-                update(
-                  'defaultAbsentAssessmentScore',
-                  event.target.value
-                )
-              }
-              className={fieldClass}
-            />
-          </label>
-
-          <label className="text-sm font-bold text-slate-300">
             Nota quando dispensado
             <input
               type="number"

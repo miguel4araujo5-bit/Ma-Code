@@ -65,12 +65,15 @@ function calculateAverage(
 }
 
 export function isGradeBearingAssessmentResult(
-  result: AssessmentResult
+  result: AssessmentResult,
+  criterion?: AssessmentCriterion
 ) {
-  return (
-    result.status !==
-    'absent'
-  )
+  return resolveAssessmentResultScore(result, criterion) !== null
+}
+
+export function resolveAssessmentResultScore(result: AssessmentResult, criterion?: AssessmentCriterion): Score | null {
+  const score = result.status === 'absent' ? criterion?.absenceGrade : result.score
+  return typeof score === 'number' && Number.isFinite(score) && score >= 0 && score <= 20 ? score : null
 }
 
 export function calculateStudentCriterionGradeBreakdown(
@@ -106,7 +109,7 @@ export function calculateStudentCriterionGradeBreakdown(
               result.studentId !==
                 studentId ||
               !isGradeBearingAssessmentResult(
-                result
+                result, criterion
               )
             ) {
               return []
@@ -121,7 +124,7 @@ export function calculateStudentCriterionGradeBreakdown(
               assessment?.criterionId ===
               criterion.id
             )
-              ? [result.score]
+              ? [resolveAssessmentResultScore(result, criterion)!]
               : []
           }
         )
@@ -262,7 +265,7 @@ export function calculateStudentLessonGradeSummary(
 
       if (
         !isGradeBearingAssessmentResult(
-          result
+          result, criterionById.get(assessment.criterionId)
         )
       ) {
         return
@@ -274,7 +277,7 @@ export function calculateStudentLessonGradeSummary(
         ) ?? []
 
       scores.push(
-        result.score
+        resolveAssessmentResultScore(result, criterionById.get(assessment.criterionId))!
       )
 
       scoresByCriterion.set(

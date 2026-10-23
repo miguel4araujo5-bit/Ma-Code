@@ -124,6 +124,7 @@ export interface AssessmentCriterion extends AuditFields {
   name: string
   description: string
   weightPercent: Percentage
+  absenceGrade?: Score | null
   order: number
   active: boolean
 }

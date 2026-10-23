@@ -37,6 +37,7 @@ function compile(source, imports = {}) {
 }
 
 const sourceFile = ts.createSourceFile('DailyWorkspaceView.tsx', viewSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+const gradeCalculation = compile(await readFile(new URL('../../src/components/ma-professor/assessments/lessonGradeCalculation.ts', import.meta.url), 'utf8'))
 function functionSource(name) {
   let found
   function visit(node) {
@@ -157,6 +158,7 @@ function repositoryHarness() {
     }
   }
   const runtime = compile(repositorySource, {
+    '../assessments/lessonGradeCalculation': gradeCalculation,
     // Este teste isola a persistência da grelha; sugestões históricas
     // são verificadas separadamente em daily-last-grades.test.mjs.
     './dailyPreviousScores': { loadDailyPreviousScores: async () => ({}) },

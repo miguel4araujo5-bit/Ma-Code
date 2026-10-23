@@ -346,7 +346,7 @@ test(
     )
     assert.match(
       dailyGridSource,
-      /row\.result\?\.status\s*!==\s*\n\s*'evaluated'/
+      /resolveAssessmentResultScore\(row\.result, criterion\)/
     )
   }
 )

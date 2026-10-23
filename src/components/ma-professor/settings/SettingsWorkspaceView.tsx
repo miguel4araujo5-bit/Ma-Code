@@ -18,6 +18,7 @@ import {
 import {
   ProfileSettingsPanel
 } from './ProfileSettingsPanel'
+import { AbsenceGradeSettingsPanel } from './AbsenceGradeSettingsPanel'
 
 import {
   SearchSettingsPanel
@@ -253,7 +254,7 @@ export function SettingsWorkspaceView({
           <div className="min-w-0">
             {tab ===
             'profile' ? (
-              <ProfileSettingsPanel />
+              <><ProfileSettingsPanel />{academicYearId ? <AbsenceGradeSettingsPanel academicYearId={academicYearId} onDataChanged={onDataChanged} /> : null}</>
             ) : null}
 
             {tab ===

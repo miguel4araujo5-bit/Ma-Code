@@ -1,3 +1,4 @@
+import { resolveAssessmentResultScore } from './lessonGradeCalculation'
 import { schemeAssessmentProfile, studentAssessmentProfile } from './assessmentProfiles'
 import {
   ensureDefaultMAProfessorSettings,
@@ -308,38 +309,12 @@ function sortAssessments(
   )
 }
 
-function calculateAverage(
-  results:
-    AssessmentResult[]
-): Score | null {
-  if (
-    results.length ===
-    0
-  ) {
-    return null
-  }
-
-  const total =
-    results.reduce(
-      (
-        sum,
-        result
-      ) =>
-        sum +
-        result.score,
-      0
-    )
-
-  return (
-    Math.round(
-      (
-        total /
-        results.length
-      ) *
-        100
-    ) /
-    100
-  )
+function calculateAverage(results: AssessmentResult[], criterion?: AssessmentCriterion): Score | null {
+  const scores = results.flatMap(result => {
+    const value = resolveAssessmentResultScore(result, criterion)
+    return value === null ? [] : [value]
+  })
+  return scores.length === 0 ? null : Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length * 100) / 100
 }
 
 async function getLessonContext(
@@ -982,7 +957,7 @@ export class AssessmentRepository {
 
               average:
                 calculateAverage(
-                  applicableResults
+                  applicableResults, criterion
                 ),
 
               complete:
@@ -1422,7 +1397,7 @@ export class AssessmentRepository {
 
       average:
         calculateAverage(
-          applicableResults
+          applicableResults, criterion
         ),
 
       complete:
