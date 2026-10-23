@@ -616,6 +616,9 @@ export function validateMAProfessorBackupDataIntegrity(
       value
     } of collections.assessmentCriteria.records
   ) {
+    if (value.absenceGrade !== undefined && value.absenceGrade !== null && !isScore(value.absenceGrade)) {
+      addIssue(`data.assessmentCriteria[${index}].absenceGrade`, 'A nota de falta deve estar entre 0 e 20 ou não contar para a média.')
+    }
     if (
       !isPercentage(
         value.weightPercent
