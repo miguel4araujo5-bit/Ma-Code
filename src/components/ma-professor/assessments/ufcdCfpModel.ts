@@ -346,9 +346,10 @@ export function buildUfcdCfpModel(
 
 export function getUfcdEmissionFingerprint(snapshot: AssessmentWorkspaceSnapshot): string {
   // Exclude name/number corrections: they propagate on the next export without warnings.
+  const absenceGrades = [...snapshot.criteria, ...(snapshot.acsCriteria ?? [])].filter(row => row.absenceGrade != null).map(row => [row.id, row.absenceGrade])
   const content = JSON.stringify({
-    criteria: snapshot.criteria.map(row => [row.id, row.weightPercent, row.absenceGrade ?? null]),
-    acsCriteria: (snapshot.acsCriteria ?? []).map(row => [row.id, row.weightPercent, row.absenceGrade ?? null]),
+    criteria: snapshot.criteria.map(row => [row.id, row.weightPercent]),
+    ...(absenceGrades.length > 0 ? { absenceGrades } : {}),
     activities: snapshot.activities.map(row => [row.assessment.id, row.assessment.updatedAt, row.lesson.id, row.lesson.date, row.lesson.giaeStatus, row.average, row.resultCount, row.absentCount, row.resultVersion]),
     students: [...snapshot.studentRows].sort((left, right) => left.student.id.localeCompare(right.student.id)).map(row => [row.student.id, row.gradeSummary, row.finalGradeRecord, row.recoveryPending])
   })

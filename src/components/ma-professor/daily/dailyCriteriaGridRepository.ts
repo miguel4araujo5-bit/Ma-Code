@@ -262,7 +262,7 @@ export class DailyCriteriaGridRepository {
 
         register.rows.forEach(
           row => {
-            const effectiveScore = row.result ? resolveAssessmentResultScore(row.result, criterion) : null
+            const effectiveScore = row.result && row.result.status !== 'exempt' ? resolveAssessmentResultScore(row.result, criterion) : null
             if (effectiveScore === null) return
 
             const current =

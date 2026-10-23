@@ -606,7 +606,7 @@ function populateMoment(
             )
 
           const sourceCriterion = [...snapshot.criteria, ...(snapshot.acsCriteria ?? [])].find(row => row.id === entry.criterionId)
-          const effectiveScore = result ? resolveAssessmentResultScore(result, sourceCriterion) : null
+          const effectiveScore = result && result.status !== 'exempt' ? resolveAssessmentResultScore(result, sourceCriterion) : null
           if (effectiveScore === null) return
 
           const usesAcs =

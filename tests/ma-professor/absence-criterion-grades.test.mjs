@@ -77,6 +77,22 @@ beforeEach(async () => {
 })
 after(async () => { db.close(); dom.window.close(); rmSync(output, { recursive: true, force: true }) })
 
+test('disabled rules preserve the pre-feature emission fingerprint exactly', () => {
+  const snapshot = { criteria: [{ id: 'criterion', weightPercent: 100 }], activities: [], studentRows: [] }
+  assert.equal(rt.getUfcdEmissionFingerprint(snapshot), '7973a60b')
+  assert.equal(rt.getUfcdEmissionFingerprint({ ...snapshot, criteria: [{ ...snapshot.criteria[0], absenceGrade: null }] }), '7973a60b')
+  assert.notEqual(rt.getUfcdEmissionFingerprint({ ...snapshot, criteria: [{ ...snapshot.criteria[0], absenceGrade: 0 }] }), '7973a60b')
+})
+
+test('historic exempt results stay hidden from the daily input grid when no absence rule is enabled', async () => {
+  const assessment = (await db.lessonAssessments.where('lessonId').equals('current-0').toArray()).find(row => row.criterionId === general.criteria[0].id)
+  const result = (await db.assessmentResults.where('assessmentId').equals(assessment.id).toArray()).find(row => row.studentId === 'normal')
+  await db.assessmentResults.update(result.id, { status: 'exempt', score: 4 })
+  const grid = await rt.dailyCriteriaGridRepository.getLessonGrid('current-0')
+  assert.equal(grid.scoresByStudentId.normal[general.criteria[0].id], undefined)
+  assert.equal((await db.assessmentResults.get(result.id)).status, 'exempt')
+})
+
 test('legacy defaults do not activate absence grades; actual discipline criteria and profiles are reused', async () => {
   const config = await rt.loadAbsenceGradeSettings('year')
   assert.equal((await rt.maProfessorRepository.getSettings()).defaultAbsentAssessmentScore, 0)
