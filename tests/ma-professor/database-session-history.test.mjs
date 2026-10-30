@@ -17,6 +17,7 @@ export * from './src/components/ma-professor/history/databaseHistory'
 export * from './src/components/ma-professor/daily/dailyWorkspaceRepository'
 export * from './src/components/ma-professor/assessments/assessmentWorkspaceRepository'
 export * from './src/components/ma-professor/lessons/lessonRepository'
+export * from './src/components/ma-professor/calendar/extraLessonRepository'
 export { default as ProfessionalAssessmentWorkspaceView } from './src/components/ma-professor/assessments/ProfessionalAssessmentWorkspaceView'
 `, resolveDir: process.cwd(), loader: 'ts' }, bundle: true, platform: 'node', format: 'esm', packages: 'external', jsx: 'automatic', outfile,
   plugins: [{ name: 'assessment-ui-fixture', setup(builder) {
@@ -257,4 +258,67 @@ test('assessment UI reverses individual drafts and committed grades while preser
     dom.window.close()
     globals.forEach((key, index) => previous[index] ? Object.defineProperty(globalThis, key, previous[index]) : delete globalThis[key])
   }
+})
+
+
+const prepareAnticipationSlot = () => db.weeklyScheduleSlots.put({ ...audit, id: 'slot', academicYearId: 'y', teachingAssignmentId: 'a', weekday: 1, startTime: '09:00', endTime: '09:50', periodCount: 1, validFrom: '2026-09-01', validUntil: '2027-07-31', active: true })
+
+test('anticipation undoes and redoes the complete move before an earlier saved lesson', async () => {
+  await repository.saveLesson(draft(), grid())
+  await prepareAnticipationSlot()
+  await db.lessons.put(lesson('future', { scheduleSlotId: 'slot', origin: 'scheduled', date: '2026-11-02' }))
+  const before = await snapshot()
+  const moved = await api.extraLessonRepository.createExtraLesson({
+    academicYearId: 'y', teachingAssignmentId: 'a', moduleId: 'm',
+    date: '2026-10-06', startTime: '10:00', endTime: '10:50', periodCount: 1
+  })
+  const after = await snapshot()
+  assert.equal(moved.id, 'future')
+  assert.equal(history.getState().undoLabel, 'Antecipar aula')
+  assert.equal(await history.undo(), true)
+  assert.deepEqual(await snapshot(), before)
+  assert.equal(await history.redo(), true)
+  assert.deepEqual(await snapshot(), after)
+  await history.undo()
+  await history.undo()
+  assert.equal((await db.lessons.get('l')).summary, '')
+  assert.equal((await db.lessons.get('future')).date, '2026-11-02')
+})
+
+test('anticipation reverses UFCD boundary changes atomically and preserves conflict protection', async () => {
+  await prepareAnticipationSlot()
+  await db.modules.put({ ...(await db.modules.get('m')), id: 'm2', order: 2 })
+  await db.lessons.bulkPut([
+    lesson('boundary', { scheduleSlotId: 'slot', origin: 'scheduled', date: '2026-10-19' }),
+    lesson('future', { scheduleSlotId: 'slot', origin: 'scheduled', moduleId: 'm2', date: '2026-11-02' })
+  ])
+  const before = await snapshot()
+  await api.extraLessonRepository.createExtraLesson({
+    academicYearId: 'y', teachingAssignmentId: 'a', moduleId: 'm',
+    date: '2026-10-06', startTime: '10:00', endTime: '10:50', periodCount: 1
+  })
+  const after = await snapshot()
+  assert.equal((await db.lessons.get('boundary')).moduleId, 'm2')
+  await history.undo()
+  assert.deepEqual(await snapshot(), before)
+  await history.redo()
+  assert.deepEqual(await snapshot(), after)
+  await db.lessons.update('boundary', { notes: 'Alteração posterior noutra janela.' })
+  const conflicted = await snapshot()
+  await assert.rejects(history.undo(), /alterados entretanto/)
+  assert.deepEqual(await snapshot(), conflicted)
+  assert.equal(history.getState().canUndo, true)
+})
+
+
+test('failed anticipation leaves the previous undo entry and every table intact', async () => {
+  await repository.saveLesson(draft(), grid())
+  const before = await snapshot()
+  await assert.rejects(api.extraLessonRepository.createExtraLesson({
+    academicYearId: 'y', teachingAssignmentId: 'a', moduleId: 'm',
+    date: '2026-10-06', startTime: '10:00', endTime: '10:50', periodCount: 1
+  }), /última aula futura/)
+  assert.deepEqual(await snapshot(), before)
+  assert.equal(history.getState().undoLabel, 'Guardar aula')
+  assert.equal(history.getState().busy, false)
 })
