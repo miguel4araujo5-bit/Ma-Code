@@ -1,4 +1,5 @@
 import { maProfessorDb, openMAProfessorDatabase } from '../db'
+import { runWithDatabaseHistory, type HistoryLocation } from '../history/databaseHistory'
 import {
   lessonRepository,
   type PreviousLessonTemplate
@@ -825,7 +826,12 @@ export class ExtraLessonRepository {
       throw new Error('Apenas uma aula dada com sumário pode ser marcada como submetida no programa oficial.')
     }
 
-    return maProfessorDb.transaction('rw', maProfessorDb.tables, async () => {
+    const location: HistoryLocation = {
+      workspace: 'daily', academicYearId: input.academicYearId,
+      date: input.date, teachingAssignmentId: input.teachingAssignmentId,
+      moduleId: input.moduleId
+    }
+    return runWithDatabaseHistory('Antecipar aula', location, async () => {
       const [modules, lessons] = await Promise.all([
         maProfessorDb.modules.where('teachingAssignmentId').equals(input.teachingAssignmentId).toArray(),
         maProfessorDb.lessons.where('teachingAssignmentId').equals(input.teachingAssignmentId).toArray()
@@ -848,6 +854,7 @@ export class ExtraLessonRepository {
       if (!sourceLesson) {
         throw new Error('Não existe uma última aula futura disponível para antecipar nesta disciplina.')
       }
+      location.lessonId = sourceLesson.id
       if (sourceLesson.periodCount !== input.periodCount) {
         throw new Error(`A última aula disponível tem ${sourceLesson.periodCount} ${sourceLesson.periodCount === 1 ? 'tempo' : 'tempos'}. Para a antecipar sem alterar a carga da disciplina, use o mesmo número de tempos.`)
       }
