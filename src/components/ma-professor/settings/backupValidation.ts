@@ -1,7 +1,31 @@
 import type {
   BackupValidationIssue,
+  LessonAnticipation,
   MAProfessorBackupData
 } from '../types'
+
+/** Optional V3 lesson metadata. Old lessons do not acquire an inferred history. */
+export function isLessonAnticipation(value: unknown): value is LessonAnticipation {
+  const time = (item: unknown): item is string => typeof item === 'string' && LOCAL_TIME_PATTERN.test(item)
+  const position = (item: unknown) => isRecord(item) && isIsoDate(item.date) && time(item.startTime)
+  const seen = new Set<unknown>()
+  let current: unknown = value
+  while (current !== null) {
+    if (!isRecord(current) || seen.has(current)) return false
+    seen.add(current)
+    const target = current.returnPosition
+    if (!position(target) || !isRecord(target) || !time(target.endTime) || String(target.startTime) >= target.endTime || !isNonEmptyString(current.returnModuleId)) return false
+    if (current.previousScheduleOriginalPosition !== null && !position(current.previousScheduleOriginalPosition)) return false
+    if (!Array.isArray(current.boundaryChanges)) return false
+    const boundaryIds = new Set<unknown>()
+    for (const change of current.boundaryChanges) {
+      if (!isRecord(change) || !isNonEmptyString(change.lessonId) || !isNonEmptyString(change.beforeModuleId) || !isNonEmptyString(change.afterModuleId) || boundaryIds.has(change.lessonId)) return false
+      boundaryIds.add(change.lessonId)
+    }
+    current = current.previous
+  }
+  return seen.size > 0
+}
 
 const MAX_ISSUES = 150
 
@@ -838,6 +862,10 @@ export function validateMAProfessorBackupDataIntegrity(
       `${path}.giaeStatus`,
       addIssue
     )
+
+    if (value.anticipation !== undefined && !isLessonAnticipation(value.anticipation)) {
+      addIssue(`${path}.anticipation`, 'Os dados da antecipação são inválidos.')
+    }
 
     if (value.scheduleOriginalPosition !== undefined && (!isRecord(value.scheduleOriginalPosition) || !isIsoDate(value.scheduleOriginalPosition.date) || typeof value.scheduleOriginalPosition.startTime !== 'string' || !LOCAL_TIME_PATTERN.test(value.scheduleOriginalPosition.startTime))) {
       addIssue(`${path}.scheduleOriginalPosition`, 'A posição original da aula é inválida.')

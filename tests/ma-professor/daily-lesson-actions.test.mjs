@@ -26,6 +26,7 @@ export { default as Grid } from './src/components/ma-professor/daily/DailyUnifie
 export * from './src/components/ma-professor/product/useCalendarExtraLesson'
 export * from './src/components/ma-professor/calendar/calendarWorkspaceRepository'
 export * from './src/components/ma-professor/db'
+export * from './src/components/ma-professor/history/sessionHistory'
 `, resolveDir: process.cwd(), loader: 'ts' }, bundle: true, platform: 'node', format: 'esm', jsx: 'automatic', packages: 'external', outfile })
 const api = await import(pathToFileURL(outfile).href)
 const db = api.maProfessorDb
@@ -41,7 +42,7 @@ function Harness() {
   const [revision, setRevision] = useState(0)
   const actions = api.useCalendarExtraLesson('y', '2026-09-21', 'a', () => setRevision(value => value + 1))
   return h('div', null, actions.dialog, h(api.Grid, { academicYearId: 'y', date: '2026-09-21', refreshToken: revision,
-    onSelectDate() {}, onSelectLesson: (...args) => selected.push(args), onCreateLesson: actions.createLesson, onMoveLesson: actions.openMoveLesson }))
+    onSelectDate() {}, onSelectLesson: (...args) => selected.push(args), onCreateLesson: actions.createLesson, onMoveLesson: actions.openMoveLesson, onCancelAnticipation: actions.cancelAnticipation }))
 }
 const button = text => [...document.querySelectorAll('button')].find(node => node.textContent.trim() === text)
 const cell = date => document.querySelector(`[data-lesson-cell="${date}T09:00"]`)
@@ -69,6 +70,7 @@ async function chooseDestination(date = '2026-09-22') {
   await until(() => document.getElementById('lesson-editor-title')?.textContent === (date === '2026-09-22' ? 'Deseja permutar?' : 'Mover esta aula?'))
 }
 beforeEach(async () => {
+  api.maProfessorHistory.clear()
   selected.length = 0
   window.confirm = () => true
   await db.open()
@@ -185,4 +187,43 @@ test('the last UFCD being worked on is suggested, and the selectable counters fo
   await act(async () => { select.value = 'a'; select.dispatchEvent(new window.Event('change', { bubbles: true })) })
   assert.match(document.querySelector('#extra-lesson-title').closest('section').textContent, /29 de 30 tempos — falta 1/)
   assert.equal(select.value, 'a')
+})
+
+
+test('anticipation can be cancelled from its cell menu after the session history is cleared', async () => {
+  await mount()
+  await context(cell('2026-09-21').querySelector('[data-lesson-id]'))
+  assert.equal(button('Cancelar antecipação'), undefined)
+  await click(button('Cancelar'))
+  await click(cell('2026-09-23').querySelector('button'))
+  await click(button('Antecipar aula'))
+  await until(() => button('Criar antecipação') && !button('Criar antecipação').disabled)
+  await click(button('Criar antecipação'))
+  await until(() => cell('2026-09-23').querySelector('[data-lesson-id="a3"]'))
+  const count = await db.lessons.count()
+  await act(async () => { api.maProfessorHistory.clear(); db.close(); await db.open() })
+  await context(cell('2026-09-23').querySelector('[data-lesson-id="a3"]'))
+  await click(button('Cancelar antecipação'))
+  await until(() => document.getElementById('lesson-editor-title')?.textContent === 'Cancelar antecipação?')
+  assert.ok(document.getElementById('lesson-editor-title').parentElement.textContent.includes('12 de outubro'))
+  assert.equal(button('Daqui até ao final do ano'), undefined)
+  await click(button('Cancelar'))
+  assert.equal((await db.lessons.get('a3')).date, '2026-09-23')
+  await context(cell('2026-09-23').querySelector('[data-lesson-id="a3"]'))
+  await click(button('Cancelar antecipação'))
+  await until(() => button('Confirmar cancelamento') && !button('Confirmar cancelamento').disabled)
+  await click(button('Confirmar cancelamento'))
+  await until(() => !document.getElementById('lesson-editor-title'))
+  const restored = await db.lessons.get('a3')
+  assert.equal(restored.date, '2026-10-12')
+  assert.equal(restored.anticipation, undefined)
+  assert.equal(restored.scheduleOriginalPosition, undefined)
+  assert.equal(await db.lessons.count(), count)
+  assert.equal(api.maProfessorHistory.getState().undoLabel, 'Cancelar antecipação')
+  await act(async () => api.maProfessorHistory.undo())
+  assert.equal((await db.lessons.get('a3')).date, '2026-09-23')
+  assert.ok((await db.lessons.get('a3')).anticipation)
+  await act(async () => api.maProfessorHistory.redo())
+  await api.calendarWorkspaceRepository.getWorkspace('y', 'week', '2026-10-12')
+  assert.equal((await db.lessons.toArray()).filter(row => row.teachingAssignmentId === 'a' && row.date === '2026-10-12').length, 1)
 })

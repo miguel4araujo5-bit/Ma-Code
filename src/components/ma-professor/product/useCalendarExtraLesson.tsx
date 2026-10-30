@@ -3,6 +3,7 @@ import ExtraLessonDialog from '../calendar/ExtraLessonDialog'
 import LessonEditorDialog from '../calendar/LessonEditorDialog'
 import { calendarWorkspaceRepository, type CalendarLessonEditorContext } from '../calendar/calendarWorkspaceRepository'
 import { extraLessonRepository, type ExtraLessonCreateContext } from '../calendar/extraLessonRepository'
+import { isLessonAnticipation } from '../settings/backupValidation'
 import type { EntityId, ISODate, Lesson } from '../types'
 
 export function useCalendarExtraLesson(
@@ -15,6 +16,7 @@ export function useCalendarExtraLesson(
   const [moveContext, setMoveContext] = useState<{
     editor: CalendarLessonEditorContext
     position?: Pick<Lesson, 'date' | 'startTime' | 'endTime'>
+    cancelAnticipation?: boolean
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -50,7 +52,7 @@ export function useCalendarExtraLesson(
     }
   }
 
-  async function openMoveLesson(lessonId: EntityId, position?: Pick<Lesson, 'date' | 'startTime' | 'endTime'>) {
+  async function openMoveLesson(lessonId: EntityId, position?: Pick<Lesson, 'date' | 'startTime' | 'endTime'>, cancelAnticipation = false) {
     if (busy.current) return
     busy.current = true
     const request = ++requestSequence.current
@@ -58,7 +60,8 @@ export function useCalendarExtraLesson(
     setError('')
     try {
       const editor = await calendarWorkspaceRepository.getLessonEditorContext(lessonId)
-      if (request === requestSequence.current) setMoveContext({ editor, position })
+      if (cancelAnticipation && !isLessonAnticipation(editor.lessonRow.lesson.anticipation)) throw new Error('Esta aula já não possui uma antecipação para cancelar. Atualize a grelha.')
+      if (request === requestSequence.current) setMoveContext({ editor, position: cancelAnticipation ? editor.lessonRow.lesson.anticipation?.returnPosition : position, cancelAnticipation })
     } catch (cause) {
       if (request === requestSequence.current) setError(cause instanceof Error ? cause.message : 'Não foi possível preparar a alteração da aula.')
     } finally {
@@ -94,6 +97,7 @@ export function useCalendarExtraLesson(
         context={moveContext.editor}
         initialPosition={moveContext.position}
         moveOnly={Boolean(moveContext.position)}
+        cancelAnticipation={moveContext.cancelAnticipation}
         onClose={() => setMoveContext(null)}
         onOpenLesson={lessonId => openMoveLesson(lessonId)}
         onSaved={async lesson => {
@@ -104,5 +108,5 @@ export function useCalendarExtraLesson(
     ) : null}
   </>
 
-  return { createLesson, openMoveLesson, dialog }
+  return { createLesson, openMoveLesson, cancelAnticipation: (lessonId: EntityId) => openMoveLesson(lessonId, undefined, true), dialog }
 }

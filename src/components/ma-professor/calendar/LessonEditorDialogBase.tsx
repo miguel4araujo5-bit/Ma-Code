@@ -1,3 +1,4 @@
+import { extraLessonRepository } from './extraLessonRepository'
 import Dexie from 'dexie'
 import {
   type ChangeEvent,
@@ -51,6 +52,7 @@ interface LessonEditorDialogProps {
   context: CalendarLessonEditorContext
   initialPosition?: Pick<Lesson, 'date' | 'startTime' | 'endTime'>
   moveOnly?: boolean
+  cancelAnticipation?: boolean
   onClose: () => void
   onSaved: (lesson: Lesson) => void | Promise<void>
   onOpenLesson: (lessonId: EntityId) => void | Promise<void>
@@ -320,6 +322,7 @@ export default function LessonEditorDialog({
   context,
   initialPosition,
   moveOnly = false,
+  cancelAnticipation = false,
   onClose,
   onSaved,
   onOpenLesson
@@ -569,7 +572,9 @@ export default function LessonEditorDialog({
       setSaving(true)
       setError('')
       try {
-        const updated = await lessonRepository.moveLessonWithScope(
+        const updated = cancelAnticipation
+          ? await extraLessonRepository.cancelAnticipation(lesson.id, lesson.updatedAt, moveOptions, confirmedSwap ? { id: confirmedSwap.id, updatedAt: confirmedSwap.updatedAt } : undefined)
+          : await lessonRepository.moveLessonWithScope(
           lesson.id, form, lesson.updatedAt, requestedMoveScope,
           confirmedSwap ? { id: confirmedSwap.id, updatedAt: confirmedSwap.updatedAt } : undefined,
           moveOptions
@@ -872,13 +877,16 @@ export default function LessonEditorDialog({
         <section role="dialog" aria-modal="true" aria-labelledby="lesson-editor-title"
           className="my-auto w-full max-w-xl rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-2xl sm:p-7">
           <h2 id="lesson-editor-title" className="text-xl font-black">
-            {preparingMove ? 'A preparar a alteração…' : moveCollision ? 'Deseja permutar?' : 'Mover esta aula?'}
+            {preparingMove ? 'A preparar a alteração…' : cancelAnticipation ? 'Cancelar antecipação?' : moveCollision ? 'Deseja permutar?' : 'Mover esta aula?'}
           </h2>
           <p className="mt-4 text-sm font-bold">{context.lessonRow.group.name} · {subjectLabel}</p>
           <p className="mt-2 text-sm leading-6 text-slate-300">
             {formatDate(lesson.date)} · {lesson.startTime}–{lesson.endTime}
             {' → '}{formatDate(form.date)} · {form.startTime}–{form.endTime}
           </p>
+          {cancelAnticipation ? (
+            <p className="mt-3 text-sm leading-6 text-slate-300">A aula regressa à posição anterior à antecipação e os ajustes entre UFCDs são repostos. O sumário e as notas acompanham a aula. As faltas, avaliações e vistos no programa oficial seguem as confirmações habituais de mudança de data.</p>
+          ) : null}
           {moveCollision ? (
             <p className="mt-3 text-sm leading-6 text-amber-100">
               {moveCollisionLabel || 'A aula que ocupa o destino'} passa para {formatDate(lesson.date)} · {lesson.startTime}–{lesson.endTime}.
@@ -886,7 +894,7 @@ export default function LessonEditorDialog({
           ) : null}
           <div className="mt-5">{moveErrorNotice}</div>
           <div className="mt-6 flex flex-wrap gap-3">
-            {([['single', 'Só desta vez'], ['from_here', 'Daqui até ao final do ano']] as const).map(([scope, label]) => (
+            {(cancelAnticipation ? [['single', moveCollision ? 'Confirmar cancelamento e permuta' : 'Confirmar cancelamento']] as const : [['single', 'Só desta vez'], ['from_here', 'Daqui até ao final do ano']] as const).map(([scope, label]) => (
               <button key={scope} type="button" disabled={saving || preparingMove}
                 onClick={event => { setMoveScope(scope); void handleSubmit(event, moveCollision ?? undefined, {}, scope) }}
                 className="min-h-11 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-50 disabled:opacity-50">

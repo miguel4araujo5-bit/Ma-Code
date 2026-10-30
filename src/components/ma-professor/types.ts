@@ -251,7 +251,16 @@ export type GIAEStatus =
   | 'pending'
   | 'submitted'
 
+export interface LessonAnticipation {
+  returnPosition: { date: ISODate; startTime: LocalTime; endTime: LocalTime }
+  returnModuleId: EntityId
+  previousScheduleOriginalPosition: { date: ISODate; startTime: LocalTime } | null
+  previous: LessonAnticipation | null
+  boundaryChanges: Array<{ lessonId: EntityId; beforeModuleId: EntityId; afterModuleId: EntityId }>
+}
+
 export interface Lesson extends AuditFields {
+  anticipation?: LessonAnticipation
   scheduleOriginalPosition?: { date: ISODate; startTime: LocalTime }
   id: EntityId
   academicYearId: EntityId

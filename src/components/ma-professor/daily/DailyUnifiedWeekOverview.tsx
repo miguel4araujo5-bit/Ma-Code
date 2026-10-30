@@ -36,6 +36,7 @@ interface DailyUnifiedWeekOverviewProps {
   selectedLessonId?: EntityId | null
   refreshToken?: number
   onCreateLesson?: (date: ISODate, position?: Pick<Lesson, 'startTime' | 'endTime'>) => void | Promise<void>
+  onCancelAnticipation?: (lessonId: EntityId) => void | Promise<void>
   onMoveLesson?: (lessonId: EntityId, position: Pick<Lesson, 'date' | 'startTime' | 'endTime'>) => void | Promise<void>
   onSelectDate: (
     date: ISODate
@@ -423,6 +424,7 @@ export default function DailyUnifiedWeekOverview({
   refreshToken = 0,
   onCreateLesson,
   onMoveLesson,
+  onCancelAnticipation,
   onSelectDate,
   onSelectLesson,
   onSaved
@@ -1460,6 +1462,13 @@ export default function DailyUnifiedWeekOverview({
               {!cellMenu.lessonId && onCreateLesson ? (
                 <button type="button" onClick={() => { const target = cellMenu; setCellMenu(null); void onCreateLesson(target.date, target) }}
                   className="min-h-11 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-left text-sm font-bold text-cyan-50">Antecipar aula</button>
+              ) : null}
+              {cellMenu.lessonId && onCancelAnticipation && snapshot?.days.flatMap(day => day.lessons).some(row => row.lesson.id === cellMenu.lessonId && row.lesson.anticipation) ? (
+                <button type="button" onClick={() => {
+                  const lessonId = cellMenu.lessonId!
+                  setCellMenu(null)
+                  void onCancelAnticipation(lessonId)
+                }} className="min-h-11 rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-left text-sm font-bold text-amber-50">Cancelar antecipação</button>
               ) : null}
               {cellMenu.lessonId && onMoveLesson ? (
                 <button type="button" onClick={() => {
