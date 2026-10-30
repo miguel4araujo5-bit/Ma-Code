@@ -18,6 +18,8 @@ export * from './src/components/ma-professor/daily/dailyWorkspaceRepository'
 export * from './src/components/ma-professor/assessments/assessmentWorkspaceRepository'
 export * from './src/components/ma-professor/lessons/lessonRepository'
 export * from './src/components/ma-professor/calendar/extraLessonRepository'
+export * from './src/components/ma-professor/settings/backupRepository'
+export * from './src/components/ma-professor/settings/backupValidation'
 export { default as ProfessionalAssessmentWorkspaceView } from './src/components/ma-professor/assessments/ProfessionalAssessmentWorkspaceView'
 `, resolveDir: process.cwd(), loader: 'ts' }, bundle: true, platform: 'node', format: 'esm', packages: 'external', jsx: 'automatic', outfile,
   plugins: [{ name: 'assessment-ui-fixture', setup(builder) {
@@ -321,4 +323,158 @@ test('failed anticipation leaves the previous undo entry and every table intact'
   assert.deepEqual(await snapshot(), before)
   assert.equal(history.getState().undoLabel, 'Guardar aula')
   assert.equal(history.getState().busy, false)
+})
+
+
+const anticipate = (overrides = {}) => api.extraLessonRepository.createExtraLesson({
+  academicYearId:'y',teachingAssignmentId:'a',moduleId:'m',date:'2026-10-06',startTime:'10:00',endTime:'10:50',periodCount:1,...overrides
+})
+async function seedCancelableAnticipation() {
+  await prepareAnticipationSlot()
+  await db.modules.put({ ...(await db.modules.get('m')), id:'m2', order:2 })
+  await db.lessons.bulkPut([
+    lesson('boundary',{scheduleSlotId:'slot',origin:'scheduled',date:'2026-10-19'}),
+    lesson('future',{scheduleSlotId:'slot',origin:'scheduled',moduleId:'m2',date:'2026-11-02'})
+  ])
+  return anticipate()
+}
+
+test('cancel anticipation restores original position, UFCD boundaries and counters after reopening', async () => {
+  const moved = await seedCancelableAnticipation()
+  history.clear()
+  db.close();await db.open()
+  const before = await snapshot()
+  const restored = await api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt)
+  assert.equal(restored.date,'2026-11-02')
+  assert.equal(restored.moduleId,'m2')
+  assert.equal(restored.scheduleOriginalPosition,undefined)
+  assert.equal(restored.anticipation,undefined)
+  assert.equal((await db.lessons.get('boundary')).moduleId,'m')
+  assert.equal(await db.lessons.count(),3)
+  const after = await snapshot()
+  assert.equal(history.getState().undoLabel,'Cancelar antecipação')
+  await history.undo()
+  assert.deepEqual(await snapshot(),before)
+  await history.redo()
+  assert.deepEqual(await snapshot(),after)
+})
+
+test('changed boundaries, stale source and occupied return position roll back cancellation without loss', async () => {
+  const moved = await seedCancelableAnticipation()
+  await db.lessons.update('boundary',{summary:'Preparação posterior.'})
+  let before = await snapshot()
+  await assert.rejects(api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt),/dados preparados/)
+  assert.deepEqual(await snapshot(),before)
+  await assert.rejects(api.extraLessonRepository.cancelAnticipation(moved.id,'stale'),/alterada entretanto/)
+  assert.deepEqual(await snapshot(),before)
+  await db.lessons.update('boundary',{summary:''})
+  await db.lessons.put(lesson('occupant',{date:'2026-11-02'}))
+  before = await snapshot()
+  await assert.rejects(api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt),/Já existe uma aula/)
+  assert.deepEqual(await snapshot(),before)
+})
+
+test('successive anticipations cancel one at a time and preserve their earlier return positions', async () => {
+  await prepareAnticipationSlot()
+  await db.lessons.put(lesson('future',{scheduleSlotId:'slot',origin:'scheduled',date:'2026-11-02'}))
+  const first = await anticipate({date:'2026-10-20'})
+  const second = await anticipate()
+  assert.equal(second.id,first.id)
+  assert.ok(second.anticipation.previous)
+  const intermediate = await api.extraLessonRepository.cancelAnticipation(second.id,second.updatedAt)
+  assert.equal(intermediate.date,'2026-10-20')
+  assert.deepEqual(intermediate.anticipation,first.anticipation)
+  const restored = await api.extraLessonRepository.cancelAnticipation(intermediate.id,intermediate.updatedAt)
+  assert.equal(restored.date,'2026-11-02')
+  assert.equal(restored.anticipation,undefined)
+})
+
+test('V3 backup and restore preserve cancellation metadata; legacy copies without it remain valid', async () => {
+  const moved = await seedCancelableAnticipation()
+  // Complete the small history fixture fields required by the V3 validator.
+  await db.subjects.update('s',{code:''})
+  await db.assessmentCriteria.update('criterion',{description:''})
+  const backup = await api.createMAProfessorBackup()
+  const validation = api.validateMAProfessorBackup(backup)
+  assert.equal(validation.valid,true,JSON.stringify(validation.issues))
+  const expected = await snapshot()
+  await api.restoreMAProfessorBackup(JSON.parse(JSON.stringify(backup)))
+  assert.deepEqual(await snapshot(),expected)
+  await api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt)
+  assert.equal((await db.lessons.get('future')).date,'2026-11-02')
+  const legacy = structuredClone(backup)
+  for (const row of legacy.data.lessons) delete row.anticipation
+  assert.equal(api.validateMAProfessorBackup(legacy).valid,true)
+  await api.restoreMAProfessorBackup(legacy)
+  assert.equal((await db.lessons.get('future')).anticipation,undefined)
+  const invalid = structuredClone(backup)
+  invalid.data.lessons.find(row=>row.id==='future').anticipation.returnPosition.date='2026-02-30'
+  assert.equal(api.validateMAProfessorBackup(invalid).valid,false)
+})
+
+
+test('cancelling an anticipation preserves summary and private notes added later', async () => {
+  const moved = await seedCancelableAnticipation()
+  const updated = await api.lessonRepository.updateLesson(moved.id,{summary:'Sumário preparado posteriormente.',notes:'Notas a preservar.'},{expectedUpdatedAt:moved.updatedAt})
+  const restored = await api.extraLessonRepository.cancelAnticipation(updated.id,updated.updatedAt)
+  assert.equal(restored.date,'2026-11-02')
+  assert.equal(restored.summary,'Sumário preparado posteriormente.')
+  assert.equal(restored.notes,'Notas a preservar.')
+})
+
+test('cancellation keeps the existing explicit GIAE and record-transfer decisions', async () => {
+  await prepareAnticipationSlot()
+  await db.lessons.put(lesson('future',{scheduleSlotId:'slot',origin:'scheduled',date:'2026-11-02'}))
+  let moved = await anticipate()
+  await db.lessons.update(moved.id,{status:'taught',summary:'Aula registada.',giaeStatus:'submitted',giaeSubmittedAt:stamp})
+  await db.lessonAttendance.put({...audit,id:'att',lessonId:moved.id,studentId:'student',status:'absent',code:'F',note:'Preservar'})
+  await db.lessonAssessments.put({...audit,id:'assess',lessonId:moved.id,moduleId:'m',criterionId:'criterion',title:'Atividade',activityType:'other',description:'',mode:'individual'})
+  await db.assessmentResults.put({...audit,id:'result',assessmentId:'assess',studentId:'student',status:'evaluated',score:17,note:'Preservar'})
+  moved = await db.lessons.get(moved.id)
+  const before = await snapshot()
+  let submitted
+  try { await api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt) } catch(error) { submitted=error }
+  assert.equal(submitted?.name,'LessonMoveBlockedError')
+  assert.deepEqual(await snapshot(),before)
+  const options = {submitted:{action:'clear',confirmationKey:submitted.confirmationKey}}
+  let records
+  try { await api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt,options) } catch(error) { records=error }
+  assert.equal(records?.name,'LessonMoveRecordsError')
+  assert.deepEqual(await snapshot(),before)
+  const restored = await api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt,{...options,records:{action:'transfer',confirmationKey:records.confirmationKey}})
+  assert.equal(restored.date,'2026-11-02')
+  assert.equal(restored.giaeStatus,'pending')
+  assert.equal((await db.assessmentResults.get('result')).score,17)
+  assert.equal((await db.lessonAttendance.get('att')).lessonId,moved.id)
+})
+
+test('invalid or cyclic anticipation metadata cannot enter a restored V3 copy', () => {
+  const valid = {returnPosition:{date:'2026-11-02',startTime:'09:00',endTime:'09:50'},returnModuleId:'m',previousScheduleOriginalPosition:null,previous:null,boundaryChanges:[]}
+  assert.equal(api.isLessonAnticipation(valid),true)
+  for (const change of [{returnModuleId:''},{returnPosition:{...valid.returnPosition,endTime:'25:00'}},{returnPosition:{...valid.returnPosition,startTime:'10:00'}},{boundaryChanges:[{lessonId:'l',beforeModuleId:'m'}]}]) {
+    assert.equal(api.isLessonAnticipation({...valid,...change}),false)
+  }
+  valid.previous=valid
+  assert.equal(api.isLessonAnticipation(valid),false)
+})
+
+
+test('an occupied original position can be restored with an explicitly confirmed swap', async () => {
+  await prepareAnticipationSlot()
+  await db.lessons.put(lesson('future',{scheduleSlotId:'slot',origin:'scheduled',date:'2026-11-02'}))
+  const moved = await anticipate()
+  const occupant = lesson('occupant',{date:'2026-11-02'})
+  await db.lessons.put(occupant)
+  const before = await snapshot()
+  const restored = await api.extraLessonRepository.cancelAnticipation(moved.id,moved.updatedAt,{}, {id:occupant.id,updatedAt:occupant.updatedAt})
+  assert.equal(restored.date,'2026-11-02')
+  assert.equal(restored.anticipation,undefined)
+  const exchanged = await db.lessons.get('occupant')
+  assert.equal(exchanged.date,'2026-10-06')
+  assert.equal(exchanged.startTime,'10:00')
+  const after = await snapshot()
+  await history.undo()
+  assert.deepEqual(await snapshot(),before)
+  await history.redo()
+  assert.deepEqual(await snapshot(),after)
 })

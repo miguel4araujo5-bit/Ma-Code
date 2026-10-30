@@ -210,6 +210,10 @@ export default function DailyWorkspaceWithDuties({
           if (dailyNavigationGuard.current && !await dailyNavigationGuard.current()) return
           await lessonActions.createLesson(date, position)
         }}
+        onCancelAnticipation={async lessonId => {
+          if (dailyNavigationGuard.current && !await dailyNavigationGuard.current()) return
+          await lessonActions.cancelAnticipation(lessonId)
+        }}
         onMoveLesson={async (lessonId, position) => {
           if (dailyNavigationGuard.current && !await dailyNavigationGuard.current()) return
           await lessonActions.openMoveLesson(lessonId, position)

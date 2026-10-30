@@ -1,7 +1,9 @@
+import { isLessonAnticipation } from '../settings/backupValidation'
 import { maProfessorDb, openMAProfessorDatabase } from '../db'
 import { runWithDatabaseHistory, type HistoryLocation } from '../history/databaseHistory'
 import {
   lessonRepository,
+  type LessonMoveOptions,
   type PreviousLessonTemplate
 } from '../lessons/lessonRepository'
 import {
@@ -15,6 +17,7 @@ import type {
   ISODate,
   Lesson,
   LessonStatus,
+  LessonAnticipation,
   LocalTime,
   ModuleUnit,
   PlanificationItem,
@@ -812,6 +815,47 @@ export class ExtraLessonRepository {
     return items[0] ?? null
   }
 
+  async cancelAnticipation(id: EntityId, expectedUpdatedAt: string, options: LessonMoveOptions = {}, swap?: { id: EntityId; updatedAt: string }): Promise<Lesson> {
+    await this.initialize()
+    const location = { workspace: 'daily' as const, lessonId: id }
+    return runWithDatabaseHistory('Cancelar antecipação', location, async () => {
+      const current = await maProfessorDb.lessons.get(id)
+      if (!current || current.updatedAt !== expectedUpdatedAt) {
+        throw new Error('Esta aula foi alterada entretanto. Atualize antes de cancelar a antecipação.')
+      }
+      const anticipation = current.anticipation
+      if (!isLessonAnticipation(anticipation)) throw new Error('Esta aula não possui uma antecipação registada para cancelar.')
+      Object.assign(location, { academicYearId: current.academicYearId, date: current.date, teachingAssignmentId: current.teachingAssignmentId })
+      // The move owns the existing GIAE, attendance, assessment and collision
+      // confirmations. Every boundary change is in the same transaction.
+      const moved = await lessonRepository.moveLesson(id, anticipation.returnPosition, expectedUpdatedAt, swap, options)
+      for (const change of anticipation.boundaryChanges) {
+        const boundary = await maProfessorDb.lessons.get(change.lessonId)
+        if (!boundary || boundary.teachingAssignmentId !== current.teachingAssignmentId || boundary.moduleId !== change.afterModuleId) {
+          throw new Error('As aulas desta antecipação foram alteradas entretanto. Atualize antes de cancelar; nenhuma alteração foi aplicada.')
+        }
+        const linkedCounts = await Promise.all([
+          maProfessorDb.lessonAttendance.where('lessonId').equals(boundary.id).count(),
+          maProfessorDb.lessonAssessments.where('lessonId').equals(boundary.id).count(),
+          maProfessorDb.summarySuggestions.where('lessonId').equals(boundary.id).count()
+        ])
+        if (lessonHasPreparedContent(boundary) || linkedCounts.some(count => count > 0)) {
+          throw new Error('Uma aula ajustada entre UFCDs já possui dados preparados. Não foi possível repor esse limite em segurança; nenhuma alteração foi aplicada.')
+        }
+        await lessonRepository.updateLesson(boundary.id, { moduleId: change.beforeModuleId }, { expectedUpdatedAt: boundary.updatedAt })
+      }
+      let restored = await lessonRepository.updateLesson(id, { moduleId: anticipation.returnModuleId }, { expectedUpdatedAt: moved.updatedAt })
+      const { anticipation: _anticipation, scheduleOriginalPosition: _position, ...rest } = restored
+      restored = {
+        ...rest,
+        ...(anticipation.previous ? { anticipation: anticipation.previous } : {}),
+        ...(anticipation.previousScheduleOriginalPosition ? { scheduleOriginalPosition: anticipation.previousScheduleOriginalPosition } : {})
+      }
+      await maProfessorDb.lessons.put(restored)
+      return restored
+    })
+  }
+
   async createExtraLesson(input: ExtraLessonDraft): Promise<Lesson> {
     await this.initialize()
     const status = input.status ?? 'planned'
@@ -876,6 +920,13 @@ export class ExtraLessonRepository {
         throw new Error('A última aula disponível pertence a uma UFCD que já não está ativa.')
       }
 
+      const anticipation: LessonAnticipation = {
+        returnPosition: { date: sourceLesson.date, startTime: sourceLesson.startTime, endTime: sourceLesson.endTime },
+        returnModuleId: sourceLesson.moduleId,
+        previousScheduleOriginalPosition: sourceLesson.scheduleOriginalPosition ?? null,
+        previous: sourceLesson.anticipation ?? null,
+        boundaryChanges: []
+      }
       const eligibleBoundaryLessons = lessons.filter(lesson =>
         lesson.id !== sourceLesson.id &&
         lesson.origin === 'scheduled' &&
@@ -909,6 +960,7 @@ export class ExtraLessonRepository {
             throw new Error('Não existe uma aula futura disponível para ajustar o limite entre UFCDs sem alterar a carga planificada.')
           }
           await assertBoundaryLessonIsClean(boundaryLesson)
+          anticipation.boundaryChanges.push({ lessonId: boundaryLesson.id, beforeModuleId: boundaryLesson.moduleId, afterModuleId: orderedModules[moduleIndex + 1].id })
           await lessonRepository.updateLesson(
             boundaryLesson.id,
             { moduleId: orderedModules[moduleIndex + 1].id },
@@ -924,6 +976,7 @@ export class ExtraLessonRepository {
             throw new Error('Não existe uma aula futura disponível para ajustar o limite entre UFCDs sem alterar a carga planificada.')
           }
           await assertBoundaryLessonIsClean(boundaryLesson)
+          anticipation.boundaryChanges.push({ lessonId: boundaryLesson.id, beforeModuleId: boundaryLesson.moduleId, afterModuleId: orderedModules[moduleIndex - 1].id })
           await lessonRepository.updateLesson(
             boundaryLesson.id,
             { moduleId: orderedModules[moduleIndex - 1].id },
@@ -966,6 +1019,9 @@ export class ExtraLessonRepository {
         },
         { expectedUpdatedAt: positionedLesson.updatedAt }
       )
+
+      lesson = { ...lesson, anticipation }
+      await maProfessorDb.lessons.put(lesson)
 
       if (input.giaeStatus === 'submitted') {
         lesson = await lessonRepository.markGIAESubmitted(lesson.id)
