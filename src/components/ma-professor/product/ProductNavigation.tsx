@@ -93,17 +93,24 @@ function SidebarPanel({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 font-sans">
-          <p className="text-base font-bold uppercase tracking-[0.18em] text-[#8f97aa]">
-            MA-CODE
-          </p>
-          <p className="mt-1 truncate text-[1.75rem] font-bold leading-tight tracking-tight text-[#f3f4f8]">
-            MA-Professor
-          </p>
-          <p className="mt-2 truncate text-lg font-normal leading-tight text-[#8f97aa]">
-            {academicYearName || 'Configuração inicial'}
-          </p>
+      <div className="relative border-b border-[#1F2A40] pb-[22px]">
+        <div className={`flex min-w-0 items-center gap-3 ${showCloseButton ? 'pr-12' : ''}`}>
+          <img
+            src="/ma-professor/logo.svg"
+            alt="MA-Professor"
+            className="h-11 w-11 shrink-0 rounded-xl object-contain"
+          />
+          <div className="flex min-w-0 flex-col gap-[3px] font-sans">
+            <p className="text-[11px] font-bold uppercase leading-tight tracking-[0.12em] text-[#8D98AD]">
+              MA-Code
+            </p>
+            <p className="truncate text-[19px] font-extrabold leading-tight text-[#F2F4F8]">
+              MA-Professor
+            </p>
+            <p className="truncate text-[12px] font-medium leading-tight text-[#8D98AD]">
+              {academicYearName || 'Configuração inicial'}
+            </p>
+          </div>
         </div>
 
         {showCloseButton ? (
@@ -111,7 +118,7 @@ function SidebarPanel({
             type="button"
             onClick={onClose}
             aria-label="Fechar navegação"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+            className="absolute right-0 top-0 grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
           >
             ×
           </button>
