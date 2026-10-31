@@ -94,24 +94,16 @@ function SidebarPanel({
   return (
     <>
       <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <img
-            src="/ma-professor/logo.svg"
-            alt="MA-Professor"
-            className="h-11 w-11 shrink-0 rounded-xl object-contain"
-          />
-
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.06em] text-cyan-200">
-              MA-Code
-            </p>
-            <p className="truncate font-black text-white">
-              MA-Professor
-            </p>
-            <p className="truncate text-[0.65rem] font-semibold text-slate-500">
-              {academicYearName || 'Configuração inicial'}
-            </p>
-          </div>
+        <div className="min-w-0 font-sans">
+          <p className="text-base font-bold uppercase tracking-[0.18em] text-[#8f97aa]">
+            MA-CODE
+          </p>
+          <p className="mt-1 truncate text-[1.75rem] font-bold leading-tight tracking-tight text-[#f3f4f8]">
+            MA-Professor
+          </p>
+          <p className="mt-2 truncate text-lg font-normal leading-tight text-[#8f97aa]">
+            {academicYearName || 'Configuração inicial'}
+          </p>
         </div>
 
         {showCloseButton ? (
