@@ -93,7 +93,7 @@ function SidebarPanel({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
+      <div className="relative">
         <div className="flex min-w-0 items-center gap-2">
           <img
             src="/ma-professor/logo.svg"
@@ -101,7 +101,7 @@ function SidebarPanel({
             className="h-11 w-11 shrink-0 rounded-xl object-contain"
           />
           <div className="min-w-0 font-sans">
-            <p className="text-base font-bold uppercase tracking-[0.18em] text-[#8f97aa]">
+            <p className={`text-base font-bold uppercase tracking-[0.18em] text-[#8f97aa] ${showCloseButton ? 'min-h-10 pr-12' : ''}`}>
               MA-CODE
             </p>
             <p className="mt-1 truncate text-[1.75rem] font-bold leading-tight tracking-tight text-[#f3f4f8]">
@@ -118,7 +118,7 @@ function SidebarPanel({
             type="button"
             onClick={onClose}
             aria-label="Fechar navegação"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+            className="absolute right-0 top-0 grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-black text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
           >
             ×
           </button>
