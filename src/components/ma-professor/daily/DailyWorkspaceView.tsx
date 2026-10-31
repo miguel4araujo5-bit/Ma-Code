@@ -4533,9 +4533,15 @@ export default function DailyWorkspaceView({
 
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        void saveAll()
-                                    }
+                                    onClick={async event => {
+                                        const timetable = event.currentTarget.closest('.ma-professor-unified-daily');
+                                        if (await saveAll()) {
+                                            timetable?.scrollIntoView({
+                                                behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                                                block: 'start'
+                                            });
+                                        }
+                                    }}
                                     disabled={
                                         loading ||
                                         saving ||
