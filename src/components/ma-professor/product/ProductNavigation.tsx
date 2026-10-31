@@ -93,21 +93,21 @@ function SidebarPanel({
 
   return (
     <>
-      <div className="relative">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="relative border-b border-[#1F2A40] pb-[22px]">
+        <div className={`flex min-w-0 items-center gap-3 ${showCloseButton ? 'pr-12' : ''}`}>
           <img
             src="/ma-professor/logo.svg"
             alt="MA-Professor"
             className="h-11 w-11 shrink-0 rounded-xl object-contain"
           />
-          <div className="min-w-0 font-sans">
-            <p className={`text-base font-bold uppercase tracking-[0.18em] text-[#8f97aa] ${showCloseButton ? 'min-h-10 pr-12' : ''}`}>
-              MA-CODE
+          <div className="flex min-w-0 flex-col gap-[3px] font-sans">
+            <p className="text-[11px] font-bold uppercase leading-tight tracking-[0.12em] text-[#8D98AD]">
+              MA-Code
             </p>
-            <p className="mt-1 truncate text-[1.75rem] font-bold leading-tight tracking-tight text-[#f3f4f8]">
+            <p className="truncate text-[19px] font-extrabold leading-tight text-[#F2F4F8]">
               MA-Professor
             </p>
-            <p className="mt-2 truncate text-lg font-normal leading-tight text-[#8f97aa]">
+            <p className="truncate text-[12px] font-medium leading-tight text-[#8D98AD]">
               {academicYearName || 'Configuração inicial'}
             </p>
           </div>
