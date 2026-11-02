@@ -88,6 +88,7 @@ export interface UpdateGroupWorkspaceInput {
 
 export interface UpdateStudentWorkspaceInput extends StudentAssessmentProfileUpdate {
   number?: string
+  processNumber?: string
   name?: string
   notes?: string
   active?: boolean
@@ -653,6 +654,9 @@ export class GroupsWorkspaceRepository {
     const updated: Student = {
       ...current,
       number,
+      ...(changes.processNumber !== undefined
+        ? { processNumber: changes.processNumber.trim() }
+        : {}),
       name,
 
       notes:

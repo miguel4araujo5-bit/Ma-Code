@@ -7,6 +7,7 @@ import {
 import BaseUfcdFinalGradeGrid from './UfcdFinalGradeGridBase'
 import UfcdCfpPreview from './UfcdCfpPreview'
 import UfcdFinalGradeExcelImportPanel from './UfcdFinalGradeExcelImportPanel'
+import GIAEGradeCsvExport from './GIAEGradeCsvExport'
 
 import {
   resolveModuleCompletionDate
@@ -114,6 +115,12 @@ export default function UfcdFinalGradeGrid(
 
   return (
     <>
+      <GIAEGradeCsvExport
+        snapshot={props.snapshot}
+        disabled={Boolean(props.loading) || Boolean(props.savingStudentId)}
+        hasUnsavedChanges={hasDirtyGradeDrafts}
+      />
+
       <UfcdFinalGradeExcelImportPanel
         snapshot={props.snapshot}
         disabled={importerDisabled}

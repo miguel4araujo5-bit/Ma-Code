@@ -312,7 +312,7 @@ async function seedSourceDevice() {
 
   await db.students.add({
     id: 'student-1', academicYearId: 'year-2026', groupId: 'group-10d',
-    number: '1', name: 'Aluno de teste', active: true, notes: '', ...audit
+    number: '1', processNumber: '0012345', name: 'Aluno de teste', active: true, notes: '', ...audit
   })
   await db.assessmentSchemes.add({
     id: 'scheme-ae', academicYearId: 'year-2026', teachingAssignmentId: 'assignment-ae-10d',
@@ -480,10 +480,12 @@ test('replacing an older V3 copy includes PAA and weekly reminders; guarded fres
   runtime.saveMAProfessorOpaqueExportKey(session.email, exportKey)
   const previousBackup = structuredClone(sourceBackup)
   delete previousBackup.data.paaActivities
+  for (const student of previousBackup.data.students) delete student.processNumber
   const first = await runtime.uploadAndVerifyCompatibleMAProfessorCloudBackup(session, previousBackup, { expectedServerRevision: 0 })
   assert.equal(first.serverRevision, 1)
   const previousDownload = await runtime.downloadCompatibleMAProfessorCloudBackup(session)
   assert.equal(previousDownload.backup.data.paaActivities, undefined)
+  assert.equal(previousDownload.backup.data.students[0].processNumber, undefined)
   worker.advance(31_000)
   const nextClientTime = Date.now() + 31_000
   t.mock.method(Date, 'now', () => nextClientTime)
@@ -511,6 +513,7 @@ test('replacing an older V3 copy includes PAA and weekly reminders; guarded fres
   await db.open()
 
   const restored = await runtime.createMAProfessorBackup()
+  assert.equal(restored.data.students[0].processNumber, '0012345')
   for (const table of Object.keys(sourceBackup.data).filter(table => table !== 'settings')) {
     assert.deepEqual(restored.data[table], sourceBackup.data[table], `${table} must survive the complete cloud round trip.`)
   }

@@ -223,7 +223,7 @@ export function buildUfcdCfpModel(
         )
 
       return {
-        processNumber: '',
+        processNumber: row.student.processNumber ?? '',
         studentNumber:
           row.student.number,
         studentName:

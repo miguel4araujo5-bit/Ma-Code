@@ -48,6 +48,7 @@ export type UpdateEntityInput<T extends PersistentEntity> = Partial<
 
 export interface StudentDraft extends StudentAssessmentProfileUpdate {
   number: string
+  processNumber?: string
   name: string
   notes?: string
 }
@@ -1705,6 +1706,9 @@ export class MAProfessorRepository {
               draft.number,
               'O número do aluno'
             ),
+          ...(draft.processNumber !== undefined
+            ? { processNumber: draft.processNumber.trim() }
+            : {}),
           name:
             requireText(
               draft.name,
@@ -1801,6 +1805,9 @@ export class MAProfessorRepository {
           ) {
             return {
               ...current,
+              ...(draft.processNumber !== undefined
+                ? { processNumber: draft.processNumber }
+                : {}),
               name:
                 draft.name,
               notes:
@@ -1818,6 +1825,9 @@ export class MAProfessorRepository {
               groupId,
               number:
                 draft.number,
+              ...(draft.processNumber !== undefined
+                ? { processNumber: draft.processNumber }
+                : {}),
               name:
                 draft.name,
               active: true,
