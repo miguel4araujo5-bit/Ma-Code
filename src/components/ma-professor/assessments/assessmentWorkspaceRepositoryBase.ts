@@ -17,6 +17,7 @@ import type {
   AssessmentScheme,
   ClassGroup,
   EntityId,
+  FinalGradeRounding,
   Lesson,
   LessonAssessment,
   ModuleFinalGrade,
@@ -77,6 +78,7 @@ export interface AssessmentWorkspaceTotals {
 }
 
 export interface AssessmentWorkspaceSnapshot {
+  finalGradeRounding?: FinalGradeRounding
   recoveryEmission?: { date: string }
   academicYear: AcademicYear
 
