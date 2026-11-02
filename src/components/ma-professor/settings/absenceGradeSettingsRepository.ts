@@ -1,7 +1,24 @@
-import { maProfessorDb, openMAProfessorDatabase } from '../db'
+import { MA_PROFESSOR_DEFAULT_SETTINGS_ID, maProfessorDb, openMAProfessorDatabase } from '../db'
+import { maProfessorRepository } from '../repository'
+import { isSBentoSchoolName } from '../setup/schoolDutyDatePolicy'
 import { schemeAssessmentProfile } from '../assessments/assessmentProfiles'
 import { markDashboardDataDirty } from '../dashboard/dashboardRefreshSignal'
-import type { AssessmentCriterion, AssessmentProfile, EntityId } from '../types'
+import type { AssessmentCriterion, AssessmentProfile, EntityId, FinalGradeRounding } from '../types'
+
+export async function loadFinalGradeRounding(): Promise<FinalGradeRounding> {
+  await openMAProfessorDatabase()
+  const [settings, profile] = await Promise.all([
+    maProfessorDb.settings.get(MA_PROFESSOR_DEFAULT_SETTINGS_ID),
+    maProfessorDb.teacherProfiles.get('local-profile')
+  ])
+  return settings?.professionalFinalGradeRounding ??
+    (isSBentoSchoolName(profile?.schoolName ?? '') ? 'up' : 'nearest')
+}
+
+export async function saveFinalGradeRounding(rounding: FinalGradeRounding) {
+  await maProfessorRepository.updateSettings({ professionalFinalGradeRounding: rounding })
+  markDashboardDataDirty()
+}
 
 export interface AbsenceCriterionSetting {
   criterion: AssessmentCriterion

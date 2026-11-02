@@ -3,6 +3,7 @@ import {
   openMAProfessorDatabase
 } from '../db'
 import { runWithDatabaseHistory } from '../history/databaseHistory'
+import { loadFinalGradeRounding } from '../settings/absenceGradeSettingsRepository'
 
 import {
   listStudentRecoveryAssessmentGrades,
@@ -268,6 +269,10 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
         snapshot.selectedGroup
       )
 
+    const finalGradeRounding = snapshot.selectedGroup?.educationType === 'regular'
+      ? 'nearest'
+      : await loadFinalGradeRounding()
+
     const studentRows =
       snapshot.studentRows.map(
         row => {
@@ -296,7 +301,8 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
               assessments,
               results,
               row.student.id,
-              recoveryGrades
+              recoveryGrades,
+              finalGradeRounding
             )
 
           const criteria =
@@ -348,6 +354,7 @@ export class AssessmentWorkspaceRepository extends AssessmentWorkspaceRepository
       ...snapshot,
       activities,
       studentRows,
+      finalGradeRounding,
       totals: {
         ...snapshot.totals,
         completeActivityCount,

@@ -3,6 +3,7 @@ import type {
   AssessmentResult,
   CriterionGradeBreakdown,
   EntityId,
+  FinalGradeRounding,
   LessonAssessment,
   Score
 } from '../types'
@@ -178,7 +179,8 @@ export function calculateStudentLessonGradeSummary(
   assessments: LessonAssessment[],
   results: AssessmentResult[],
   studentId: EntityId,
-  additionalGrades: Score[] = []
+  additionalGrades: Score[] = [],
+  finalGradeRounding: FinalGradeRounding = 'nearest'
 ): StudentLessonGradeSummary {
   if (
     criteria.length === 0
@@ -419,7 +421,7 @@ export function calculateStudentLessonGradeSummary(
           MIN_SCORE,
           Math.min(
             MAX_SCORE,
-            Math.round(
+            (finalGradeRounding === 'up' ? Math.ceil : Math.round)(
               provisionalAverage
             )
           )

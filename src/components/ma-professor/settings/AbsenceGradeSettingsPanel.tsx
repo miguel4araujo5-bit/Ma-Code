@@ -2,6 +2,7 @@ import { useMAProfessorUnsavedWorkspaceProtection } from '../navigation/useUnsav
 import { useEffect, useRef, useState } from 'react'
 import type { AssessmentProfile, EntityId } from '../types'
 import { loadAbsenceGradeSettings, saveAbsenceGradeSettings } from './absenceGradeSettingsRepository'
+import { FinalGradeRoundingSettingsPanel } from './FinalGradeRoundingSettingsPanel'
 
 export function AbsenceGradeSettingsPanel({ academicYearId, onDataChanged }: { academicYearId: EntityId; onDataChanged?: () => void }) {
   const [configuration, setConfiguration] = useState<Awaited<ReturnType<typeof loadAbsenceGradeSettings>> | null>(null)
@@ -32,7 +33,7 @@ export function AbsenceGradeSettingsPanel({ academicYearId, onDataChanged }: { a
     setDirty(false); setFeedback(''); change()
   }
   return <details ref={rootRef} className="mt-6 rounded-2xl border border-white/10 bg-slate-900 p-5">
-    <summary className="cursor-pointer text-sm font-bold text-slate-200">Notas quando o aluno falta — por critério</summary>
+    <summary className="cursor-pointer text-sm font-bold text-slate-200">Regras de avaliação — notas de falta e arredondamento</summary>
     <p className="mt-4 text-sm text-slate-400">Por defeito, não contar na média. Uma nota entre 0 e 20 aplica-se às avaliações já registadas e futuras deste critério. Alterar ou remover a nota recalcula as médias e sugestões; as classificações finais confirmadas mantêm-se.</p>
     <div className="mt-4 grid gap-4 sm:grid-cols-2">
       <label className="text-sm text-slate-300">Disciplina e turma<select aria-label="Disciplina e turma para notas de falta" disabled={saving || !configuration} value={assignmentId} onChange={event => choose(() => setAssignmentId(event.target.value))} className="mt-2 w-full rounded-xl bg-slate-950 p-3">{configuration?.assignments.map(row => <option key={row.id} value={row.id}>{row.displayName}</option>)}</select></label>
@@ -50,5 +51,6 @@ export function AbsenceGradeSettingsPanel({ academicYearId, onDataChanged }: { a
       <button type="submit" disabled={saving || !dirty || rows.length === 0} className="rounded-xl bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 disabled:opacity-40">Guardar notas de falta</button>
       {feedback ? <p role="status" className="text-sm text-slate-200">{feedback}</p> : null}
     </form>
+    <FinalGradeRoundingSettingsPanel onDataChanged={onDataChanged} />
   </details>
 }

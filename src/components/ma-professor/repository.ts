@@ -407,6 +407,12 @@ export class MAProfessorRepository {
       'A nota atribuída à dispensa'
     )
 
+    if (next.professionalFinalGradeRounding !== undefined &&
+      next.professionalFinalGradeRounding !== 'nearest' &&
+      next.professionalFinalGradeRounding !== 'up') {
+      throw new Error('Selecione uma regra de arredondamento da nota final válida.')
+    }
+
     if (
       next.absenceWarningPercent <
         0 ||

@@ -397,8 +397,11 @@ export interface LearningRecovery extends AuditFields {
   removedAbsences?: { attendanceId: EntityId; lessonId: EntityId; date: ISODate; periods: number }[]
 }
 
+export type FinalGradeRounding = 'nearest' | 'up'
+
 export interface MAProfessorSettings extends AuditFields {
   id: EntityId
+  professionalFinalGradeRounding?: FinalGradeRounding
   defaultPeriodMinutes: number
   defaultAbsentAssessmentScore: Score
   defaultExemptAssessmentScore: Score

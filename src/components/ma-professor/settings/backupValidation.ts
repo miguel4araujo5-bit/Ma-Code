@@ -1138,6 +1138,11 @@ export function validateMAProfessorBackupDataIntegrity(
       )
     }
 
+    if (value.professionalFinalGradeRounding !== undefined) {
+      validateEnum(value.professionalFinalGradeRounding, ['nearest', 'up'],
+        `${path}.professionalFinalGradeRounding`, addIssue)
+    }
+
     for (
       const field of
       [

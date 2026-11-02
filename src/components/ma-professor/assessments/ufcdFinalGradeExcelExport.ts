@@ -668,7 +668,9 @@ function populateCfpInputs(
       files,
       CFP_SHEET,
       `BW${row}`,
-      `IF(AA${row}="","",ROUNDUP(AA${row},0))`
+      snapshot.finalGradeRounding === 'nearest'
+        ? `IF(AA${row}="","",ROUND(AA${row},0))`
+        : `IF(AA${row}="","",ROUNDUP(AA${row},0))`
     )
   }
 
