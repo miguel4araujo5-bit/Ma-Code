@@ -69,7 +69,7 @@ test('CFP model preserves configured criteria, ACS and defensive module-name cle
   assert.match(modelSource, /usesAcs[\s\S]*criterionScores/)
   assert.match(modelSource, /acsScore:[\s\S]*usesAcs/)
   assert.match(modelSource, /fichas\?\\s\+de\\s\+avalia/)
-  assert.match(modelSource, /processNumber:\s*''/)
+  assert.match(modelSource, /processNumber:\s*row\.student\.processNumber\s*\?\?\s*''/)
 })
 
 test('official Excel export uses the supplied macro-enabled workbook and dynamic evaluation sheets', () => {

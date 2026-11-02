@@ -75,6 +75,7 @@ interface GroupFormState {
 interface StudentFormState {
   assessmentProfilesByAssignment: Record<EntityId, AssessmentProfile>
   number: string
+  processNumber: string
   name: string
   notes: string
 }
@@ -118,6 +119,7 @@ function createEmptyGroupForm(): GroupFormState {
 function createEmptyStudentForm(): StudentFormState {
   return {
     number: '',
+    processNumber: '',
     name: '',
     notes: '',
     assessmentProfilesByAssignment: {}
@@ -150,6 +152,7 @@ function createStudentForms(
       student.id,
       {
         number: student.number,
+        processNumber: student.processNumber ?? '',
         name: student.name,
         notes: student.notes,
         assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
@@ -731,6 +734,9 @@ export default function GroupsWorkspaceView({
         number:
           current[studentId]?.number ??
           '',
+        processNumber:
+          current[studentId]?.processNumber ??
+          '',
         name:
           current[studentId]?.name ??
           '',
@@ -791,6 +797,7 @@ export default function GroupsWorkspaceView({
           student.id
         ] ?? {
           number: student.number,
+          processNumber: student.processNumber ?? '',
           name: student.name,
           notes: student.notes,
           assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
@@ -821,6 +828,7 @@ export default function GroupsWorkspaceView({
           student.id
         ] ?? {
           number: student.number,
+          processNumber: student.processNumber ?? '',
           name: student.name,
           notes: student.notes,
           assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
@@ -1523,6 +1531,19 @@ export default function GroupsWorkspaceView({
                   </label>
 
                   <label>
+                    <FieldLabel optional>N.º de processo</FieldLabel>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={newStudent.processNumber}
+                      onChange={event => updateNewStudent({ processNumber: event.target.value })}
+                      disabled={busy}
+                      placeholder="Para exportar para o GIAE"
+                      className={fieldClass}
+                    />
+                  </label>
+
+                  <label>
                     <FieldLabel>Nome</FieldLabel>
                     <input
                       type="text"
@@ -1685,6 +1706,7 @@ export default function GroupsWorkspaceView({
                   const form =
                     studentForms[student.id] ?? {
                       number: student.number,
+                      processNumber: student.processNumber ?? '',
                       name: student.name,
                       notes: student.notes,
                       assessmentProfilesByAssignment: { ...student.assessmentProfilesByAssignment }
@@ -1721,6 +1743,19 @@ export default function GroupsWorkspaceView({
                               }
                               disabled={busy}
                               required
+                              className={fieldClass}
+                            />
+                          </label>
+
+                          <label>
+                            <FieldLabel optional>N.º de processo</FieldLabel>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={form.processNumber}
+                              onChange={event => updateStudentForm(student.id, { processNumber: event.target.value })}
+                              disabled={busy}
+                              placeholder="Para exportar para o GIAE"
                               className={fieldClass}
                             />
                           </label>
@@ -1825,6 +1860,12 @@ export default function GroupsWorkspaceView({
                                   </span>
                                 ) : null}
                               </div>
+
+                              {student.processNumber ? (
+                                <p className="mt-1 text-xs text-slate-400">
+                                  N.º de processo: {student.processNumber}
+                                </p>
+                              ) : null}
 
                               {student.notes ? (
                                 <p className="mt-1 text-xs leading-5 text-slate-500">

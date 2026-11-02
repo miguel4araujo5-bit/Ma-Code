@@ -90,6 +90,7 @@ export interface Student extends AuditFields {
   academicYearId: EntityId
   groupId: EntityId
   number: string
+  processNumber?: string
   name: string
   active: boolean
   notes: string
