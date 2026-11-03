@@ -280,7 +280,7 @@ test('the sheet applies current rounding to previously saved finals for general 
     await act(async () => { view.render(createElement(Sheet, { loading: true })) })
     assert.equal(button('Aplicar arredondamento à turma').disabled, true)
     await act(async () => { view.render(createElement(Sheet)) })
-    await waitFor(() => Boolean(button('Guardar / confirmar')))
+    await waitFor(() => Boolean(button('Avaliação guardada')))
     await act(async () => { button('Aplicar arredondamento à turma').click() })
     assert.equal(currentDrafts.general.finalGrade, '15')
     assert.equal(currentDrafts.acs.finalGrade, '18')
