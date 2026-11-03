@@ -21,6 +21,7 @@ export { buildUfcdCfpModel } from '${base}assessments/ufcdCfpModel';
 export { exportUfcdFinalGradeExcel } from '${base}assessments/ufcdFinalGradeExcelExport';
 export { loadFinalGradeRounding, saveFinalGradeRounding } from '${base}settings/absenceGradeSettingsRepository';
 export { AbsenceGradeSettingsPanel } from '${base}settings/AbsenceGradeSettingsPanel';
+export { default as UfcdFinalGradeGrid } from '${base}assessments/UfcdFinalGradeGrid';
 export { createMAProfessorBackup, restoreMAProfessorBackup, validateMAProfessorBackup } from '${base}settings/backupRepository';
 export { encryptMAProfessorBackupV3Data, decryptMAProfessorBackupV3Data } from '${base}sync/cloudBackupV3Crypto';
 `, resolveDir: root }, bundle: true, jsx: 'automatic', write: false, platform: 'node', format: 'cjs', packages: 'external' })
@@ -32,7 +33,7 @@ Object.defineProperty(window, 'indexedDB', { value: globalThis.indexedDB })
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const require = createRequire(import.meta.url)
 const rt = require(runtimePath)
-const { createElement, act } = require('react')
+const { createElement, act, useState } = require('react')
 const { createRoot } = require('react-dom/client')
 const db = rt.maProfessorDb
 const stamp = '2026-09-01T10:00:00.000Z'
@@ -234,5 +235,114 @@ test('the actual Excel download contains the corrected confirmed grade and the u
   } finally {
     globalThis.fetch = oldFetch; URL.createObjectURL = oldCreate; URL.revokeObjectURL = oldRevoke
     window.HTMLAnchorElement.prototype.click = oldClick
+  }
+})
+
+test('the sheet applies current rounding to previously saved finals for general and ACS, then saves and exports the corrected values', async () => {
+  const cases = [
+    { id: 'general', score: 14.4, oldGrade: 14, expected: 15 },
+    { id: 'acs', score: 17.6, oldGrade: 17, expected: 18 }
+  ]
+  for (const row of cases) {
+    await db.assessmentResults.update(row.id, { score: row.score })
+    await db.moduleFinalGrades.add({ id: `saved-${row.id}`, academicYearId: 'year', teachingAssignmentId: 'assignment', moduleId: 'unit', studentId: row.id,
+      calculatedAverage: row.score, suggestedGrade: row.oldGrade, finalGrade: row.oldGrade, selfAssessmentGrade: 12, usesAcs: row.id === 'acs',
+      note: 'Observação privada preservada', confirmedAt: stamp, ...audit })
+  }
+  const initial = await workspace()
+  assert.deepEqual(rt.buildUfcdCfpModel(initial).rows.map(row => row.finalGrade), [14, 17])
+  const before = await db.moduleFinalGrades.toArray()
+  const host = document.createElement('div'); document.body.append(host)
+  const view = createRoot(host)
+  const saved = []
+  let currentDrafts
+  const button = label => [...host.querySelectorAll('button')].find(row => row.textContent.trim().startsWith(label))
+  const waitFor = async predicate => {
+    for (let i = 0; i < 100 && !predicate(); i++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)) })
+    assert.ok(predicate(), 'the sheet did not finish updating')
+  }
+  function Sheet({ loading = false }) {
+    const [snapshot, setSnapshot] = useState(initial)
+    const [drafts, setDrafts] = useState(Object.fromEntries(initial.studentRows.map(row => [row.student.id, {
+      finalGrade: String(row.gradeSummary.confirmedFinalGrade), selfAssessmentGrade: '12', usesAcs: row.assessmentProfile === 'acs'
+    }])))
+    currentDrafts = drafts
+    return createElement(rt.UfcdFinalGradeGrid, { snapshot, gradeDrafts: drafts, loading, savingStudentId: null,
+      onDraftChange: (id, changes) => setDrafts(current => ({ ...current, [id]: { ...current[id], ...changes } })),
+      onSaveStudent: async id => {
+        const draft = currentDrafts[id]
+        await rt.assessmentWorkspaceRepository.saveModuleFinalGrade({ moduleId: 'unit', studentId: id,
+          finalGrade: Number(draft.finalGrade), selfAssessmentGrade: Number(draft.selfAssessmentGrade), usesAcs: draft.usesAcs })
+        setSnapshot(await workspace()); saved.push(id)
+      } })
+  }
+  try {
+    await act(async () => { view.render(createElement(Sheet, { loading: true })) })
+    assert.equal(button('Aplicar arredondamento à turma').disabled, true)
+    await act(async () => { view.render(createElement(Sheet)) })
+    await waitFor(() => Boolean(button('Avaliação guardada')))
+    await act(async () => { button('Aplicar arredondamento à turma').click() })
+    assert.equal(currentDrafts.general.finalGrade, '15')
+    assert.equal(currentDrafts.acs.finalGrade, '18')
+    assert.equal(currentDrafts.acs.usesAcs, true)
+    assert.equal(currentDrafts.general.selfAssessmentGrade, '12')
+    assert.deepEqual(await db.moduleFinalGrades.toArray(), before, 'applying suggestions must wait for the teacher to save')
+    assert.equal(button('Exportar PDF').disabled, true)
+    assert.equal(button('Exportar Excel completo').disabled, true)
+    await act(async () => { button('Guardar / confirmar').click() })
+    await waitFor(() => saved.length === 2)
+    await waitFor(() => !button('Aplicar arredondamento à turma'))
+    db.close(); await db.open()
+    const snapshot = await workspace()
+    assert.deepEqual(rt.buildUfcdCfpModel(snapshot).rows.map(row => row.finalGrade), [15, 18])
+    assert.deepEqual(snapshot.studentRows.map(row => row.gradeSummary.provisionalAverage), [14.4, 17.6])
+    for (const row of snapshot.studentRows) {
+      assert.equal(row.finalGradeRecord.selfAssessmentGrade, 12)
+      assert.equal(row.finalGradeRecord.note, 'Observação privada preservada')
+    }
+    const csv = rt.buildGIAEGradeCsvExport(snapshot).csv
+    assert.match(csv, /000123,15,,""/)
+    assert.match(csv, /000456,18,,""/)
+
+    const template = readFileSync(join(root, 'public/ma-professor/templates/Grelha_Avaliacao_UFCD_UC_Modelo.xlsm'))
+    const oldFetch = globalThis.fetch, oldCreate = URL.createObjectURL, oldRevoke = URL.revokeObjectURL, oldClick = window.HTMLAnchorElement.prototype.click
+    let downloaded
+    globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => Uint8Array.from(template).buffer })
+    URL.createObjectURL = blob => { downloaded = blob; return 'blob:rounding-regression' }
+    URL.revokeObjectURL = () => {}
+    window.HTMLAnchorElement.prototype.click = () => {}
+    try {
+      await rt.exportUfcdFinalGradeExcel(snapshot)
+      const files = unzipSync(new Uint8Array(await downloaded.arrayBuffer()))
+      const xml = new window.DOMParser().parseFromString(strFromU8(files['xl/worksheets/sheet14.xml']), 'application/xml')
+      assert.equal(xml.querySelector('c[r="AA12"] v').textContent, '14.4')
+      assert.equal(xml.querySelector('c[r="BW12"] v').textContent, '15')
+      assert.equal(xml.querySelector('c[r="AA13"] v').textContent, '17.6')
+      assert.equal(xml.querySelector('c[r="BW13"] v').textContent, '18')
+      assert.deepEqual(files['xl/vbaProject.bin'], unzipSync(new Uint8Array(template))['xl/vbaProject.bin'])
+    } finally {
+      globalThis.fetch = oldFetch; URL.createObjectURL = oldCreate; URL.revokeObjectURL = oldRevoke
+      window.HTMLAnchorElement.prototype.click = oldClick
+    }
+  } finally { await act(async () => view.unmount()); host.remove() }
+})
+
+test('the rounding action excludes pending recovery, incomplete evaluation and regular education', async () => {
+  for (const id of ['general', 'acs']) await db.moduleFinalGrades.add({ id: `saved-${id}`, academicYearId: 'year', teachingAssignmentId: 'assignment', moduleId: 'unit', studentId: id,
+    calculatedAverage: 9.1, suggestedGrade: 9, finalGrade: 9, selfAssessmentGrade: null, usesAcs: id === 'acs', note: '', confirmedAt: stamp, ...audit })
+  for (const mode of ['recovery', 'incomplete', 'regular']) {
+    const snapshot = await workspace()
+    if (mode === 'regular') snapshot.selectedGroup.educationType = 'regular'
+    else for (const row of snapshot.studentRows) {
+      if (mode === 'recovery') row.recoveryPending = true
+      else row.gradeSummary.allActiveCriteriaAssessed = false
+    }
+    const host = document.createElement('div'); document.body.append(host)
+    const view = createRoot(host)
+    try {
+      await act(async () => { view.render(createElement(rt.UfcdFinalGradeGrid, { snapshot, gradeDrafts: {}, savingStudentId: null,
+        onDraftChange: () => assert.fail('must not change drafts'), onSaveStudent: () => assert.fail('must not save grades') })) })
+      assert.equal([...host.querySelectorAll('button')].some(row => row.textContent.includes('Aplicar arredondamento à turma')), false)
+    } finally { await act(async () => view.unmount()); host.remove() }
   }
 })

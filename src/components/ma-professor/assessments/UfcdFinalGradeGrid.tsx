@@ -113,8 +113,29 @@ export default function UfcdFinalGradeGrid(
     Boolean(props.savingStudentId) ||
     hasDirtyGradeDrafts
 
+  const roundingRows = props.snapshot.selectedGroup?.educationType === 'regular' ? [] :
+    props.snapshot.studentRows.filter(row => {
+      const summary = row.gradeSummary
+      const current = props.gradeDrafts[row.student.id] ?? buildPersistedDraft(row)
+      return !row.recoveryPending && summary.allActiveCriteriaAssessed &&
+        summary.confirmedFinalGrade !== null && summary.suggestedGrade !== null &&
+        current.finalGrade.trim() !== String(summary.suggestedGrade)
+    })
+
   return (
     <>
+      {roundingRows.length > 0 ? (
+        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4 text-sm text-amber-100">
+          <p role="status" className="font-bold">{roundingRows.length === 1 ? 'Existe 1 nota final diferente' : `Existem ${roundingRows.length} notas finais diferentes`} da sugestão de arredondamento atual.</p>
+          <p className="mt-2 leading-6">O PDF, o Excel e o CSV usam as notas finais guardadas. Aplique a regra à turma, reveja as notas e clique em «Guardar / confirmar» antes de emitir novamente.</p>
+          <button type="button" disabled={Boolean(props.loading) || Boolean(props.savingStudentId)}
+            onClick={() => {
+              for (const row of roundingRows) props.onDraftChange(row.student.id, { finalGrade: String(row.gradeSummary.suggestedGrade) })
+            }}
+            className="mt-3 rounded-xl border border-amber-200/30 bg-amber-300/10 px-4 py-2.5 text-sm font-bold text-amber-50 disabled:opacity-40">Aplicar arredondamento à turma</button>
+        </div>
+      ) : null}
+
       <GIAEGradeCsvExport
         snapshot={props.snapshot}
         disabled={Boolean(props.loading) || Boolean(props.savingStudentId)}
