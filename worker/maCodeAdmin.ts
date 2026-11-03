@@ -1,6 +1,10 @@
+import type { MaProfessorAccessEnv } from './maProfessorAccess'
+import { MA_CODE_ADMIN_SECURITY_PATH, type AdminSecurityOperation } from './maCodeAdminSecurity'
+
 export interface MaCodeAdminEnv {
   MA_CODE_ADMIN_PASSWORD?: string
   MA_CODE_ADMIN_SESSION_SECRET?: string
+  MA_PROFESSOR_ACCESS: MaProfessorAccessEnv['MA_PROFESSOR_ACCESS']
 }
 
 type JsonObject = Record<string, unknown>
@@ -565,21 +569,46 @@ async function getAuthenticatedSession(
     return null
   }
 
-  return verifySessionToken(
-    token,
-    sessionSecret
-  )
+  const session = await verifySessionToken(token, sessionSecret)
+  if (!session) return null
+  const result = await administrativeSecurity(env, {
+    action: 'session-status',
+    sessionHash: await signPayload(`ma-code-admin:session:${token}`, sessionSecret),
+    expiresAt: session.expiresAt
+  })
+  return result.allowed ? session : null
 }
 
-async function pauseAfterFailedLogin() {
-  await new Promise<void>(
-    resolve => {
-      setTimeout(
-        resolve,
-        650
-      )
-    }
-  )
+async function administrativeSecurity(env: MaCodeAdminEnv, operation: AdminSecurityOperation) {
+  try {
+    const namespace = env.MA_PROFESSOR_ACCESS
+    if (!namespace) throw new Error('Missing binding')
+    const stub = namespace.get(namespace.idFromName('ma-professor-access-global'))
+    const response = await stub.fetch(new Request(`https://internal${MA_CODE_ADMIN_SECURITY_PATH}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(operation)
+    }))
+    if (!response.ok) throw new Error('Unavailable storage')
+    const result: unknown = await response.json()
+    if (!isJsonObject(result) || typeof result.allowed !== 'boolean' ||
+      (result.retryAfter !== undefined && (typeof result.retryAfter !== 'number' ||
+      !Number.isFinite(result.retryAfter) || result.retryAfter < 1))) throw new Error('Invalid response')
+    return { allowed: result.allowed, retryAfter: result.retryAfter as number | undefined }
+  } catch {
+    throw new AdminApiError('A proteção administrativa está temporariamente indisponível. Tente novamente.', 503)
+  }
+}
+
+function connectingOrigin(request: Request) {
+  // Prefer the real IPv6 address if Cloudflare's Pseudo IPv4 overwrites its IPv4 header.
+  const value = (request.headers.get('CF-Connecting-IPv6') || request.headers.get('CF-Connecting-IP') || '').trim()
+  if (value.includes(':')) {
+    try { return new URL(`http://[${value}]/`).hostname.toLowerCase() } catch { /* invalid address */ }
+  } else if (/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) {
+    const octets = value.split('.').map(Number)
+    if (octets.every(octet => octet <= 255)) return octets.join('.')
+  }
+  // Never group missing origins into a global bucket, or trust an IP supplied in JSON/X-Forwarded-For.
+  throw new AdminApiError('Não foi possível identificar a origem da ligação. Tente novamente.', 503)
 }
 
 function getErrorResponse(
@@ -655,37 +684,25 @@ async function handleLogin(
       ? body.password
       : ''
 
-  if (
-    !suppliedPassword ||
-    suppliedPassword.length > 256
-  ) {
-    await pauseAfterFailedLogin()
-
-    return json(
-      {
-        success: false,
-        message:
-          'Credenciais de administração inválidas.'
-      },
-      401
-    )
-  }
-
   const {
     password,
     sessionSecret
   } =
     getAdminConfiguration(env)
 
-  const matches =
-    await passwordMatches(
-      suppliedPassword,
-      password
-    )
+  const origin = connectingOrigin(request)
+  const matches = !!suppliedPassword && suppliedPassword.length <= 256 &&
+    await passwordMatches(suppliedPassword, password)
+  const permission = await administrativeSecurity(env, {
+    action: 'login-attempt',
+    originHash: await signPayload(`ma-code-admin:origin:${origin}`, sessionSecret),
+    matched: matches
+  })
+  if (!permission.allowed) return json({ success: false,
+    message: 'Foram recebidas demasiadas tentativas de entrada desta origem. Aguarde cinco minutos antes de tentar novamente.'
+  }, 429, { 'Retry-After': String(permission.retryAfter ?? 300) })
 
   if (!matches) {
-    await pauseAfterFailedLogin()
-
     return json(
       {
         success: false,
@@ -776,7 +793,8 @@ async function handleSession(
 }
 
 async function handleLogout(
-  request: Request
+  request: Request,
+  env: MaCodeAdminEnv
 ) {
   if (
     request.method !== 'POST'
@@ -807,6 +825,20 @@ async function handleLogout(
       },
       403
     )
+  }
+
+  const token = getCookieValue(request, ADMIN_COOKIE_NAME)
+  if (token) {
+    const { sessionSecret } = getAdminConfiguration(env)
+    const session = await verifySessionToken(token, sessionSecret)
+    if (session) {
+      const result = await administrativeSecurity(env, {
+        action: 'revoke-session',
+        sessionHash: await signPayload(`ma-code-admin:session:${token}`, sessionSecret),
+        expiresAt: session.expiresAt
+      })
+      if (!result.allowed) throw new AdminApiError('Não foi possível terminar a sessão. Tente novamente.', 503)
+    }
   }
 
   return json(
@@ -863,7 +895,8 @@ export async function handleMaCodeAdminApiRequest(
 
       case '/logout':
         return await handleLogout(
-          request
+          request,
+          env
         )
 
       default:
