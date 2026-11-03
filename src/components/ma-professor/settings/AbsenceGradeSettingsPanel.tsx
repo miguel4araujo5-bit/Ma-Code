@@ -34,6 +34,9 @@ export function AbsenceGradeSettingsPanel({ academicYearId, onDataChanged }: { a
   }
   return <details ref={rootRef} className="mt-6 rounded-2xl border border-white/10 bg-slate-900 p-5">
     <summary className="cursor-pointer text-sm font-bold text-slate-200">Regras de avaliação — notas de falta e arredondamento</summary>
+    <FinalGradeRoundingSettingsPanel onDataChanged={onDataChanged} />
+    <h3 className="mt-6 border-t border-white/10 pt-5 text-sm font-bold text-slate-200">Notas atribuídas quando o aluno falta</h3>
+    <p className="mt-2 text-sm text-slate-400">Os seletores de disciplina, turma e ACS abaixo aplicam-se apenas às notas de falta.</p>
     <p className="mt-4 text-sm text-slate-400">Por defeito, não contar na média. Uma nota entre 0 e 20 aplica-se às avaliações já registadas e futuras deste critério. Alterar ou remover a nota recalcula as médias e sugestões; as classificações finais confirmadas mantêm-se.</p>
     <div className="mt-4 grid gap-4 sm:grid-cols-2">
       <label className="text-sm text-slate-300">Disciplina e turma<select aria-label="Disciplina e turma para notas de falta" disabled={saving || !configuration} value={assignmentId} onChange={event => choose(() => setAssignmentId(event.target.value))} className="mt-2 w-full rounded-xl bg-slate-950 p-3">{configuration?.assignments.map(row => <option key={row.id} value={row.id}>{row.displayName}</option>)}</select></label>
@@ -51,6 +54,5 @@ export function AbsenceGradeSettingsPanel({ academicYearId, onDataChanged }: { a
       <button type="submit" disabled={saving || !dirty || rows.length === 0} className="rounded-xl bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 disabled:opacity-40">Guardar notas de falta</button>
       {feedback ? <p role="status" className="text-sm text-slate-200">{feedback}</p> : null}
     </form>
-    <FinalGradeRoundingSettingsPanel onDataChanged={onDataChanged} />
   </details>
 }
