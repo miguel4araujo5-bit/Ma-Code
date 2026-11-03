@@ -599,8 +599,12 @@ async function administrativeSecurity(env: MaCodeAdminEnv, operation: AdminSecur
 }
 
 function connectingOrigin(request: Request) {
-  // Prefer the real IPv6 address if Cloudflare's Pseudo IPv4 overwrites its IPv4 header.
-  const value = (request.headers.get('CF-Connecting-IPv6') || request.headers.get('CF-Connecting-IP') || '').trim()
+  // Only use the IPv6 companion for Cloudflare's reserved Class E Pseudo IPv4 range.
+  // An arbitrary companion header must not replace the trusted primary address.
+  const primary = (request.headers.get('CF-Connecting-IP') || '').trim()
+  const pseudoIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(primary) &&
+    primary.split('.').every(octet => Number(octet) <= 255) && Number(primary.split('.')[0]) >= 240
+  const value = pseudoIpv4 ? (request.headers.get('CF-Connecting-IPv6') || '').trim() : primary
   if (value.includes(':')) {
     try { return new URL(`http://[${value}]/`).hostname.toLowerCase() } catch { /* invalid address */ }
   } else if (/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) {

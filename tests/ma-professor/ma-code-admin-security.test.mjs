@@ -150,9 +150,11 @@ test('IPv6 equivalent forms share a counter, Pseudo IPv4 uses the real IPv6, and
   assert.equal((await h.call('login', { password: PASSWORD, ip: '2001:db8::1' })).status, 429)
   assert.equal((await h.call('login', { password: PASSWORD, ip: '240.0.0.1', headers: { 'CF-Connecting-IPv6': '2001:db8::1' } })).status, 429)
   await h.login({ ip: '240.0.0.1', headers: { 'CF-Connecting-IPv6': '2001:db8::2' } })
+  for (let i = 0; i < 5; i++) await h.call('login', { password: 'wrong' })
+  assert.equal((await h.call('login', { password: PASSWORD, headers: { 'CF-Connecting-IPv6': '2001:db8::99' } })).status, 429)
   const before = structuredClone([...h.storage.values])
   for (const ip of [null, 'invalid', '1.2.3.999']) {
-    assert.equal((await h.call('login', { password: PASSWORD, ip, headers: { 'X-Forwarded-For': '192.0.2.7' } })).status, 503)
+    assert.equal((await h.call('login', { password: PASSWORD, ip, headers: { 'X-Forwarded-For': '192.0.2.7', 'CF-Connecting-IPv6': '2001:db8::99' } })).status, 503)
   }
   assert.deepEqual([...h.storage.values], before)
   const serialized = JSON.stringify([...h.storage.values])
