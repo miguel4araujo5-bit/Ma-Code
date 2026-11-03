@@ -1102,7 +1102,7 @@ export default function DailyUnifiedWeekOverview({
                         <span className="block text-[0.62rem] font-black text-slate-300">
                           {slot.startTime}
                         </span>
-                        <span className="block text-[0.56rem] font-semibold text-slate-600">
+                        <span className="block text-[0.6rem] font-bold text-slate-400">
                           {slot.endTime}
                         </span>
                       </div>
