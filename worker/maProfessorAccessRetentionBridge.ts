@@ -29,6 +29,7 @@ import {
 import type {
   MaProfessorAccessEnv
 } from './maProfessorAccess'
+import { MaCodeAdminSecurity, MA_CODE_ADMIN_SECURITY_PATH, type AdminSecurityStorage } from './maCodeAdminSecurity'
 
 const ACCESS_STORAGE_KEY =
   'ma-professor-access-state-v1'
@@ -357,6 +358,7 @@ function createRetentionGuardedState(
 }
 
 export class MaProfessorAccessDurableObject {
+  private readonly administrativeSecurity: MaCodeAdminSecurity
   private readonly existing:
     ExistingMaProfessorAccessDurableObject
 
@@ -364,6 +366,7 @@ export class MaProfessorAccessDurableObject {
     state: DurableObjectStateLike,
     env: MaProfessorAccessEnv
   ) {
+    this.administrativeSecurity = new MaCodeAdminSecurity(state.storage as AdminSecurityStorage)
     const sessionSplitState =
       createMAProfessorAccessSessionSplitState(
         state
@@ -406,6 +409,9 @@ export class MaProfessorAccessDurableObject {
   fetch(
     request: Request
   ) {
+    if (new URL(request.url).pathname === MA_CODE_ADMIN_SECURITY_PATH) {
+      return this.administrativeSecurity.fetch(request)
+    }
     return this.existing.fetch(
       request
     )

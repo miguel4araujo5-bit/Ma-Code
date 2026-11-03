@@ -182,6 +182,7 @@ function transpile(source, filename) {
       '"./maProfessorSessionLifecycleState"',
       '"./maProfessorSessionLifecycleState.mjs"'
     )
+    .replaceAll("'./maCodeAdminSecurity'", "'./maCodeAdminSecurity.mjs'")
 }
 
 async function stageRetentionBridge() {
@@ -201,6 +202,11 @@ async function stageRetentionBridge() {
       ),
       'utf8'
     )
+
+  await writeFile(join(directory, 'maCodeAdminSecurity.mjs'), transpile(
+    await readFile(new URL('../../worker/maCodeAdminSecurity.ts', import.meta.url), 'utf8'),
+    'maCodeAdminSecurity.ts'
+  ), 'utf8')
 
   await writeFile(
     join(
