@@ -28,7 +28,7 @@ test(
     )
     assert.match(
       source,
-      /contabilizadas nesta disciplina/
+      /carga total prevista nesta disciplina/
     )
     assert.match(
       source,
@@ -45,7 +45,7 @@ test(
     )
     assert.match(
       source,
-      /contabilizadas nesta UFCD ou módulo/
+      /carga total prevista nesta UFCD, UC ou módulo/
     )
 
     assert.match(

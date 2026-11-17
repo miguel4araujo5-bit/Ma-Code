@@ -382,8 +382,9 @@ test('legacy unsuccessful attempts and exam referral remain readable without cha
   assert.equal((await maProfessorDb.learningRecoveries.get('r1')).result,'Resultado')
 })
 
-test('synchronization keeps active recoveries and checks for absences recorded after completion', () => {
-  assert.match(repositorySource, /getActiveRecoveryForAssignment/)
+test('synchronization keeps active recoveries per unit and checks for absences recorded after completion', () => {
+  assert.match(repositorySource, /getActiveRecovery\(moduleId, studentId\)/)
+  assert.match(repositorySource, /listRecoverableAbsences\(module\.teachingAssignmentId, studentId, moduleId\)/)
   assert.match(repositorySource, /row\.updatedAt > \(latestCompleted\.completedAt/)
   assert.doesNotMatch(repositorySource, /if \(assignmentHistory\.length > 0\)/)
 })
