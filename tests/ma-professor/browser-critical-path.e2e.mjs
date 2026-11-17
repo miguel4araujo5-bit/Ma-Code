@@ -584,6 +584,8 @@ async function configureMinimumSetup(page) {
   })
   await openToday.waitFor({ state: 'visible' })
   await openToday.click()
+  // Opening Today finishes setup and generates lessons asynchronously.
+  await summaryEditor(page)
 }
 
 async function summaryEditor(page) {
