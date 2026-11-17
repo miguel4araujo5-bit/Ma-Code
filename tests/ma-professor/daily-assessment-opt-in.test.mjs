@@ -52,7 +52,8 @@ function functionSource(name) {
 const helpers = compile([
   'buildStudentRows',
   'isDailyAssessmentEnabled',
-  'buildActivatedStudentRows'
+  'buildActivatedStudentRows',
+  'buildDeactivatedStudentRows'
 ].map(name => 'export ' + functionSource(name)).join('\n'))
 
 const criteria = [
@@ -103,6 +104,28 @@ test('opening a lesson leaves every unassessed pupil blank and saving attendance
   assert.equal(result.calls.lessons[0].assessment.mode, 'none')
   assert.equal(result.calls.grids.length, 0)
   assert.deepEqual(result.calls.errors, [])
+})
+
+test('cancelling an unsaved evaluation preserves attendance and creates no grades', async () => {
+  const activated = helpers.buildActivatedStudentRows(buildRows(), criteria)
+  activated[0].criterionScores.learning = '18'
+  const students = helpers.buildDeactivatedStudentRows(activated)
+  const result = await runSave(students, criteria)
+  assert.equal(result.saved, true)
+  assert.equal(result.calls.grids.length, 0)
+  assert.equal(result.calls.lessons[0].students[1].attendanceStatus, 'absent')
+  assert.equal(result.calls.lessons[0].summary, 'Sumário da aula')
+  assert.deepEqual(Object.values(activated[0].criterionScores), ['18', '10', '10'])
+})
+
+test('cancelling saved scores requests their removal without remaining active', async () => {
+  const students = helpers.buildDeactivatedStudentRows(buildRows({ ana: { learning: 0, reasoning: 17.5, attitudes: 20 } }))
+  assert.equal(helpers.isDailyAssessmentEnabled(students), false)
+  const result = await runSave(students, criteria)
+  assert.equal(result.saved, true)
+  assert.equal(result.calls.grids.length, 1)
+  assert.equal(result.calls.grids[0].clear, true)
+  assert.equal(helpers.isDailyAssessmentEnabled(result.calls.students), false)
 })
 
 test('Avaliação explicitly prepares tens and saving passes those scores with the lesson summary', async () => {
@@ -207,7 +230,7 @@ test('explicit future evaluation persists real scores and blanks stay not evalua
   assert.equal(state.created, 3, 'Clearing or saving again must not duplicate assessments')
 })
 
-test('the actual activation handler requires a click and preserves grades on repeated clicks', () => {
+test('the actual activation handler cancels the evaluation on the second click', () => {
   const activate = compile(
     'export function activate(students, criteria, status = "taught", busy = false) {\n' +
     'const savingRef = { current: busy }, lessonForm = { status };\n' +
@@ -215,13 +238,18 @@ test('the actual activation handler requires a click and preserves grades on rep
     'const setStudents = update => { students = update(students) };\n' +
     functionSource('isDailyAssessmentEnabled') + '\n' +
     functionSource('buildActivatedStudentRows') + '\n' +
+    functionSource('buildDeactivatedStudentRows') + '\n' +
     functionSource('startAssessment') + '\n' +
     'startAssessment(); return students;\n}'
   ).activate
   const students = activate(buildRows(), criteria)
   assert.equal(students[0].criterionScores.learning, '10')
   students[0].criterionScores.learning = '18'
-  assert.equal(activate(students, criteria)[0].criterionScores.learning, '18')
+  const cancelled = activate(students, criteria)
+  assert.equal(helpers.isDailyAssessmentEnabled(cancelled), false)
+  assert.deepEqual(Object.values(cancelled[0].criterionScores), ['', '', ''])
+  assert.deepEqual(Object.values(cancelled[1].criterionScores), ['', '', ''])
+  assert.equal(activate(cancelled, criteria)[0].criterionScores.learning, '10', 'Reopening must not restore the cancelled 18')
   assert.equal(helpers.isDailyAssessmentEnabled(activate(buildRows(), criteria, 'cancelled')), false)
   assert.equal(helpers.isDailyAssessmentEnabled(activate(buildRows(), criteria, 'taught', true)), false)
 })
