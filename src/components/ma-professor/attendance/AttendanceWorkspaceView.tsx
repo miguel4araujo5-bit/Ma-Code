@@ -146,12 +146,15 @@ function formatDate(
 }
 
 function createDraft(
-  recovery: LearningRecovery | null
+  recovery: LearningRecovery | null,
+  availableAbsenceIds?: EntityId[]
 ): RecoveryDraft {
   return {
     recoveryDate: recovery?.recoveryDate ?? '',
     recoveryGrade: recovery?.recoveryGrade == null ? '' : String(recovery.recoveryGrade),
-    selectedAbsenceIds: recovery?.selectedAbsenceIds ?? [],
+    selectedAbsenceIds: (recovery?.selectedAbsenceIds ?? []).filter(id =>
+      recovery?.status === 'completed' || !availableAbsenceIds || availableAbsenceIds.includes(id)
+    ),
     contents:
       recovery?.contents ??
       '',
@@ -178,7 +181,8 @@ function buildDrafts(
       row => [
         row.student.id,
         createDraft(
-          row.recovery
+          row.recovery,
+          row.absences.map(absence => absence.attendanceId)
         )
       ]
     )
@@ -753,7 +757,7 @@ export default function AttendanceWorkspaceView({
               </h2>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                A percentagem é calculada por disciplina sobre a carga anual total, somando todas as UFCD/UC. O aviso aparece quando o aluno se aproxima do limite — incluindo quando uma única aula pode levá-lo aos 10% — e a recuperação é necessária a partir dos 10%.
+                A percentagem é calculada separadamente sobre a carga total de cada UFCD, UC ou módulo. O aviso assinala a aproximação e a chegada ao limite. A recuperação é necessária quando as faltas ultrapassam {formatPercent(snapshot.settings.learningRecoveryThresholdPercent)}% dessa unidade.
               </p>
             </div>
 
@@ -826,11 +830,11 @@ export default function AttendanceWorkspaceView({
                           </p>
 
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            Carga anual da disciplina · todas as UFCD/UC
+                            Carga total desta UFCD/UC/módulo
                           </p>
 
                           <p className="mt-1 text-xs leading-5 text-slate-600">
-                            Contexto para gestão: {moduleName}
+                            {moduleName}
                           </p>
                         </div>
 
@@ -978,8 +982,8 @@ export default function AttendanceWorkspaceView({
 
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   {regularEducation
-                    ? 'As percentagens consideram apenas aulas dadas e contabilizadas nesta disciplina.'
-                    : 'As percentagens consideram apenas aulas dadas e contabilizadas nesta UFCD ou módulo.'}
+                    ? 'As percentagens comparam os tempos de falta com a carga total prevista nesta disciplina.'
+                    : 'As percentagens comparam os tempos de falta com a carga total prevista nesta UFCD, UC ou módulo.'}
                 </p>
               </div>
 
@@ -1025,7 +1029,8 @@ export default function AttendanceWorkspaceView({
                     const draft =
                       drafts[row.student.id] ??
                       createDraft(
-                        recovery
+                        recovery,
+                        row.absences.map(absence => absence.attendanceId)
                       )
 
                     const expanded =
@@ -1050,7 +1055,7 @@ export default function AttendanceWorkspaceView({
 
                           <div className="flex flex-wrap gap-2">
                             <span className="rounded-full border border-white/10 bg-slate-950/55 px-3 py-1.5 text-xs font-black text-slate-300">
-                              {row.summary.absences}/{row.summary.lessonsTaught} faltas
+                              {row.summary.annualAbsencePeriods ?? row.summary.absences}/{row.summary.annualPlannedPeriods ?? snapshot.selectedModule?.plannedPeriods} tempos de falta
                             </span>
 
                             <span
@@ -1265,6 +1270,7 @@ export default function AttendanceWorkspaceView({
                               </label>
                               <fieldset className="lg:col-span-2">
                                 <legend className="mb-2 text-xs font-bold text-slate-300">Faltas a remover ao concluir</legend>
+                                {recovery?.status !== 'completed' && recovery?.selectedAbsenceIds?.some(id => !row.absences.some(absence => absence.attendanceId === id)) ? <p className="mb-2 text-xs text-amber-200">A seleção foi ajustada às faltas desta unidade. Reveja-a antes de guardar.</p> : null}
                                 {row.absences.map(absence => <label key={absence.attendanceId} className="mr-4 inline-flex items-center gap-2 py-1 text-sm text-slate-300">
                                   <input type="checkbox" checked={draft.selectedAbsenceIds.includes(absence.attendanceId)} disabled={busy || recovery?.status === 'completed'} onChange={event => updateDraft(row.student.id, { selectedAbsenceIds: event.target.checked ? [...draft.selectedAbsenceIds, absence.attendanceId] : draft.selectedAbsenceIds.filter(id => id !== absence.attendanceId) })} />
                                   {formatDate(absence.date)} · {absence.startTime} · {absence.periods} tempo(s)

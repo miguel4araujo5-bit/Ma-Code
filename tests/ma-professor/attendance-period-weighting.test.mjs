@@ -78,7 +78,7 @@ test(
 )
 
 test(
-  'annual discipline percentage uses the planned annual workload instead of lessons taught so far',
+  'a unit percentage uses its full planned workload instead of lessons taught so far',
   () => {
     const result =
       metrics.calculateAnnualAttendancePeriodMetrics(
@@ -129,7 +129,7 @@ test(
 )
 
 test(
-  'one lesson before the annual 10 percent limit already produces a warning even below the generic 8 percent warning',
+  'two periods before the unit limit already produce a warning even below the generic 8 percent warning',
   () => {
     const warningLevel =
       metrics.getAttendanceWarningLevel({
@@ -167,7 +167,7 @@ test(
 )
 
 test(
-  'when the attendance record is corrected by the class director the annual percentage can return to zero',
+  'when the attendance record is corrected by the class director the unit percentage can return to zero',
   () => {
     const result =
       metrics.calculateAnnualAttendancePeriodMetrics(
@@ -192,7 +192,7 @@ test(
 )
 
 test(
-  'attendance repository aggregates the whole teaching assignment and all active module planned periods',
+  'attendance repository scopes both absences and the planned workload to the selected curricular unit',
   () => {
     assert.match(
       repositorySource,
@@ -200,11 +200,11 @@ test(
     )
     assert.match(
       repositorySource,
-      /lessons[\s\S]*\.where\([\s\S]*'teachingAssignmentId'[\s\S]*module\.teachingAssignmentId/
+      /lessons\.where\('moduleId'\)\.equals\(moduleId\)/
     )
     assert.match(
       repositorySource,
-      /assignmentModules[\s\S]*assignmentModule\.active[\s\S]*assignmentModule\.plannedPeriods/
+      /const annualPlannedPeriods = module\.plannedPeriods/
     )
     assert.match(
       repositorySource,
@@ -214,7 +214,7 @@ test(
 )
 
 test(
-  'the repository evaluates the annual threshold and the one-lesson warning through the shared warning calculator',
+  'the repository evaluates the unit threshold through the shared warning calculator',
   () => {
     assert.match(
       repositorySource,
@@ -228,15 +228,15 @@ test(
 )
 
 test(
-  'automatic recovery synchronization is discipline-aware and avoids parallel recoveries across UFCDs',
+  'automatic recovery synchronization preserves one active recovery per student and unit',
   () => {
     assert.match(
       repositorySource,
-      /getActiveRecoveryForAssignment\([\s\S]*teachingAssignmentId[\s\S]*studentId/
+      /const activeRecovery = await getActiveRecovery\(moduleId, studentId\)/
     )
-    assert.match(
+    assert.doesNotMatch(
       repositorySource,
-      /listRecoveryHistoryForAssignment\([\s\S]*'teachingAssignmentId'/
+      /getActiveRecoveryForAssignment|listRecoveryHistoryForAssignment/
     )
     assert.match(
       repositorySource,
@@ -246,7 +246,7 @@ test(
 )
 
 test(
-  'historical recovery counters remain lesson-based while the stored percentage uses the corrected annual summary',
+  'historical recovery counters remain lesson-based while new percentages use the unit summary',
   () => {
     assert.match(
       baseRepositorySource,

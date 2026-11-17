@@ -7,6 +7,9 @@ import { build } from 'esbuild'
 import { unzipSync, strFromU8 } from 'fflate'
 import { PDFDocument } from 'pdf-lib'
 import 'fake-indexeddb/auto'
+import React, { act } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { JSDOM } from 'jsdom'
 globalThis.window = { indexedDB: globalThis.indexedDB }
 
 // Exercise real repositories and IndexedDB transactions, not mocked persistence.
@@ -23,6 +26,9 @@ export * from './src/components/ma-professor/lessons/lessonRepository'
 export * from './src/components/ma-professor/calendar/extraLessonRepository'
 export * from './src/components/ma-professor/attendance/attendanceRepository'
 export * from './src/components/ma-professor/attendance/attendancePeriodMetrics'
+export * from './src/components/ma-professor/attendance/attendanceWorkspaceRepository'
+export { default as AttendanceView } from './src/components/ma-professor/attendance/AttendanceWorkspaceView'
+export * from './src/components/ma-professor/daily/dailyWorkspaceRepository'
 export * from './src/components/ma-professor/assessments/assessmentWorkspaceRepository'
 export * from './src/components/ma-professor/assessments/ufcdCfpModel'
 export * from './src/components/ma-professor/assessments/ufcdFinalGradeExcelExport'
@@ -31,7 +37,7 @@ export * from './src/components/ma-professor/groups/groupsWorkspaceRepository'
 export * from './src/components/ma-professor/repository'
 export * from './src/components/ma-professor/settings/backupRepository'
 export * from './src/components/ma-professor/daily/dailyDraftStorage'
-`, resolveDir: process.cwd(), loader: 'ts' }, bundle:true, platform:'node', format:'esm', packages:'external', outfile:bundled })
+`, resolveDir: process.cwd(), loader: 'ts' }, bundle:true, jsx:'automatic', platform:'node', format:'esm', packages:'external', outfile:bundled })
 const api = await import(pathToFileURL(bundled).href)
 const db=api.maProfessorDb
 const stamp='2026-09-01T08:00:00.000Z'
@@ -122,6 +128,154 @@ test('discipline threshold distinguishes two periods remaining, exact ten percen
  const level=(absencePeriods)=>api.getAttendanceWarningLevel({plannedPeriods:120,absencePeriods,nextLessonPeriods:1,warningPercent:8,recoveryThresholdPercent:10})
  assert.deepEqual([9,10,11,12,13].map(level),['regular','warning','warning','limit_reached','recovery_required'])
  assert.equal(api.getAttendanceWarningLevel({plannedPeriods:99,absencePeriods:10,nextLessonPeriods:1,warningPercent:8,recoveryThresholdPercent:10}),'recovery_required')
+})
+
+test('each UFCD, UC or module uses its own full planned workload and weighted absence periods',async()=>{
+ await db.modules.bulkPut([module('b',1,50),module('c',2,100),module('d',3,50)])
+ await db.lessons.bulkPut([
+  lesson('b-absent',{periodCount:6}),lesson('b-present',{periodCount:2,date:'2026-09-15'}),
+  lesson('c-absent',{moduleId:'c',periodCount:9}),
+  lesson('b-cancelled',{periodCount:20,status:'cancelled'}),
+  lesson('b-future',{periodCount:20,status:'planned',date:'2099-09-14',giaeStatus:'pending',giaeSubmittedAt:null}),
+  lesson('b-extra',{periodCount:20,countTowardProgress:false})
+ ])
+ await db.lessonAttendance.bulkPut(['b-absent','c-absent','b-cancelled','b-future','b-extra'].map(id=>absence(id+'-f',id)))
+ const summaries=await Promise.all(['b','c','d'].map(id=>api.attendanceRepository.getStudentModuleAbsenceSummary(id,'one')))
+ assert.deepEqual(summaries.map(row=>[row.annualAbsencePeriods,row.annualPlannedPeriods,row.absencePercent,row.warningLevel]),[
+  [6,50,12,'recovery_required'],[9,100,9,'warning'],[0,50,0,'regular']
+ ])
+ const daily=await api.dailyWorkspaceRepository.getLessonWorkspace('y','b-absent')
+ assert.equal(daily.students.find(row=>row.student.id==='one').absenceSummary.annualAbsencePeriods,6)
+ assert.equal(daily.students.find(row=>row.student.id==='one').absenceSummary.absencePercent,12)
+ // A longer or inactive sibling cannot dilute the limit of an existing unit.
+ await db.modules.put({...module('sibling',4,2000),active:false})
+ await db.modules.update('c',{plannedPeriods:2000})
+ assert.equal((await api.attendanceRepository.getStudentModuleAbsenceSummary('b','one')).absencePercent,12)
+ assert.equal(await db.learningRecoveries.count(),0,'Reading revised summaries must preserve stored records')
+})
+
+test('exactly ten percent is allowed and automatic recoveries are independent for two units in the same discipline',async()=>{
+ await db.modules.bulkPut([module('b',1,50),module('c',2,100)])
+ await db.lessons.bulkPut([lesson('b-limit',{periodCount:5}),lesson('c-limit',{moduleId:'c',periodCount:10})])
+ await db.lessonAttendance.bulkPut([absence('b-f','b-limit'),absence('c-f','c-limit')])
+ assert.deepEqual((await Promise.all(['b','c'].map(id=>api.attendanceRepository.getStudentModuleAbsenceSummary(id,'one')))).map(row=>row.warningLevel),['limit_reached','limit_reached'])
+ assert.deepEqual(await api.attendanceRepository.synchronizeRecoveriesForActiveAcademicYear(),[])
+ await db.lessons.bulkPut([lesson('b-excess'),lesson('c-excess',{moduleId:'c'})])
+ await db.lessonAttendance.bulkPut([absence('b-excess-f','b-excess'),absence('c-excess-f','c-excess')])
+ const created=await api.attendanceRepository.synchronizeRecoveriesForActiveAcademicYear()
+ assert.deepEqual(created.map(row=>row.moduleId).sort(),['b','c'])
+ assert.deepEqual(created.map(row=>row.absencePercentAtTrigger).sort((a,b)=>a-b),[11,12])
+ assert.deepEqual(await api.attendanceRepository.synchronizeRecoveriesForActiveAcademicYear(),[])
+ const before=await db.learningRecoveries.toArray()
+ db.close();await db.open()
+ assert.deepEqual(await db.learningRecoveries.toArray(),before)
+ const workspace=await api.attendanceWorkspaceRepository.getWorkspace('y',{teachingAssignmentId:'a',moduleId:'b'})
+ assert.deepEqual(workspace.alertRows.filter(row=>row.student.id==='one').map(row=>row.module.id).sort(),['b','c'])
+ assert.equal(workspace.rows.find(row=>row.student.id==='one').summary.absencePercent,12)
+ assert.equal(workspace.rows.find(row=>row.student.id==='one').absences.length,2)
+ const html=renderToStaticMarkup(React.createElement(api.AttendanceView,{snapshot:workspace}))
+ assert.match(html,/calculada separadamente sobre a carga total de cada UFCD, UC ou módulo/)
+ assert.doesNotMatch(html,/somando todas as UFCD|Carga anual da disciplina/)
+ assert.match(html,/12/)
+ const existing=await api.attendanceRepository.ensureLearningRecovery('b','one')
+ assert.equal(existing.id,created.find(row=>row.moduleId==='b').id)
+ assert.deepEqual(await db.learningRecoveries.toArray(),before)
+})
+
+test('recovery completion removes only selected absences in its own unit and preserves the other unit and history',async()=>{
+ await db.modules.bulkPut([module('b',1,50),module('c',2,50)])
+ await db.lessons.bulkPut([lesson('b-lesson',{periodCount:6}),lesson('c-lesson',{moduleId:'c',periodCount:6})])
+ await db.lessonAttendance.bulkPut([absence('b-f','b-lesson'),absence('c-f','c-lesson')])
+ await api.attendanceRepository.synchronizeRecoveriesForActiveAcademicYear()
+ const before=await db.learningRecoveries.toArray()
+ const recovery=before.find(row=>row.moduleId==='b')
+ assert.ok(recovery)
+ await assert.rejects(api.attendanceRepository.updateLearningRecovery(recovery.id,{status:'completed',recoveryDate:'2026-10-02',recoveryGrade:16,selectedAbsenceIds:['c-f']}))
+ assert.deepEqual(await db.learningRecoveries.toArray(),before)
+ assert.equal((await db.lessonAttendance.get('c-f')).status,'absent')
+ await api.attendanceRepository.updateLearningRecovery(recovery.id,{status:'completed',recoveryDate:'2026-10-02',recoveryGrade:16,selectedAbsenceIds:['b-f']})
+ assert.equal((await db.lessonAttendance.get('b-f')).status,'present')
+ assert.equal((await db.lessonAttendance.get('c-f')).status,'absent')
+ assert.deepEqual(await db.learningRecoveries.get(before.find(row=>row.moduleId==='c').id),before.find(row=>row.moduleId==='c'))
+ assert.equal((await api.attendanceRepository.getStudentModuleAbsenceSummary('b','one')).absencePercent,0)
+ assert.equal((await api.attendanceRepository.getStudentModuleAbsenceSummary('c','one')).absencePercent,12)
+ assert.deepEqual(await api.attendanceRepository.synchronizeRecoveriesForActiveAcademicYear(),[])
+})
+
+test('manual and completed recoveries are preserved, and another unit cannot restart a completed attempt',async()=>{
+ await db.modules.bulkPut([module('b',1,50),module('c',2,50)])
+ const manual=await api.attendanceRepository.createLearningRecovery({...recoveryInput,moduleId:'c',status:'in_progress',contents:'Conteúdos preservados',activity:'Trabalho do professor'})
+ await db.lessons.bulkPut([lesson('b-first'),lesson('b-remaining',{periodCount:6})])
+ await db.lessonAttendance.bulkPut([absence('b-first-f','b-first'),absence('b-remaining-f','b-remaining')])
+ const [automatic]=await api.attendanceRepository.synchronizeRecoveriesForActiveAcademicYear()
+ assert.equal(automatic.moduleId,'b','An active recovery in another unit must not prevent this one')
+ const completed=await api.attendanceRepository.updateLearningRecovery(automatic.id,{status:'completed',recoveryDate:'2026-10-02',recoveryGrade:15,selectedAbsenceIds:['b-first-f']})
+ const later=new Date(Date.now()+1000).toISOString()
+ await db.lessons.put(lesson('c-new',{moduleId:'c',periodCount:6}))
+ await db.lessonAttendance.put({...absence('c-new-f','c-new'),updatedAt:later})
+ assert.equal((await api.attendanceRepository.ensureLearningRecovery('b','one')).id,completed.id)
+ assert.deepEqual(await api.attendanceRepository.synchronizeRecoveriesForActiveAcademicYear(),[])
+ assert.deepEqual(await db.learningRecoveries.get(manual.id),manual)
+ assert.deepEqual(await db.learningRecoveries.get(completed.id),completed)
+ await db.lessons.put(lesson('b-new'))
+ await db.lessonAttendance.put({...absence('b-new-f','b-new'),updatedAt:later})
+ const next=await api.attendanceRepository.ensureLearningRecovery('b','one')
+ assert.notEqual(next.id,completed.id)
+ assert.equal(next.moduleId,'b')
+ assert.deepEqual(await db.learningRecoveries.get(manual.id),manual)
+ assert.deepEqual(await db.learningRecoveries.get(completed.id),completed)
+})
+
+test('an old cross-unit selection can be reviewed and saved in the real recovery form without changing history on opening',async()=>{
+ await db.lessons.bulkPut([lesson('b-lesson'),lesson('c-lesson',{moduleId:'c'})])
+ await db.lessonAttendance.bulkPut([absence('b-f','b-lesson'),absence('c-f','c-lesson')])
+ const recovery=await api.attendanceRepository.createLearningRecovery({...recoveryInput,contents:'Conteúdos antigos',selectedAbsenceIds:['b-f','c-f']})
+ const snapshot=await api.attendanceWorkspaceRepository.getWorkspace('y',{teachingAssignmentId:'a',moduleId:'b'})
+ const dom=new JSDOM('<div id="root"></div>',{url:'https://recovery.test'})
+ Object.defineProperty(dom.window,'indexedDB',{value:globalThis.indexedDB})
+ const originals=new Map()
+ for(const [key,value] of Object.entries({window:dom.window,document:dom.window.document,navigator:dom.window.navigator,HTMLElement:dom.window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})) {
+  originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key))
+  Object.defineProperty(globalThis,key,{configurable:true,writable:true,value})
+ }
+ const {createRoot}=await import('react-dom/client')
+ const root=createRoot(document.getElementById('root'))
+ try {
+  let submitted
+  let finishSave
+  const saved=new Promise(resolve=>{finishSave=resolve})
+  await act(async()=>root.render(React.createElement(api.AttendanceView,{
+   snapshot,onFiltersChange:()=>{},
+   onUpdateRecovery:async(id,changes)=>{submitted=changes;await api.attendanceWorkspaceRepository.updateRecovery(id,changes);finishSave()}
+  })))
+  await act(async()=>document.querySelector('input[type="checkbox"]').click())
+  const manage=[...document.querySelectorAll('button')].find(node=>node.textContent.trim()==='Gerir recuperação')
+  assert.ok(manage)
+  await act(async()=>manage.click())
+  assert.match(document.body.textContent,/A seleção foi ajustada às faltas desta unidade/)
+  assert.equal(document.querySelectorAll('fieldset input[type="checkbox"]').length,1)
+  assert.equal(document.querySelector('fieldset input[type="checkbox"]').checked,true)
+  assert.deepEqual(await db.learningRecoveries.get(recovery.id),recovery,'Opening and reviewing must not rewrite the existing recovery')
+  await act(async()=>{
+   document.querySelector('form').dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}))
+   let timeout
+   try {
+    await Promise.race([saved,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Recovery save did not finish: '+document.body.textContent)),2000)})])
+   } finally {clearTimeout(timeout)}
+  })
+  assert.deepEqual(submitted.selectedAbsenceIds,['b-f'])
+  assert.deepEqual((await db.learningRecoveries.get(recovery.id)).selectedAbsenceIds,['b-f'])
+  assert.equal((await db.learningRecoveries.get(recovery.id)).contents,'Conteúdos antigos')
+  assert.equal((await db.lessonAttendance.get('b-f')).status,'absent')
+  assert.equal((await db.lessonAttendance.get('c-f')).status,'absent')
+ } finally {
+  await act(async()=>root.unmount())
+  dom.window.close()
+  for(const [key,descriptor] of originals) {
+   if(descriptor) Object.defineProperty(globalThis,key,descriptor)
+   else delete globalThis[key]
+  }
+ }
 })
 
 test('recovery requires date, grade and explicit valid selection; commits removal and final grade atomically',async()=>{

@@ -84,28 +84,6 @@ async function listRecoveryHistory(
     .toArray()
 }
 
-async function listRecoveryHistoryForAssignment(
-  teachingAssignmentId: EntityId,
-  studentId: EntityId
-) {
-  const recoveries =
-    await maProfessorDb
-      .learningRecoveries
-      .where(
-        'teachingAssignmentId'
-      )
-      .equals(
-        teachingAssignmentId
-      )
-      .toArray()
-
-  return recoveries.filter(
-    recovery =>
-      recovery.studentId ===
-      studentId
-  )
-}
-
 async function getActiveRecovery(
   moduleId: EntityId,
   studentId: EntityId
@@ -136,100 +114,19 @@ async function getActiveRecovery(
   )
 }
 
-async function getActiveRecoveryForAssignment(
-  teachingAssignmentId: EntityId,
-  studentId: EntityId
-) {
-  const recoveries =
-    await listRecoveryHistoryForAssignment(
-      teachingAssignmentId,
-      studentId
-    )
-
-  return (
-    recoveries
-      .filter(
-        recovery =>
-          recovery.status !==
-          'completed'
-      )
-      .sort(
-        (
-          left,
-          right
-        ) =>
-          right.triggeredAt.localeCompare(
-            left.triggeredAt
-          )
-      )[0] ??
-    null
-  )
-}
-
-async function hasStudentAbsenceInModule(
-  moduleId: EntityId,
-  studentId: EntityId
-) {
-  const [
-    lessons,
-    attendanceRecords
-  ] = await Promise.all([
-    maProfessorDb
-      .lessons
-      .where(
-        'moduleId'
-      )
-      .equals(
-        moduleId
-      )
-      .toArray(),
-    maProfessorDb
-      .lessonAttendance
-      .where(
-        'studentId'
-      )
-      .equals(
-        studentId
-      )
-      .toArray()
-  ])
-
-  const countedLessonIds =
-    new Set(
-      lessons
-        .filter(
-          lesson =>
-            lessonCountsTowardUfcdProgress(lesson)
-        )
-        .map(
-          lesson =>
-            lesson.id
-        )
-    )
-
-  return attendanceRecords.some(
-    attendance =>
-      attendance.status ===
-        'absent' &&
-      countedLessonIds.has(
-        attendance.lessonId
-      )
-  )
-}
-
 function now() {
   return new Date().toISOString()
 }
 
 export class AttendanceRepository
   extends BaseAttendanceRepository {
-  async listRecoverableAbsences(teachingAssignmentId: EntityId, studentId: EntityId) {
+  async listRecoverableAbsences(teachingAssignmentId: EntityId, studentId: EntityId, moduleId?: EntityId) {
     await this.initialize()
     const [lessons, records] = await Promise.all([
       maProfessorDb.lessons.where('teachingAssignmentId').equals(teachingAssignmentId).toArray(),
       maProfessorDb.lessonAttendance.where('studentId').equals(studentId).toArray()
     ])
-    const lessonById = new Map(lessons.filter(lesson => lessonCountsTowardUfcdProgress(lesson)).map(lesson => [lesson.id, lesson]))
+    const lessonById = new Map(lessons.filter(lesson => (!moduleId || lesson.moduleId === moduleId) && lessonCountsTowardUfcdProgress(lesson)).map(lesson => [lesson.id, lesson]))
     return records.filter(record => record.status === 'absent' && lessonById.has(record.lessonId)).map(record => {
       const lesson = lessonById.get(record.lessonId)!
       return { attendanceId: record.id, lessonId: lesson.id, date: lesson.date, startTime: lesson.startTime, periods: lesson.periodCount, updatedAt: record.updatedAt }
@@ -257,52 +154,11 @@ export class AttendanceRepository
       return baseline
     }
 
-    const [
-      student,
-      lessons,
-      assignmentModules,
-      attendanceRecords,
-      settings
-    ] =
-      await Promise.all([
-        maProfessorDb
-          .students
-          .get(
-            studentId
-          ),
-        maProfessorDb
-          .lessons
-          .where(
-            'teachingAssignmentId'
-          )
-          .equals(
-            module.teachingAssignmentId
-          )
-          .toArray(),
-        maProfessorDb
-          .modules
-          .where(
-            'teachingAssignmentId'
-          )
-          .equals(
-            module.teachingAssignmentId
-          )
-          .toArray(),
-        maProfessorDb
-          .lessonAttendance
-          .where(
-            'studentId'
-          )
-          .equals(
-            studentId
-          )
-          .toArray(),
-        ensureDefaultMAProfessorSettings()
-      ])
-
-    if (!student) {
-      return baseline
-    }
+    const [lessons, attendanceRecords, settings] = await Promise.all([
+      maProfessorDb.lessons.where('moduleId').equals(moduleId).toArray(),
+      maProfessorDb.lessonAttendance.where('studentId').equals(studentId).toArray(),
+      ensureDefaultMAProfessorSettings()
+    ])
 
     const attendanceByLesson =
       new Map(
@@ -324,21 +180,7 @@ export class AttendanceRepository
           )
       )
 
-    const annualPlannedPeriods =
-      assignmentModules
-        .filter(
-          assignmentModule =>
-            assignmentModule.active
-        )
-        .reduce(
-          (
-            total,
-            assignmentModule
-          ) =>
-            total +
-            assignmentModule.plannedPeriods,
-          0
-        )
+    const annualPlannedPeriods = module.plannedPeriods
 
     const metrics =
       calculateAnnualAttendancePeriodMetrics(
@@ -577,75 +419,24 @@ export class AttendanceRepository
       )
     }
 
-    const activeAssignmentRecovery =
-      await getActiveRecoveryForAssignment(
-        module.teachingAssignmentId,
-        studentId
-      )
-
-    if (activeAssignmentRecovery) {
-      return activeAssignmentRecovery
-    }
+    const activeRecovery = await getActiveRecovery(moduleId, studentId)
+    if (activeRecovery) return activeRecovery
 
     const moduleHistory = await listRecoveryHistory(moduleId, studentId)
     const latestCompleted = moduleHistory.filter(row => row.status === 'completed').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
     if (latestCompleted) {
-      const absences = await this.listRecoverableAbsences(module.teachingAssignmentId, studentId)
+      const absences = await this.listRecoverableAbsences(module.teachingAssignmentId, studentId, moduleId)
       if (!absences.some(row => row.updatedAt > (latestCompleted.completedAt ?? latestCompleted.updatedAt))) return latestCompleted
-    }
-
-    const assignmentModules =
-      await maProfessorDb
-        .modules
-        .where(
-          'teachingAssignmentId'
-        )
-        .equals(
-          module.teachingAssignmentId
-        )
-        .toArray()
-
-    const orderedModules = [
-      module,
-      ...assignmentModules
-        .filter(
-          candidate =>
-            candidate.active &&
-            candidate.id !== module.id
-        )
-        .sort(
-          (
-            left,
-            right
-          ) =>
-            left.order - right.order
-        )
-    ]
-
-    let recoveryModule =
-      module
-
-    for (const candidate of orderedModules) {
-      if (
-        await hasStudentAbsenceInModule(
-          candidate.id,
-          studentId
-        )
-      ) {
-        recoveryModule =
-          candidate
-        break
-      }
     }
 
     return this.createLearningRecoveryWithOrigin(
       {
         academicYearId:
-          recoveryModule.academicYearId,
+          module.academicYearId,
         teachingAssignmentId:
-          recoveryModule.teachingAssignmentId,
+          module.teachingAssignmentId,
         moduleId:
-          recoveryModule.id,
+          module.id,
         studentId,
         status:
           'pending'
@@ -867,7 +658,7 @@ export class AttendanceRepository
         let removedAbsences = latest.removedAbsences
         if (completing) {
           const ids = [...new Set(changes.selectedAbsenceIds ?? latest.selectedAbsenceIds ?? [])]
-          const available = await this.listRecoverableAbsences(latest.teachingAssignmentId, latest.studentId)
+          const available = await this.listRecoverableAbsences(latest.teachingAssignmentId, latest.studentId, latest.moduleId)
           if (!ids.length && !(latest.origin === 'manual' && available.length === 0)) throw new Error('Selecione as faltas que pretende remover antes de concluir a recuperação.')
           const selected = ids.map(id => available.find(row => row.attendanceId === id))
           if (selected.some(row => !row)) throw new Error('Uma das faltas selecionadas foi alterada entretanto. Atualize a lista antes de concluir.')
