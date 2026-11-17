@@ -19,7 +19,7 @@ const repositorySource = await readFile(
 )
 
 test(
-  'daily attendance shows the annual discipline absence count beside the UFCD average',
+  'daily attendance shows the selected unit absence count beside the UFCD average',
   () => {
     assert.match(
       viewSource,
@@ -69,7 +69,7 @@ test(
 )
 
 test(
-  'annual absence periods come from the full discipline workload calculation',
+  'the existing derived total fields carry only the selected curricular unit workload',
   () => {
     assert.match(
       repositorySource,
@@ -80,12 +80,14 @@ test(
       repositorySource,
       /annualPlannedPeriods:\s*metrics\.plannedPeriods/
     )
+    assert.match(repositorySource, /lessons\.where\('moduleId'\)\.equals\(moduleId\)/)
+    assert.match(repositorySource, /const annualPlannedPeriods = module\.plannedPeriods/)
   }
 )
 
 
 test(
-  'annual warnings count persisted attendance only after the lesson is effectively taught, including future lessons submitted to GIAE',
+  'unit warnings count persisted attendance only after the lesson is effectively taught, including future lessons submitted to GIAE',
   () => {
     assert.match(
       repositorySource,

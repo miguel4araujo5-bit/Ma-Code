@@ -464,7 +464,7 @@ export class AttendanceWorkspaceRepository {
         )
       )
 
-    const alertRowsByAssignmentStudent =
+    const alertRowsByModuleStudent =
       new Map<
         string,
         AttendanceWorkspaceAlertRow
@@ -509,17 +509,17 @@ export class AttendanceWorkspaceRepository {
         }
 
         const key =
-          `${row.assignment.id}::${row.student.id}`
+          `${row.module.id}::${row.student.id}`
 
         const current =
-          alertRowsByAssignmentStudent.get(
+          alertRowsByModuleStudent.get(
             key
           )
 
         if (
           !current
         ) {
-          alertRowsByAssignmentStudent.set(
+          alertRowsByModuleStudent.set(
             key,
             nextRow
           )
@@ -569,7 +569,7 @@ export class AttendanceWorkspaceRepository {
         if (
           shouldReplace
         ) {
-          alertRowsByAssignmentStudent.set(
+          alertRowsByModuleStudent.set(
             key,
             nextRow
           )
@@ -579,7 +579,7 @@ export class AttendanceWorkspaceRepository {
 
     const alertRows =
       [
-        ...alertRowsByAssignmentStudent.values()
+        ...alertRowsByModuleStudent.values()
       ].sort(
         (
           left,
@@ -657,7 +657,7 @@ export class AttendanceWorkspaceRepository {
       }
     )
 
-    const absencesByStudent = new Map(await Promise.all(overview.map(async row => [row.student.id, await attendanceRepository.listRecoverableAbsences(selectedAssignment.id, row.student.id)] as const)))
+    const absencesByStudent = new Map(await Promise.all(overview.map(async row => [row.student.id, await attendanceRepository.listRecoverableAbsences(selectedAssignment.id, row.student.id, selectedModule.id)] as const)))
 
     const rows = overview
       .map(

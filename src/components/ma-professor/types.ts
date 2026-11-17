@@ -449,6 +449,7 @@ export interface StudentAbsenceSummary {
   lessonsTaught: number
   absences: number
   absencePercent: Percentage
+  // Totais derivados da unidade selecionada; nomes conservados para os consumidores existentes.
   annualAbsencePeriods?: number
   annualPlannedPeriods?: number
   warningLevel:
