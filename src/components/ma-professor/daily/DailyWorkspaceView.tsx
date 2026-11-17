@@ -425,8 +425,7 @@ function isDailyAssessmentEnabled(
         row.assessmentActivated ||
         Object.values(row.criterionScores).some(
             score => score.trim() !== ''
-        ) ||
-        Object.values(row.criterionScorePersisted).some(Boolean)
+        )
     );
 }
 
@@ -458,6 +457,19 @@ function buildActivatedStudentRows(
                 Boolean(row.criterionPreviousScores[criterion.id]?.trim())
             ])
         )
+    }));
+}
+
+function buildDeactivatedStudentRows(
+    rows: StudentEditorRow[]
+): StudentEditorRow[] {
+    return rows.map(row => ({
+        ...row,
+        assessmentActivated: false,
+        criterionScores: Object.fromEntries(
+            Object.keys(row.criterionScores).map(id => [id, ''])
+        ),
+        criterionScoreInherited: {}
     }));
 }
 
@@ -2152,8 +2164,9 @@ export default function DailyWorkspaceView({
                             description: ''
                         }
                     },
-                    assessmentEnabled && effectiveStatus !== 'cancelled' && criteria.length > 0
+                    (assessmentEnabled || students.some(row => Object.values(row.criterionScorePersisted).some(Boolean))) && effectiveStatus !== 'cancelled' && criteria.length > 0
                         ? {
+                            clear: !assessmentEnabled,
                             summary: lessonForm.summary,
                             activity: assessmentForm.description,
                             rows: students.map(row => ({
@@ -2693,14 +2706,15 @@ export default function DailyWorkspaceView({
         if (
             savingRef.current ||
             lessonForm?.status === 'cancelled' ||
-            criteria.length === 0 ||
-            assessmentEnabled
+            criteria.length === 0
         ) {
             return;
         }
 
         setStudents(current =>
-            buildActivatedStudentRows(current, criteria)
+            isDailyAssessmentEnabled(current)
+                ? buildDeactivatedStudentRows(current)
+                : buildActivatedStudentRows(current, criteria)
         );
     }
 

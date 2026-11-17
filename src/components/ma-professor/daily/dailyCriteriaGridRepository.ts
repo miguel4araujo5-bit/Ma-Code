@@ -52,6 +52,7 @@ export interface DailyCriteriaGridSaveRow {
 
 export interface DailyCriteriaGridSaveInput {
   lesson: Lesson
+  clear?: boolean
   summary: string
   activity: string
   rows: DailyCriteriaGridSaveRow[]
@@ -355,6 +356,16 @@ export class DailyCriteriaGridRepository {
           'Um dos alunos da grelha já não pertence a esta aula.'
         )
       }
+    }
+
+    if (input.clear) {
+      for (const { assessment } of workspace.assessments) {
+        if (isDailyGridAssessment(assessment)) {
+          await assessmentRepository.deleteLessonAssessment(assessment.id)
+        }
+      }
+
+      return this.getLessonGrid(input.lesson.id)
     }
 
     for (const row of input.rows) {
