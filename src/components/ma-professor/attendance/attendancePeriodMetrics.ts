@@ -134,8 +134,7 @@ export function getAttendanceWarningLevel({
       : 0
 
   const threshold = plannedPeriods * recoveryThresholdPercent / 100
-  if (normalizedAbsencePeriods > threshold + 1e-9) return 'recovery_required'
-  if (Math.abs(normalizedAbsencePeriods - threshold) < 1e-9) return 'limit_reached'
+  if (normalizedAbsencePeriods > 0 && normalizedAbsencePeriods >= threshold - 1e-9) return 'recovery_required'
   if (normalizedAbsencePeriods > 0 && threshold - normalizedAbsencePeriods <= 2 + 1e-9) return 'warning'
   return 'regular'
 }
