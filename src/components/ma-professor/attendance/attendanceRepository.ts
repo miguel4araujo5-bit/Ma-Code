@@ -60,7 +60,7 @@ export function getAbsenceWarningLevelLabel(
     warningLevel ===
     'recovery_required'
   ) {
-    return 'Limite ultrapassado'
+    return 'Recuperação necessária'
   }
 
   return getBaseAbsenceWarningLevelLabel(

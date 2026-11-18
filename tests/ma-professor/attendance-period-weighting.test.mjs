@@ -148,7 +148,7 @@ test(
 )
 
 test(
-  'reaching exactly ten percent reaches the limit without exceeding it',
+  'reaching exactly ten percent requires recovery without waiting for another absence',
   () => {
     const warningLevel =
       metrics.getAttendanceWarningLevel({
@@ -161,10 +161,32 @@ test(
 
     assert.equal(
       warningLevel,
-      'limit_reached'
+      'recovery_required'
     )
   }
 )
+
+test('recovery starts at the configured threshold, using unrounded periods and preserving warnings below it', () => {
+  for (const [plannedPeriods, absencePeriods, recoveryThresholdPercent, expected] of [
+    [60, 0, 10, 'regular'],
+    [60, 4, 10, 'warning'],
+    [60, 5, 10, 'warning'],
+    [60, 6, 10, 'recovery_required'],
+    [60, 7, 10, 'recovery_required'],
+    [50, 5, 10, 'recovery_required'],
+    [100, 10, 10, 'recovery_required'],
+    [25, 2, 10, 'warning'],
+    [25, 3, 10, 'recovery_required'],
+    [60, 11, 20, 'warning'],
+    [60, 12, 20, 'recovery_required'],
+    [0, 6, 10, 'regular']
+  ]) {
+    assert.equal(metrics.getAttendanceWarningLevel({
+      plannedPeriods, absencePeriods, recoveryThresholdPercent,
+      nextLessonPeriods: 1, warningPercent: 8
+    }), expected, `${absencePeriods}/${plannedPeriods} at ${recoveryThresholdPercent}%`)
+  }
+})
 
 test(
   'when the attendance record is corrected by the class director the unit percentage can return to zero',
@@ -222,7 +244,7 @@ test(
     )
     assert.match(
       repositorySource,
-      /return 'Limite ultrapassado'/
+      /return 'Recuperação necessária'/
     )
   }
 )

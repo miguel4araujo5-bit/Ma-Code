@@ -757,7 +757,7 @@ export default function AttendanceWorkspaceView({
               </h2>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                A percentagem é calculada separadamente sobre a carga total de cada UFCD, UC ou módulo. O aviso assinala a aproximação e a chegada ao limite. A recuperação é necessária quando as faltas ultrapassam {formatPercent(snapshot.settings.learningRecoveryThresholdPercent)}% dessa unidade.
+                A percentagem é calculada separadamente sobre a carga total de cada UFCD, UC ou módulo. O aviso assinala a aproximação ao limite. A recuperação é necessária quando as faltas atingem ou ultrapassam {formatPercent(snapshot.settings.learningRecoveryThresholdPercent)}% dessa unidade.
               </p>
             </div>
 
@@ -941,7 +941,7 @@ export default function AttendanceWorkspaceView({
             <MetricCard
               label="Atenção"
               value={snapshot.totals.warningCount}
-              detail="A duas faltas do limite, a uma falta ou com o limite atingido."
+              detail="A duas faltas do limite ou a uma falta."
               className="border-amber-300/15 bg-amber-300/[0.035]"
             />
 
@@ -951,7 +951,7 @@ export default function AttendanceWorkspaceView({
                 snapshot.totals
                   .recoveryRequiredCount
               }
-              detail={`Acima de ${formatPercent(
+              detail={`A partir de ${formatPercent(
                 snapshot.settings
                   .learningRecoveryThresholdPercent
               )}%.`}
