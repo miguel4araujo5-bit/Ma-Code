@@ -338,6 +338,11 @@ export class AttendanceRepository
   ) {
     await this.initialize()
 
+    const existingHistory = await listRecoveryHistory(input.moduleId, input.studentId)
+    if (existingHistory.some(recovery => Boolean((recovery as LearningRecoveryAttemptRecord).referredToExamAt))) {
+      throw new Error('Este aluno já foi encaminhado para exame nesta UFCD ou módulo. Não é possível criar outra recuperação.')
+    }
+
     return maProfessorDb.transaction(
       'rw',
       maProfessorDb.tables,
@@ -423,6 +428,9 @@ export class AttendanceRepository
     if (activeRecovery) return activeRecovery
 
     const moduleHistory = await listRecoveryHistory(moduleId, studentId)
+    if (moduleHistory.some(recovery => Boolean((recovery as LearningRecoveryAttemptRecord).referredToExamAt))) {
+      return moduleHistory.find(recovery => Boolean((recovery as LearningRecoveryAttemptRecord).referredToExamAt)) ?? null
+    }
     const latestCompleted = moduleHistory.filter(row => row.status === 'completed').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
     if (latestCompleted) {
       const absences = await this.listRecoverableAbsences(module.teachingAssignmentId, studentId, moduleId)
