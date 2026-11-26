@@ -36,9 +36,14 @@ function groupLabel(value: string) {
 }
 
 function readRows(items: PositionedText[], heading: PositionedText, group: string, page: number): HistoryRow[] {
-  const starts = column(items, 30, 114).filter(item => item.y > heading.y + 15 && item.y < 785 && parseDate(item.text))
+  const footer = items.find(item => item.y >= 790 &&
+    /^(?:Impresso em:|MALP\S*\s+Página\b|Página\s+\d+\s+de\b)/i.test(item.text))
+  const bodyEnd = footer?.y ?? 804
+  const starts = column(items, 30, 114).filter(item =>
+    item.y > heading.y + 15 && item.y < bodyEnd - 3 && parseDate(item.text)
+  )
   return starts.map((item, index) => {
-    const end = (starts[index + 1]?.y ?? 793) - 3
+    const end = (starts[index + 1]?.y ?? bodyEnd) - 3
     const row = items.filter(candidate => candidate.y >= item.y - 3 && candidate.y < end)
     const labels = lines(column(row, 29, 114)).slice(1)
     const numberLabel = labels.find(value => /^Lição\b/i.test(value))
