@@ -186,9 +186,14 @@ export function buildUfcdModuleAllocation(modules: ModuleUnit[], lessons: Lesson
 
 export function getLessonNumbering(lesson: Lesson, lessons: Lesson[]) {
   const previous = lessons.filter(candidate => candidate.teachingAssignmentId === lesson.teachingAssignmentId && candidate.academicYearId === lesson.academicYearId && lessonOccursBefore(candidate, lesson))
-  const first = previous.filter(lessonReservesUfcdPeriods).reduce((sum, candidate) => sum + candidate.periodCount, 0) + 1
+  const countable = previous.filter(lessonReservesUfcdPeriods).sort(compareLessonsChronologically)
+  const anchorIndex = countable.reduce((last, candidate, index) => candidate.officialLessonNumber ? index : last, -1)
+  const anchor = countable[anchorIndex]?.officialLessonNumber
+  const officialLast = anchor ? Number(anchor.match(/\d+$/)?.[0]) : 0
+  const first = (Number.isFinite(officialLast) ? officialLast : 0) +
+    countable.slice(anchorIndex + 1).reduce((sum, candidate) => sum + candidate.periodCount, 0) + 1
   return {
-    lessonNumber: lessonReservesUfcdPeriods(lesson) ? (lesson.periodCount > 1 ? `${first}–${first + lesson.periodCount - 1}` : String(first)) : null,
+    lessonNumber: lessonReservesUfcdPeriods(lesson) ? (lesson.officialLessonNumber || (lesson.periodCount > 1 ? `${first}–${first + lesson.periodCount - 1}` : String(first))) : null,
     lessonNumberConfirmed: lessonReservesUfcdPeriods(lesson) && lessonCountsTowardUfcdProgress(lesson),
     hasUnsubmittedLessons: previous.some(candidate => lessonReservesUfcdPeriods(candidate) && candidate.giaeStatus !== 'submitted')
   }

@@ -345,6 +345,7 @@ function AcademicYearSetup({
           startDate: form.startDate,
           endDate: form.endDate,
           active: true,
+          offerGiaeHistory: true,
           ...(needsCalendarReview
             ? { otherSchoolCalendarReview: 'pending' as const }
             : {})

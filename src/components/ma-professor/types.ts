@@ -31,6 +31,7 @@ export interface AcademicYear extends AuditFields {
   setupCompletedAt: ISODateTime | null
   // Opt-in for newly created Other school years. Absence preserves older data.
   otherSchoolCalendarReview?: 'pending' | 'confirmed'
+  giaeHistoryImport?: 'pending' | 'deferred' | 'completed'
 }
 
 export type EducationType =
@@ -283,6 +284,7 @@ export interface Lesson extends AuditFields {
   planificationItemIds: EntityId[]
   giaeStatus: GIAEStatus
   giaeSubmittedAt: ISODateTime | null
+  officialLessonNumber?: string
   notes: string
 }
 
