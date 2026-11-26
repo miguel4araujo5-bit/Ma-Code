@@ -13,6 +13,9 @@ import {
   AccountIsolationGate
 } from '../access/AccountIsolationGate'
 
+import GiaeHistoryOnboarding from '../giae/history/GiaeHistoryOnboarding'
+import { hasEarlierProfessionalLessons } from '../giae/history/giaeHistory'
+import { closeGiaeHistoryOffer } from '../giae/history/giaeHistoryRepository'
 import InitialSchoolCalendarBootstrap from '../calendar/InitialSchoolCalendarBootstrap'
 
 import DailyWorkspaceView from '../daily/DailyWorkspaceWithDuties'
@@ -655,7 +658,11 @@ function ProductContent() {
        * Esta é uma atualização de segundo plano.
        * Não deve desmontar o ecrã que estiver aberto.
        */
-      await refreshAcademicYear()
+      const refreshed = await refreshAcademicYear()
+      if (refreshed?.academicYear?.setupCompletedAt && !academicYear?.setupCompletedAt &&
+        refreshed.academicYear.giaeHistoryImport === 'pending' && refreshed.operationalReady) {
+        setWorkspace('daily')
+      }
     }
 
   useEffect(() => {
@@ -749,6 +756,37 @@ function ProductContent() {
     ) &&
     !showLoading
 
+  const [historyEligibleYear, setHistoryEligibleYear] = useState<string | null>(null)
+  const [historyCheckedYear, setHistoryCheckedYear] = useState<string | null>(null)
+  const [historyResumeYear, setHistoryResumeYear] = useState<string | null>(null)
+  const historyStatus = academicYear?.giaeHistoryImport
+  const historyYearId = academicYear?.id
+  useEffect(() => {
+    if (workspace !== 'daily' || !historyYearId || !operationalReady ||
+      (historyStatus !== 'pending' && historyStatus !== 'deferred')) return
+    let disposed = false
+    void maProfessorRepository.getSetupSnapshot(historyYearId).then(async snapshot => {
+      const eligible = hasEarlierProfessionalLessons(snapshot, getTodayISODate())
+      if (disposed) return
+      if (!eligible && historyStatus === 'pending') {
+        await closeGiaeHistoryOffer(historyYearId)
+        if (disposed) return
+      }
+      setHistoryEligibleYear(eligible ? historyYearId : null)
+      setHistoryCheckedYear(historyYearId)
+    }).catch(() => {
+      if (!disposed) setHistoryCheckedYear(historyYearId)
+    })
+    return () => { disposed = true }
+  }, [workspace, historyYearId, operationalReady, historyStatus])
+
+  const checkingHistory = workspace === 'daily' && Boolean(historyYearId) &&
+    historyStatus === 'pending' && operationalReady && historyCheckedYear !== historyYearId
+  const showHistory = workspace === 'daily' && Boolean(historyYearId) && historyEligibleYear === historyYearId &&
+    (historyStatus === 'pending' || (historyStatus === 'deferred' && historyResumeYear === historyYearId))
+  const showHistoryNotice = workspace === 'daily' && !showHistory && historyStatus === 'deferred' &&
+    Boolean(historyYearId) && historyEligibleYear === historyYearId
+
   const showSetupRequired =
     workspace !== 'menu' &&
     workspace !== 'backup' &&
@@ -834,12 +872,28 @@ function ProductContent() {
         </main>
       ) : null}
 
+      {checkingHistory && <p role="status" className="mx-auto max-w-3xl p-5 text-sm">A verificar o histórico letivo…</p>}
+      {showHistory && historyYearId && <GiaeHistoryOnboarding key={historyYearId} academicYearId={historyYearId}
+        onDone={async () => {
+          await refreshAcademicYear()
+          setHistoryResumeYear(null)
+        }}
+      />}
+      {showHistoryNotice && historyYearId && <aside className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-5 py-2 text-sm">
+        <span>Histórico de sumários e faltas por importar.</span>
+        <button type="button" className="font-semibold underline underline-offset-2" onClick={() => {
+          void (async () => {
+            if (!(await (dailyNavigationGuardRef.current?.() ?? Promise.resolve(true)))) return
+            setHistoryResumeYear(historyYearId)
+          })()
+        }}>Importar histórico</button>
+      </aside>}
       {workspace ===
         'daily' &&
       academicYear &&
       operationalReady &&
       dailyPreparationReady &&
-      !showLoading ? (
+      !showLoading && !checkingHistory && !showHistory ? (
         <DailyWorkspaceView
           key={`${dailyTarget.date ?? 'today'}-${
             dailyTarget.lessonId ??

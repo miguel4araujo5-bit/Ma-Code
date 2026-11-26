@@ -554,6 +554,7 @@ export class MAProfessorRepository {
       endDate: string
       active?: boolean
       otherSchoolCalendarReview?: 'pending'
+      offerGiaeHistory?: boolean
     }
   ) {
     await this.initialize()
@@ -608,6 +609,9 @@ export class MAProfessorRepository {
           active,
           setupCompletedAt:
             null,
+          ...(input.offerGiaeHistory && existingYears.length === 0
+            ? { giaeHistoryImport: 'pending' as const }
+            : {}),
           ...(input.otherSchoolCalendarReview === 'pending'
             ? { otherSchoolCalendarReview: 'pending' as const }
             : {})
